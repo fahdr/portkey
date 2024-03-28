@@ -10,10 +10,10 @@ export CSI_RBD_PROVISIONER_SECRET=AQC2eARm+YymARAAuFjCSC/WggLiIoGJtV5s6w==
 export CSI_RBD_PROVISIONER_SECRET_NAME=csi-rbd-provisioner
 export RBD_POOL_NAME=rook
 export RGW_POOL_PREFIX=default
-VALUES="values.yaml"
+VALUES="values-seed.yaml"
 
-kubectl get ingress gitea --namespace gitea \
-    || VALUES="values-seed.yaml"
+#kubectl get ingress gitea --namespace gitea \
+ #   || VALUES="values-seed.yaml"
 
 helm template \
     --include-crds \
