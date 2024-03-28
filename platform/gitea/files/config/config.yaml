@@ -16,7 +16,7 @@ repositories:
     owner: ops
     private: false
     migrate:
-      source: https://github.com/fahdr/homelab
+      source: https://github.com/fahdr/portkey
       mirror: false
   - name: blog
     owner: khuedoan
