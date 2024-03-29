@@ -17,8 +17,8 @@ terraform {
     }
 
     kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.9.0"
+      source = "hashicorp/kubernetes"
+      version = "2.27.0"
     }
 
     http = {
@@ -36,5 +36,5 @@ provider "cloudflare" {
 provider "kubernetes" {
   # Use KUBE_CONFIG_PATH environment variables
   # Or in cluster service account
-  config_path="/root/homelab/metal/kubeconfig.yaml"
+  config_path="/root/portkey/metal/kubeconfig.yaml"
 }
