@@ -128,12 +128,12 @@ app-template:
                 description: Internal network speed test
                 icon: openspeedtest.png
         bookmarks.yaml: |
-          - Homelab:
+          - Portkey:
             - Documentation:
-              - href: https://homelab.themainfreak.com
+              - href: https://portkey.themainfreak.com
                 icon: google-docs.svg
-            - Public homelab repository:
-              - href: https://github.com/khuedoan/homelab
+            - Public portkey repository:
+              - href: https://github.com/fahdr/portkey
                 icon: github.svg
           - Managed services:
             - Cloudflare:

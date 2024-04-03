@@ -38,8 +38,8 @@ tools:
 		--volume $(shell pwd):$(shell pwd) \
 		--volume ${HOME}/.ssh:/root/.ssh \
 		--volume ${HOME}/.terraform.d:/root/.terraform.d \
-		--volume homelab-tools-cache:/root/.cache \
-		--volume homelab-tools-nix:/nix \
+		--volume portkey-tools-cache:/root/.cache \
+		--volume portkey-tools-nix:/nix \
 		--workdir $(shell pwd) \
 		docker.io/nixos/nix sh -c "env NIXPKGS_ALLOW_UNFREE=1 nix --experimental-features 'nix-command flakes' develop --impure"
 

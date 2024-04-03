@@ -1,4 +1,4 @@
-module git.themainfreak.com/khuedoan/homelab/platform/secret-generator
+module git.themainfreak.com/fahdr/portkey/platform/secret-generator
 
 go 1.19
 

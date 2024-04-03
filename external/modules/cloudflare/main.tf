@@ -9,9 +9,9 @@ resource "random_password" "tunnel_secret" {
   special = false
 }
 
-resource "cloudflare_argo_tunnel" "homelab" {
+resource "cloudflare_argo_tunnel" "portkey" {
   account_id = var.cloudflare_account_id
-  name       = "homelab"
+  name       = "portkey"
   secret     = base64encode(random_password.tunnel_secret.result)
 }
 
@@ -19,8 +19,8 @@ resource "cloudflare_argo_tunnel" "homelab" {
 resource "cloudflare_record" "tunnel" {
   zone_id = data.cloudflare_zone.zone.id
   type    = "CNAME"
-  name    = "homelab-tunnel"
-  value   = "${cloudflare_argo_tunnel.homelab.id}.cfargotunnel.com"
+  name    = "portkey-tunnel"
+  value   = "${cloudflare_argo_tunnel.portkey.id}.cfargotunnel.com"
   proxied = false
   ttl     = 1 # Auto
 }
@@ -38,15 +38,15 @@ resource "kubernetes_secret" "cloudflared_credentials" {
   data = {
     "credentials.json" = jsonencode({
       AccountTag   = var.cloudflare_account_id
-      TunnelName   = cloudflare_argo_tunnel.homelab.name
-      TunnelID     = cloudflare_argo_tunnel.homelab.id
+      TunnelName   = cloudflare_argo_tunnel.portkey.name
+      TunnelID     = cloudflare_argo_tunnel.portkey.id
       TunnelSecret = base64encode(random_password.tunnel_secret.result)
     })
   }
 }
 
 resource "cloudflare_api_token" "external_dns" {
-  name = "homelab_external_dns"
+  name = "portkey_external_dns"
 
   policy {
     permission_groups = [
@@ -75,7 +75,7 @@ resource "kubernetes_secret" "external_dns_token" {
 }
 
 resource "cloudflare_api_token" "cert_manager" {
-  name = "homelab_cert_manager"
+  name = "portkey_cert_manager"
 
   policy {
     permission_groups = [

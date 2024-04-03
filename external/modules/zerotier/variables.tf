@@ -13,13 +13,13 @@ variable "zerotier_central_token" {
 variable "name" {
   description = "Network name"
   type        = string
-  default     = "homelab"
+  default     = "portkey"
 }
 
 variable "description" {
   description = "Network description"
   type        = string
-  default     = "Homelab network"
+  default     = "portkey network"
 }
 
 variable "managed_route" {

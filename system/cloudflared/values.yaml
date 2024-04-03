@@ -2,7 +2,7 @@ cloudflared:
   credentials:
     existingSecret: cloudflared-credentials
   config:
-    tunnel: homelab
+    tunnel: portkey
     ingress:
       - hostname: '*.themainfreak.com'
         service: https://ingress-nginx-controller.ingress-nginx

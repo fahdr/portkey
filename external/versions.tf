@@ -6,7 +6,7 @@ terraform {
     organization = "themainfreak"
 
     workspaces {
-      name = "homelab-external"
+      name = "portkey-external"
     }
   }
 

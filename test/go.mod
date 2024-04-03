@@ -1,4 +1,4 @@
-module git.khuedoan.com/ops/homelab
+module git.themainfreak.com/ops/portkey
 
 go 1.21
 

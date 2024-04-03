@@ -4,7 +4,7 @@ elementweb:
     className: nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/target: "homelab-tunnel.themainfreak.com"
+      external-dns.alpha.kubernetes.io/target: "portkey-tunnel.themainfreak.com"
       external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
     hosts:
       - host: &frontend_host chat.themainfreak.com
@@ -68,7 +68,7 @@ dendrite:
     className: nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/target: "homelab-tunnel.themainfreak.com"
+      external-dns.alpha.kubernetes.io/target: "portkey-tunnel.themainfreak.com"
       external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
       nginx.ingress.kubernetes.io/proxy-body-size: 32m
     hosts:
