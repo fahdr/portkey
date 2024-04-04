@@ -12,7 +12,7 @@ metal:
         metal2: {ansible_host: 192.168.0.10, mac: 'bc:24:11:c8:ae:95', disk: sda, network_interface: ens18}
     workers:
       hosts:
-        #metal3: {ansible_host: 192.168.0.8, mac: 'BC:24:11:5E:6D:4F', disk: sda, network_interface: ens18}
-        #metal4: {ansible_host: 192.168.0.9, mac: 'BC:24:11:B2:CE:03', disk: sda, network_interface: ens18}
-        metal5: {ansible_host: 192.168.0.11, mac: 'bc:24:11:5a:10:8b', disk: sda, network_interface: ens18}
+        metal4: {ansible_host: 192.168.0.11, mac: 'bc:24:11:5a:10:8b', disk: sda, network_interface: ens18}
+        metal5: {ansible_host: 192.168.0.12, mac: 'BC:24:11:AE:97:ED', disk: sda, network_interface: ens18}
+        #metal6: {ansible_host: 192.168.0.13, mac: 'BC:24:11:5E:6D:4F', disk: sda, network_interface: ens18}
    
