@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VALUES="values-seed.yaml"
+VALUES="values.yaml"
 
 kubectl get ingress argocd-server --namespace argocd \
     || VALUES="values-seed.yaml"
