@@ -6,3 +6,15 @@
     - {name: "fs.inotify.max_queued_events", value: 16384}
     - {name: "fs.inotify.max_user_instances", value: 8192}
     - {name: "fs.inotify.max_user_watches", value: 524288}
+
+- name: Install qemu guest agent for Proxmox
+  ansible.builtin.yum:
+    name: qemu-guest-agent
+    state: present
+    
+  
+
+- name: Ensure qemu guest agent service is started for Proxmox
+  ansible.builtin.systemd_service:
+    state: started
+    name: qemu-guest-agent
