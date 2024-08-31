@@ -110,8 +110,9 @@ app-template:
             - *jellyseerrHost
   persistence:
     data:
-      accessMode: ReadWriteOnce
-      size: 50Gi
+      type: nfs
+      server: 192.168.0.41
+      path: /nfs/plex
       advancedMounts:
         main:
           main:
