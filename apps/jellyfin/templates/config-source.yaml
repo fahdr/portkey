@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prowlarr-torrentio-config
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "files/config/*").AsConfig | indent 2 }}
