@@ -18,3 +18,8 @@
   ansible.builtin.systemd_service:
     state: started
     name: qemu-guest-agent
+
+- name: Install nfs-utils
+  ansible.builtin.yum:
+    name: nfs-utils
+    state: present
