@@ -115,7 +115,7 @@ app-template:
       advancedMounts:
         main:
           prowlarr:
-            - path: /config/Definitions/Custom/torrentio.yml
+            - path: /config/Definitions/Custom
     nfs-data:
       type: nfs
       server: 192.168.0.41
