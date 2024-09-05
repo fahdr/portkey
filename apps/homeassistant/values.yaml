@@ -1,6 +1,7 @@
 app-template:
   controllers:
     main:
+      type: statefulset
       containers:
         main:
           image:
@@ -39,6 +40,8 @@ app-template:
   persistence:
     config:
       accessMode: ReadWriteOnce
+      enabled: true
+      type: persistentVolumeClaim
       size: 2Gi
       globalMounts:
         - path: /config
