@@ -1,4 +1,11 @@
 app-template:
+  defaultPodOptions:
+    automountServiceAccountToken: false
+    securityContext:
+      runAsUser: 568
+      runAsGroup: 568
+      fsGroup: 568
+      fsGroupChangePolicy: "OnRootMismatch"
   controllers:
     main:
       type: statefulset
@@ -13,12 +20,38 @@ app-template:
           envFrom:
             - secretRef:
                 name: "{{ .Release.Name }}-secret"
+        code:
+          dependsOn: main
+          image:
+            # -- image repository
+            repository: ghcr.io/coder/code-server
+            # -- image tag
+            # this example is not automatically updated, so be sure to use the latest image
+            tag: 4.92.2
+          args:
+            - --auth
+            - "none"
+            - --user-data-dir
+            - "/config/.vscode"
+            - --extensions-dir
+            - "/config/.vscode"
+            - --port
+            - "8081"
+            - "/config"
   service:
     main:
+      type: ClusterIP
+      controller: main
       ports:
         http:
           port: 8123
           protocol: HTTP
+    code:
+      type: ClusterIP
+      controller: main
+      ports:
+        http:
+          port: 8081
   ingress:
     main:
       enabled: true
@@ -36,7 +69,24 @@ app-template:
       tls:
         - hosts:
             - *host
-          secretName: homepage-tls-certificate
+          secretName: homeassistant-tls-certificate
+    code:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: &host hass-code.themainfreak.com
+          paths:
+            - path: /
+              pathType: Prefix
+              service:
+                name: code
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: homeassistant-code-tls-certificate
   persistence:
     config:
       accessMode: ReadWriteOnce
