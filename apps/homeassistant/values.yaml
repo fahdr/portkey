@@ -1,0 +1,55 @@
+app-template:
+  controllers:
+    main:
+      containers:
+        main:
+          image:
+            repository: ghcr.io/onedr0p/home-assistant
+            tag: 2024.9.0@sha256:eb99ee60ea35b37c5f90d79c74c7efcc4cdf611b04eaccf0ed9741e3eb9f1f12
+          env:
+            TZ: Asia/Dubai
+          envFrom:
+            - secretRef:
+                name: home-assistant-secret
+  service:
+    main:
+      ports:
+        http:
+          port: 8123
+          protocol: HTTP
+  ingress:
+    main:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: &host hass.themainfreak.com
+          paths:
+            - path: /
+              pathType: Prefix
+              service:
+                name: main
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: homepage-tls-certificate
+  persistence:
+    config:
+      accessMode: ReadWriteOnce
+      size: 2Gi
+      globalMounts:
+        - path: /config
+    logs:
+      type: emptyDir
+      globalMounts:
+        - path: /config/logs
+    tts:
+      type: emptyDir
+      globalMounts:
+        - path: /config/tts
+    tmp:
+      type: emptyDir
+      globalMounts:
+        - path: /tmp
