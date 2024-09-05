@@ -37,3 +37,10 @@
     - key: PAPERLESS_ADMIN_PASSWORD
       length: 32
       special: true
+
+# homeassistant
+- name: home-assistant
+  data:
+    - key: home-assistant
+      length: 32
+      special: true
