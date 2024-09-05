@@ -8,6 +8,7 @@ app-template:
             tag: 2024.9.0@sha256:eb99ee60ea35b37c5f90d79c74c7efcc4cdf611b04eaccf0ed9741e3eb9f1f12
           env:
             TZ: Asia/Dubai
+            HASS_HTTP_TRUSTED_PROXY_1: 10.0.1.1/24
           envFrom:
             - secretRef:
                 name: "{{ .Release.Name }}-secret"
