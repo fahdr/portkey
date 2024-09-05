@@ -110,7 +110,7 @@ app-template:
 
     backup:
       type: nfs
-      server: 192.168..0.41
+      server: 192.168.0.41
       path: /nfs/backups/homeassistant
       globalMounts:
         - path: /config/backups
