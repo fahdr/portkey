@@ -4,6 +4,8 @@ kind: List
 metadata:
   name: {{ .Values.webhookConfiguration.name }}
   labels: {{- include "akri.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-apiserver-ca: "true"
 items:
   - apiVersion: v1
     kind: ServiceAccount
