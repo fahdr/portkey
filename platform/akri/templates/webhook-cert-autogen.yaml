@@ -1,4 +1,4 @@
-{{- if and .Values.webhookConfiguration.enabled (not .Values.webhookConfiguration.caBundle) -}}
+{{- if and .Values.webhookConfiguration.enabled (.Values.webhookConfiguration.caBundle) -}}
 {{- if .Values.rbac.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
