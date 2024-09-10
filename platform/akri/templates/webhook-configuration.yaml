@@ -4,8 +4,6 @@ kind: List
 metadata:
   name: {{ .Values.webhookConfiguration.name }}
   labels: {{- include "akri.labels" . | nindent 4 }}
-  annotations:
-    cert-manager.io/inject-apiserver-ca: "true"
 items:
   - apiVersion: v1
     kind: ServiceAccount
@@ -138,6 +136,8 @@ items:
       labels: {{- include "akri.labels" . | nindent 8 }}
         app.kubernetes.io/name: {{ .Values.webhookConfiguration.name }}
         app.kubernetes.io/component: admission-webhook
+      annotations:
+        cert-manager.io/inject-ca-from-secret: akri/{{ .Values.webhookConfiguration.name }}
     webhooks:
       - name: {{ .Values.webhookConfiguration.name }}.{{ .Release.Namespace }}.svc
         clientConfig:
