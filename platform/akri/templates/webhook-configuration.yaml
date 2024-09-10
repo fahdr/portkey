@@ -146,7 +146,7 @@ items:
             namespace: {{ .Release.Namespace }}
             port: 443
             path: "/validate"
-          {{- if .Values.webhookConfiguration.caBundle }}
+          {{- if not eq .Values.webhookConfiguration.caBundle "cert-manager" }}
           caBundle: {{ .Values.webhookConfiguration.caBundle }}
           {{- end }}
         rules:
