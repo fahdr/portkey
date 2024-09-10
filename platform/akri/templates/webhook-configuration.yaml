@@ -146,7 +146,8 @@ items:
             namespace: {{ .Release.Namespace }}
             port: 443
             path: "/validate"
-          {{- if not eq .Values.webhookConfiguration.caBundle "cert-manager" }}
+          # if the caBundle is set to "cert-manager", the cert-manager CA will be used. Do not set caBundle in this case.
+          {{- if ne .Values.webhookConfiguration.caBundle "cert-manager" }}
           caBundle: {{ .Values.webhookConfiguration.caBundle }}
           {{- end }}
         rules:
