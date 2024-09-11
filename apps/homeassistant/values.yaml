@@ -22,6 +22,12 @@ app-template:
           envFrom:
             - secretRef:
                 name: "{{ .Release.Name }}-secret"
+          resources:
+            limits:
+              akri.sh/akri-bluetooth: "1"
+            requests:
+              akri.sh/akri-bluetooth: "1"
+      
         code:
           dependsOn: main
           image:
