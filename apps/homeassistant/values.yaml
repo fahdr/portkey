@@ -122,3 +122,7 @@ app-template:
       path: /nfs/backups/homeassistant
       globalMounts:
         - path: /config/backups
+    bluetooth:
+      enabled: true
+      type: hostPath
+      hostPath: /run/dbus
