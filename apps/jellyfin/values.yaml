@@ -29,6 +29,10 @@ app-template:
           image:
             repository: docker.io/fallenbagel/jellyseerr
             tag: 1.7.0
+        lidarr:
+          image:
+            repository: lscr.io/linuxserver/lidarr
+            tag: 2.6.4.4402-ls14
   service:
     main:
       ports:
@@ -49,6 +53,9 @@ app-template:
           protocol: HTTP
         jellyseerr:
           port: 5055
+          protocol: HTTP
+        lidarr:
+          port: 8686
           protocol: HTTP
   ingress:
     main:
@@ -99,6 +106,13 @@ app-template:
               service:
                 name: main
                 port: jellyseerr
+        - host: &lidarrHost lidarr.themainfreak.com
+          paths:
+            - path: /
+              pathType: Prefix
+              service:
+                name: main
+                port: lidarr
       tls:
         - secretName: jellyfin-tls-certificate
           hosts:
@@ -108,6 +122,7 @@ app-template:
             - *radarrHost
             - *sonarrHost
             - *jellyseerrHost
+            - *lidarrHost
   persistence:
     prowlarr-torrentio-config:
       type: configMap
@@ -154,3 +169,8 @@ app-template:
           jellyseerr:
             - path: /app/config
               subPath: jellyseerr/config
+          lidarr:
+            - path: /config
+              subPath: lidarr/config
+            - path: /downloads/complete
+              subPath: transmission/downloads/complete
