@@ -188,3 +188,6 @@ app-template:
               subPath: lidarr/custom-services.d
             - path: /custom-cont-init.d
               subPath: lidarr/custom-cont-init.d
+          steroids:
+            - path: /custom-cont-init.d
+              subPath: steroids/custom-cont-init.d
