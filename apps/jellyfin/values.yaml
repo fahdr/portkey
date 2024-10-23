@@ -33,6 +33,16 @@ app-template:
           image:
             repository: lscr.io/linuxserver/lidarr
             tag: 2.6.4.4402-ls14
+      initContainers:
+        main:
+          image:
+            repository: busybox
+            tag: 1.33.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              wget https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/scripts_init.bash -O /custom-cont-init.d/scripts_init.bash
   service:
     main:
       ports:
@@ -174,3 +184,7 @@ app-template:
               subPath: lidarr/config
             - path: /downloads/complete
               subPath: transmission/downloads/complete
+            - path: /custom-services.d
+              subPath: lidarr/custom-services.d
+            - path: /custom-cont-init.d
+              subPath: lidarr/custom-cont-init.d
