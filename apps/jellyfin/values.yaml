@@ -34,7 +34,7 @@ app-template:
             repository: lscr.io/linuxserver/lidarr
             tag: 2.6.4.4402-ls14
       initContainers:
-        main:
+        steroids:
           image:
             repository: busybox
             tag: 1.33.1
