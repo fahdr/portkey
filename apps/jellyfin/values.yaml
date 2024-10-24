@@ -182,6 +182,8 @@ app-template:
           lidarr:
             - path: /config
               subPath: lidarr/config
+            - path: /music
+              subPath: music
             - path: /downloads/complete
               subPath: transmission/downloads/complete
             - path: /custom-services.d
