@@ -22,7 +22,7 @@ app-template:
           ND_ENABLESHARING: "false"
           ND_ENABLESTARRATING: "false"
           ND_LOGLEVEL: info
-          ND_MUSICFOLDER: /music/
+          ND_MUSICFOLDER: /music
           ND_PORT: &port 4533
           ND_SCANSCHEDULE: 30m
 
@@ -44,42 +44,42 @@ app-template:
           limits:
             memory: 799M
 
-    service:
-      app:
-        controller: navidrome
-        ports:
-          http:
-            port: *port
+  service:
+    app:
+      controller: navidrome
+      ports:
+        http:
+          port: *port
 
-    ingress:
-      app:
-        className: nginx
-        annotations:
-          cert-manager.io/cluster-issuer: letsencrypt-prod
-        hosts:
-          - host: &host navidrome.themainfreak.com
-            paths:
-              - path: /
-                service:
-                  identifier: app
-                  port: http
-        tls:
-          - hosts:
-              - *host
-            secretName: navidrome-tls-certificate
+  ingress:
+    app:
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: &host navidrome.themainfreak.com
+          paths:
+            - path: /
+              service:
+                identifier: app
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: navidrome-tls-certificate
 
-    persistence:
-      data:
-        accessMode: ReadWriteOnce
-        enabled: true
-        type: persistentVolumeClaim
-        size: 1Gi
+  persistence:
+    data:
+      accessMode: ReadWriteOnce
+      enabled: true
+      type: persistentVolumeClaim
+      size: 1Gi
 
-      media:
-        type: nfs
-        server: 192.168.0.41
-        path: /nfs/plex
-        globalMounts:
-          - path: /music
+    media:
+      type: nfs
+      server: 192.168.0.41
+      path: /nfs/plex
+      globalMounts:
+        - path: /music
 
 
