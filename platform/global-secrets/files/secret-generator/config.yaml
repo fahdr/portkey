@@ -44,3 +44,18 @@
     - key: home-assistant
       length: 32
       special: true
+
+- name: vaultwarden
+  data:
+    - key: POSTGRES_USER
+      length: 8
+      special: false
+    - key: POSTGRES_PASS
+      length: 32
+      special: true
+    - key: POSTGRES_SUPER_PASS
+      length: 32
+      special: true
+    - key: VAULTWARDEN_ADMIN_TOKEN
+      length: 32
+      special: true
