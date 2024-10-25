@@ -65,6 +65,7 @@ app-template:
       config:
         enabled: true
         type: persistentVolumeClaim
+        accessMode: ReadWriteOnce
         size: 1Gi
         globalMounts:
           - path: /data
