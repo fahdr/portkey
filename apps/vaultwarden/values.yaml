@@ -50,7 +50,7 @@ app-template:
           cert-manager.io/cluster-issuer: letsencrypt-prod
 
         hosts:
-          - host: &host pass.the.mainfreak.com
+          - host: &host vaultwarden.themainfreak.com
             paths:
               - path: /
                 service:
@@ -59,7 +59,7 @@ app-template:
         tls:
           - hosts:
               - *host
-            secretName: navidrome-tls-certificate
+            secretName: vaultwarden-tls-certificate
 
   persistence:
       config:
