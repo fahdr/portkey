@@ -1,0 +1,71 @@
+app-template:
+  controllers:
+      vaultwarden:
+        initContainers:
+          init-db:
+            image:
+              repository: ghcr.io/onedr0p/postgres-init
+              tag: 16
+            envFrom: &envFrom
+              - secretRef:
+                  name: vaultwarden-secret
+        containers:
+          app:
+            image:
+              repository: vaultwarden/server
+              tag: 1.32.2@sha256:c07f5319d20bdbd58a19d7d779a1e97159ce25cb95572baa947c70f58589937c
+            env:
+              DATA_FOLDER: data
+              ICON_CACHE_FOLDER: data/icon_cache
+              ATTACHMENTS_FOLDER: data/attachments
+              DOMAIN: "pass.the.mainfreak.com"
+              TZ: "Asia/Dubai"
+              SIGNUPS_ALLOWED: "false"
+              WEBSOCKET_ENABLED: "true"
+              WEBSOCKET_ADDRESS: 0.0.0.0
+              WEBSOCKET_PORT: 3012
+              SMTP_HOST: smtp-relay.default.svc.cluster.local.
+              SMTP_FROM: vaultwarden@themainfreak.com
+              SMTP_FROM_NAME: vaultwarden
+              SMTP_PORT: 2525
+              SMTP_SECURITY: "off"
+            envFrom: *envFrom
+            resources:
+              requests:
+                cpu: 100m
+                memory: 100Mi
+              limits:
+                memory: 2Gi
+  service:
+      app:
+        controller: vaultwarden
+        ports:
+          http:
+            port: &port 80
+  ingress:
+      app:
+        enabled: true
+        className: nginx
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+
+        hosts:
+          - host: &host vaultwarden.themainfreak.com
+            paths:
+              - path: /
+                service:
+                  identifier: app
+                  port: *port
+        tls:
+          - hosts:
+              - *host
+            secretName: vaultwarden-tls-certificate
+
+  persistence:
+      config:
+        enabled: true
+        type: persistentVolumeClaim
+        accessMode: ReadWriteOnce
+        size: 1Gi
+        globalMounts:
+          - path: /data
