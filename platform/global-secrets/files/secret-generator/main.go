@@ -79,6 +79,7 @@ func createOrUpdateSecret(client *kubernetes.Clientset, name string, randomSecre
 			}
 
 			secretData[randomPassword.Key] = []byte(password)
+			log.Printf("Generated password for key '%s' is '%s'", randomPassword.Key, password)
 		}
 
 		newSecret := &v1.Secret{
