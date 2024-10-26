@@ -29,7 +29,9 @@ app-template:
               SMTP_FROM_NAME: vaultwarden
               SMTP_PORT: 2525
               SMTP_SECURITY: "off"
-            envFrom: *envFrom
+            envFrom:
+              - secretRef:
+                  name: vaultwarden-secret
             resources:
               requests:
                 cpu: 100m
