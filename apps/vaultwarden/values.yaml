@@ -18,7 +18,7 @@ app-template:
               DATA_FOLDER: data
               ICON_CACHE_FOLDER: data/icon_cache
               ATTACHMENTS_FOLDER: data/attachments
-              DOMAIN: "pass.the.mainfreak.com"
+              DOMAIN: "https://vaultwarden.themainfreak.com"
               TZ: "Asia/Dubai"
               SIGNUPS_ALLOWED: "false"
               WEBSOCKET_ENABLED: "true"
