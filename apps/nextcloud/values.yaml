@@ -33,11 +33,8 @@ nextcloud:
         location ~ ^/(?:autotest|occ|issue|indie|db_|console) {
           deny all;
         }
-    hosts:
-      - host: &host nextcloud.themainfreak.com
-        paths:
-          - path: /
-            pathType: Prefix
+    path: /
+    pathType: Prefix
     tls:
       - hosts:
           - *host
