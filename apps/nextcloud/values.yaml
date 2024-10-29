@@ -44,4 +44,4 @@ nextcloud:
         secretName: "nextcloud-tls-certificate"
   persistence:
     enabled: true
-    accessMode: ReadWriteMany
+    accessMode: ReadWriteOnce
