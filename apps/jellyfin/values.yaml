@@ -182,7 +182,7 @@ app-template:
               subPath: radarr/config
             - path: /downloads/complete
               subPath: transmission/downloads/complete
-            - path: /downloads/complete
+            - path: /downloads/rdtclient/complete
               subPath: rdtclient/downloads/complete
             - path: /movies
               subPath: movies
@@ -191,7 +191,7 @@ app-template:
               subPath: sonarr/config
             - path: /downloads/complete
               subPath: transmission/downloads/complete
-            - path: /downloads/complete
+            - path: /downloads/rdtclient/complete
               subPath: rdtclient/downloads/complete
             - path: /shows
               subPath: shows
@@ -205,7 +205,7 @@ app-template:
               subPath: music
             - path: /downloads/complete
               subPath: transmission/downloads/complete
-            - path: /downloads/complete
+            - path: /downloads/rdtclient/complete
               subPath: rdtclient/downloads/complete
             - path: /custom-services.d
               subPath: lidarr/custom-services.d
