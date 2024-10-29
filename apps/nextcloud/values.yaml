@@ -33,12 +33,12 @@ nextcloud:
         location ~ ^/(?:autotest|occ|issue|indie|db_|console) {
           deny all;
         }
+      tls:
+        - hosts:
+            - *host
+          secretName: "nextcloud-tls-certificate"
     path: /
     pathType: Prefix
-    tls:
-      - hosts:
-          - *host
-        secretName: "nextcloud-tls-certificate"
   persistence:
     enabled: true
     accessMode: ReadWriteOnce
