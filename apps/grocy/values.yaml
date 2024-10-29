@@ -25,7 +25,7 @@ app-template:
       controller: grocy
       ports:
         http:
-          port: *port
+          port: 9283
 
   ingress:
     grocy:
