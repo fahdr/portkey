@@ -1,0 +1,63 @@
+app-template:
+  controllers:
+    grocy:
+      containers:
+        grocy:
+          image:
+            repository: lscr.io/linuxserver/grocy
+            tag: "4.2.0-ls270"
+
+          env:
+            TZ: Asia/Dubai
+            PUID: 1000
+            PGID: 1000
+            APPDATA: /config
+
+          resources:
+            requests:
+              cpu: 5m
+              memory: 799M
+            limits:
+              memory: 799M
+
+  service:
+    grocy:
+      controller: grocy
+      ports:
+        http:
+          port: *port
+
+  ingress:
+    grocy:
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: &host grocy.themainfreak.com
+          paths:
+            - path: /
+              service:
+                identifier: grocy
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: grocy-tls-certificate
+
+  persistence:
+    data:
+      accessMode: ReadWriteOnce
+      enabled: true
+      type: persistentVolumeClaim
+      size: 1Gi
+      globalMounts:
+        - path: /config
+
+    # media:
+    #   type: nfs
+    #   server: 192.168.0.41
+    #   path: /nfs/plex
+    #   globalMounts:
+    #     - path: /music
+
+
