@@ -1,5 +1,6 @@
 nextcloud:
-  host: nextcloud.themainfreak.com
+  nextcloud:
+    host: nextcloud.themainfreak.com
   ingress:
     enabled: true
     className: nginx
