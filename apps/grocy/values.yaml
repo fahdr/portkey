@@ -5,7 +5,7 @@ app-template:
         grocy:
           image:
             repository: lscr.io/linuxserver/grocy
-            tag: "4.2.0-ls270"
+            tag: "v4.2.0-ls270"
 
           env:
             TZ: Asia/Dubai
