@@ -35,8 +35,8 @@ nextcloud:
         }
       tls:
         - hosts:
-            - *host
-          secretName: "nextcloud-tls-certificate"
+            - nextcloud.themainfreak.com
+          secretName: nextcloud-tls-certificate
     path: /
     pathType: Prefix
   persistence:
