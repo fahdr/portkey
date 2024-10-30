@@ -1,11 +1,15 @@
 nextcloud:
   nextcloud:
     host: nextcloud.themainfreak.com
+    datadir: /var/www/data
     extraVolumes:
     - name: nfs-data
       nfs:
         server: 192.168.0.41
         path: /nfs/nextcloud
+    extraVolumeMounts:
+    - name: nfs-data
+      mountPath: "/var/www/data"
   ingress:
     enabled: true
     className: nginx
