@@ -1,6 +1,11 @@
 nextcloud:
   nextcloud:
     host: nextcloud.themainfreak.com
+    extraVolumes:
+    - name: nfs-data
+      nfs:
+        server: 192.168.0.41
+        path: /nfs/nextcloud
   ingress:
     enabled: true
     className: nginx
@@ -46,9 +51,4 @@ nextcloud:
   persistence:
     enabled: true
     accessMode: ReadWriteOnce
-    nextcloudData:
-      enabled: true
-      type: nfs
-      server: 192.168.0.41
-      path: /nfs/nextcloud
       
