@@ -1,7 +1,7 @@
 nextcloud:
   nextcloud:
     host: nextcloud.themainfreak.com
-    datadir: /var/www/data
+    datadir: /data
     # extraVolumes:
     # - name: nfs-data
     #   nfs:
