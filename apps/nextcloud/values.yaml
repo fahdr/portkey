@@ -52,7 +52,7 @@ nextcloud:
       - hosts:
           - nextcloud.themainfreak.com
         secretName: "nextcloud-tls-certificate"
-  persistence:
-    enabled: true
-    accessMode: ReadWriteOnce
+  # persistence:
+  #   enabled: true
+  #   accessMode: ReadWriteOnce
       
