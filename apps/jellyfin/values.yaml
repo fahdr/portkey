@@ -9,34 +9,74 @@ app-template:
           image:
             repository: docker.io/jellyfin/jellyfin
             tag: 10.8.13
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 16Gi
         transmission:
           image:
             repository: lscr.io/linuxserver/transmission
             tag: 4.0.5
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
         prowlarr:
           image:
             repository: lscr.io/linuxserver/prowlarr
             tag: 1.13.3
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
         radarr:
           image:
             repository: lscr.io/linuxserver/radarr
             tag: 5.3.6
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
         sonarr:
           image:
             repository: lscr.io/linuxserver/sonarr
             tag: 4.0.2
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
         jellyseerr:
           image:
             repository: docker.io/fallenbagel/jellyseerr
             tag: 1.7.0
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
         lidarr:
           image:
             repository: lscr.io/linuxserver/lidarr
             tag: 2.6.4.4402-ls14
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
         rdtclient:
           image:
             repository: rogerfar/rdtclient
             tag: latest
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
       initContainers:
         steroids:
           image:
@@ -169,6 +209,8 @@ app-template:
               subPath: movies
             - path: /media/shows
               subPath: shows
+            - path: /media/music
+              subPath: music
           transmission:
             - path: /config
               subPath: transmission/config
@@ -212,7 +254,7 @@ app-template:
             - path: /custom-cont-init.d
               subPath: steroids/custom-cont-init.d
           rdtclient:
-            - path: /db
+            - path: /data/db
               subPath: rdtclient/db
             - path: /downloads/complete
               subPath: rdtclient/downloads/complete
