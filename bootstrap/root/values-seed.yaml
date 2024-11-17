@@ -1,2 +1,9 @@
 gitops:
   repo: https://github.com/fahdr/portkey
+stacks:
+  - name: bootstrap
+    namespace: argocd  # Override default value
+  - name: system
+  - name: platform
+  - name: apps
+
