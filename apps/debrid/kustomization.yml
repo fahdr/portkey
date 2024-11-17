@@ -1,0 +1,4 @@
+configmapGenerator:
+- name: zurg-config
+  files:
+    - zurg-config.yaml
