@@ -1,5 +1,6 @@
 gitops:
-  repo: http://gitea-http.gitea:3000/ops/portkey
+  #repo: http://gitea-http.gitea:3000/ops/portkey
+  repo: https://github.com/fahdr/portkey
   revision: master
 stacks:
   - name: bootstrap
