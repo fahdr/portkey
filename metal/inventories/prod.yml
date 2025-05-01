@@ -7,8 +7,11 @@ metal:
   children:
     masters:
       hosts:
+        # mirkwood
         metal0: {ansible_host: 192.168.0.11, mac: 'bc:24:11:ad:b2:f3', disk: sda, network_interface: ens18}
+        # rohan
         metal1: {ansible_host: 192.168.0.12, mac: 'bc:24:11:1f:7d:4c', disk: sda, network_interface: ens18}
+        # gondor
         metal2: {ansible_host: 192.168.0.13, mac: 'bc:24:11:fb:35:66', disk: sda, network_interface: ens18}
     workers:
       hosts:
