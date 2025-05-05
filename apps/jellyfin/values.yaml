@@ -118,31 +118,37 @@ app-template:
     prowlarr:
       controller: prowlarr
       ports:
+        http:
           port: 9696
           protocol: HTTP
     radarr:
       controller: radarr
       ports:
+        http:
           port: 7878
           protocol: HTTP
     sonarr:
       controller: sonarr
       ports:
+        http:
           port: 8989
           protocol: HTTP
     jellyseerr:
       controller: jellyseerr
       ports:
+        http:
           port: 5055
           protocol: HTTP
     lidarr:
       controller: lidarr
       ports:
+        http:
           port: 8686
           protocol: HTTP
     rdtclient:
       controller: rdtclient
       ports:
+        http:
           port: 6500
           protocol: HTTP
   ingress:
