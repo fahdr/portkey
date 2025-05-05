@@ -13,35 +13,43 @@ app-template:
             requests:
               cpu: 100m
             limits:
-              memory: 16Gi
-        transmission:
-          image:
-            repository: lscr.io/linuxserver/transmission
-            tag: 4.0.5
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              memory: 4Gi
-        prowlarr:
-          image:
-            repository: lscr.io/linuxserver/prowlarr
-            tag: 1.13.3
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              memory: 4Gi
-        radarr:
-          image:
-            repository: lscr.io/linuxserver/radarr
-            tag: 5.3.6
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              memory: 4Gi
-        sonarr:
+              memory: 8Gi
+    transmission:
+      containers:
+        main:
+            image:
+              repository: lscr.io/linuxserver/transmission
+              tag: 4.0.5
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 4Gi
+    prowlarr:
+      containers:
+        main:
+            image:
+              repository: lscr.io/linuxserver/prowlarr
+              tag: 1.13.3
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 4Gi
+    radarr:
+      containers:
+        main:
+            image:
+              repository: lscr.io/linuxserver/radarr
+              tag: 5.3.6
+            resources:
+              requests:
+                cpu: 100m
+              limits:
+                memory: 4Gi
+    sonarr:
+      containers:
+        main:
           image:
             repository: lscr.io/linuxserver/sonarr
             tag: 4.0.2
@@ -50,7 +58,9 @@ app-template:
               cpu: 100m
             limits:
               memory: 4Gi
-        jellyseerr:
+    jellyseerr:
+      containers:
+        main:
           image:
             repository: docker.io/fallenbagel/jellyseerr
             tag: 1.7.0
@@ -59,19 +69,12 @@ app-template:
               cpu: 100m
             limits:
               memory: 4Gi
-        lidarr:
+    lidarr:
+      containers:
+        main:
           image:
             repository: lscr.io/linuxserver/lidarr
             tag: 2.6.4.4402-ls14
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              memory: 4Gi
-        rdtclient:
-          image:
-            repository: rogerfar/rdtclient
-            tag: latest
           resources:
             requests:
               cpu: 100m
@@ -87,31 +90,59 @@ app-template:
             - -c
             - |
               wget https://raw.githubusercontent.com/RandomNinjaAtk/arr-scripts/main/lidarr/scripts_init.bash -O /custom-cont-init.d/scripts_init.bash
+    rdtclient:
+      containers:
+        main:
+          image:
+            repository: rogerfar/rdtclient
+            tag: latest
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 4Gi
+  
   service:
     main:
+      controller: main
       ports:
         http:
           port: 8096
           protocol: HTTP
-        transmission:
+    transmission:
+      controller: transmission
+      ports:
+        http:
           port: 9091
           protocol: HTTP
-        prowlarr:
+    prowlarr:
+      controller: prowlarr
+      ports:
           port: 9696
           protocol: HTTP
-        radarr:
+    radarr:
+      controller: radarr
+      ports:
           port: 7878
           protocol: HTTP
-        sonarr:
+    sonarr:
+      controller: sonarr
+      ports:
           port: 8989
           protocol: HTTP
-        jellyseerr:
+    jellyseerr:
+      controller: jellyseerr
+      ports:
           port: 5055
           protocol: HTTP
-        lidarr:
+    lidarr:
+      controller: lidarr
+      ports:
           port: 8686
           protocol: HTTP
-        rdtclient:
+    rdtclient:
+      controller: rdtclient
+      ports:
           port: 6500
           protocol: HTTP
   ingress:
@@ -133,50 +164,50 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: transmission
+                name: transmission
+                port: http
         - host: &prowlarrHost prowlarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: prowlarr
+                name: prowlarr
+                port: http
         - host: &radarrHost radarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: radarr
+                name: radarr
+                port: http
         - host: &sonarrHost sonarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: sonarr
+                name: sonarr
+                port: http
         - host: &jellyseerrHost jellyseerr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: jellyseerr
+                name: jellyseerr
+                port: http
         - host: &lidarrHost lidarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: lidarr
+                name: lidarr
+                port: http
         - host: &rdtclientHost rdtclient.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
               service:
-                name: main
-                port: rdtclient
+                name: rdtclient
+                port: http
       tls:
         - secretName: jellyfin-tls-certificate
           hosts:
@@ -193,8 +224,8 @@ app-template:
       type: configMap
       name: prowlarr-torrentio-config
       advancedMounts:
-        main:
-          prowlarr:
+        prowlarr:
+          main:
             - path: /config/Definitions/Custom
     nfs-data:
       type: nfs
@@ -211,15 +242,18 @@ app-template:
               subPath: shows
             - path: /media/music
               subPath: music
-          transmission:
+        transmission:
+          main:
             - path: /config
               subPath: transmission/config
             - path: /downloads
               subPath: transmission/downloads
-          prowlarr:
+        prowlarr:
+          main:
             - path: /config
               subPath: prowlarr/config
-          radarr:
+        radarr:
+          main:
             - path: /config
               subPath: radarr/config
             - path: /downloads/complete
@@ -228,7 +262,8 @@ app-template:
               subPath: rdtclient/downloads/complete
             - path: /movies
               subPath: movies
-          sonarr:
+        sonarr:
+          main:
             - path: /config
               subPath: sonarr/config
             - path: /downloads/complete
@@ -237,10 +272,12 @@ app-template:
               subPath: rdtclient/downloads/complete
             - path: /shows
               subPath: shows
-          jellyseerr:
+        jellyseerr:
+          main:
             - path: /app/config
               subPath: jellyseerr/config
-          lidarr:
+        lidarr:
+          main:
             - path: /config
               subPath: lidarr/config
             - path: /music
@@ -253,12 +290,14 @@ app-template:
               subPath: lidarr/custom-services.d
             - path: /custom-cont-init.d
               subPath: steroids/custom-cont-init.d
-          rdtclient:
+        rdtclient:
+          main:
             - path: /data/db
               subPath: rdtclient/db
             - path: /downloads/complete
               subPath: rdtclient/downloads/complete
-          steroids:
+        steroids:
+          main:
             - path: /custom-cont-init.d
               subPath: steroids/custom-cont-init.d
 
