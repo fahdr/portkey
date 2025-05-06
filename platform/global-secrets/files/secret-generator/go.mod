@@ -1,4 +1,4 @@
-module git.themainfreak.com/fahdr/portkey/platform/secret-generator
+module github.com/fahdr/portkey/platform/secret-generator
 
 go 1.19
 
