@@ -7,7 +7,7 @@ renovate:
         "platform": "github",
         "endpoint": "https://github.com/api/v3",
         "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
-        "autodiscover": true
+        "autodiscover": true,
         "autodiscoverFilter":": "/fahdr/*"
       }
   # Using github full token. Change to fine grain token
