@@ -4,9 +4,10 @@ renovate:
   renovate:
     config: |
       {
-        "platform": "gitea",
-        "endpoint": "https://git.themainfreak.com/api/v1",
+        "platform": "github",
+        "endpoint": "https://github.com/api/v3",
         "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
         "autodiscover": true
       }
+  # Using github full token. Change to fine grain token
   existingSecret: renovate-secret
