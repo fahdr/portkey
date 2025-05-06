@@ -18,7 +18,7 @@ jobs:
           - apps
     
     container:
-      image: nixery.dev/shell/git/python3/kubernetes-helm/dyff/diff
+      image: nixery.dev/shell/git/python3/kubernetes-helm/dyff/diffutils
     steps:
       - name: Checkout code
         run: git clone --depth 1 --single-branch --branch ${{ github.event.pull_request.head.ref }} https://github.com/fahdr/portkey.git .
