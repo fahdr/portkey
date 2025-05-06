@@ -1,0 +1,30 @@
+name: Static Checks
+
+on:
+  pull_request:
+    paths:
+      - 'flake.*'
+
+jobs:
+  tools-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Nix
+        run: |
+          echo 'experimental-features = flakes nix-command' | sudo tee -a /etc/nix/nix.conf
+          # echo 'trusted-substituters = http://nix-cache.nix-cache' | sudo tee -a /etc/nix/nix.conf
+          # echo 'substituters = http://nix-cache.nix-cache' | sudo tee -a /etc/nix/nix.conf
+      - name: Run ToolsVersions Test
+        run: nix develop --command make -C test filter=ToolsVersions
+
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up Pre-Commit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pre-commit
+      - name: Run Pre-Commit
+        run: pre-commit run --color=always
