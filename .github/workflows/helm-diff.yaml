@@ -26,8 +26,8 @@ jobs:
         run: |
           ./scripts/helm-diff \
             --repository "https://github.com/fahdr/portkey.git" \
-            --source "$CI_COMMIT_SOURCE_BRANCH" \
-            --target "$CI_COMMIT_TARGET_BRANCH" \
+            --source ${{ github.event.pull_request.head.ref }} \
+            --target ${{ github.event.pull_request.base.ref }} \
             --subpath "${{ matrix.STACK }}"
         env:
           CI_REPO_CLONE_URL: ${{ github.repositoryUrl }}
