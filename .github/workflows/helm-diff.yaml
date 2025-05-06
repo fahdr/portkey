@@ -3,7 +3,9 @@ name: Helm Diff
 on:
   pull_request:
     paths:
-      - '${{ matrix.STACK }}/**'
+      - 'system/**'
+      - 'platform/**'
+      - 'apps/**'
 
 jobs:
   helm-diff:
