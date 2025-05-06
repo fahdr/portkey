@@ -16,21 +16,21 @@ jobs:
           - system
           - platform
           - apps
+    container:
+      image: nixery.dev/shell/git/python3/kubernetes-helm/dyff
+      options: --user root
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Nix
-        uses: cachix/install-nix-action@v20
-
       - name: Run Helm Diff
         run: |
           ./scripts/helm-diff \
-            --repository "${{ github.event.repository.clone_url }}" \
-            --source "${{ github.event.pull_request.head.ref }}" \
-            --target "${{ github.event.pull_request.base.ref }}" \
+            --repository "$CI_REPO_CLONE_URL" \
+            --source "$CI_COMMIT_SOURCE_BRANCH" \
+            --target "$CI_COMMIT_TARGET_BRANCH" \
             --subpath "${{ matrix.STACK }}"
         env:
-          CI_REPO_CLONE_URL: ${{ github.event.repository.clone_url }}
-          CI_COMMIT_SOURCE_BRANCH: ${{ github.event.pull_request.head.ref }}
-          CI_COMMIT_TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+          CI_REPO_CLONE_URL: ${{ github.repositoryUrl }}
+          CI_COMMIT_SOURCE_BRANCH: ${{ github.pull_request.head_ref }}
+          CI_COMMIT_TARGET_BRANCH: ${{ github.pull_request.base_ref }}
