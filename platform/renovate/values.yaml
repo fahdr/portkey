@@ -5,7 +5,7 @@ renovate:
     config: |
       {
         "platform": "github",
-        "endpoint": "https://github.com/api/v3",
+        "endpoint": "https://api.github.com",
         "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
         "autodiscover": true,
         "autodiscoverFilter": "/fahdr/*"
