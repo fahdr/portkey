@@ -8,7 +8,7 @@ renovate:
         "endpoint": "https://github.com/api/v3",
         "gitAuthor": "Renovate Bot <bot@renovateapp.com>",
         "autodiscover": true
-        "RENOVATE_AUTODISCOVER_FILTER": "/fahdr/<repo>/"
+        "autodiscoverFilter":": "/fahdr/*"
       }
   # Using github full token. Change to fine grain token
   existingSecret: renovate-secret
