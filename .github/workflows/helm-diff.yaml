@@ -24,7 +24,7 @@ jobs:
         run: git clone --depth 1 --single-branch --branch ${{ github.event.pull_request.head.ref }} https://github.com/fahdr/portkey.git .
       - name: Run Helm Diff
         run: |
-          ./portkey/scripts/helm-diff \
+          ./scripts/helm-diff \
             --repository "https://github.com/fahdr/portkey.git" \
             --source "$CI_COMMIT_SOURCE_BRANCH" \
             --target "$CI_COMMIT_TARGET_BRANCH" \
