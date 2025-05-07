@@ -26,3 +26,8 @@ storageClass:
     # csi.storage.k8s.io/provisioner-secret-namespace: "default"
   reclaimPolicy: Retain
   volumeBindingMode: Immediate
+  allowVolumeExpansion: true
+  mountOptions:
+    - vers=4.1
+    - no_root_squash
+    - rw
