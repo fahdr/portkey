@@ -4,12 +4,14 @@ apiVersion: volsync.backube/v1alpha1
 kind: ReplicationSource
 metadata:
   name: vaultwarden
-  namespace: {{ .Release.Namespace }}
+  namespace: vaultwarden
 spec:
     sourcePVC: vaultwarden-config
     trigger:
       schedule: "*/20 * * * *"
     restic:
-      repository: nfs://192.168.0.41/nfs
+      repository: restic-config
+
+    
       volumeSnapshotClassName: ceph-block
       copyMethod: Snapshot
