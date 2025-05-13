@@ -1,0 +1,19 @@
+# create replication source for vaultwarden volsync for rustic backup
+
+apiVersion: volsync.io/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: vaultwarden
+  namespace: {{ .Release.Namespace }}
+spec:
+    source:
+      persistentVolumeClaim:
+        name: vaultwarden-config
+        namespace: {{ .Release.Namespace }}
+    trigger:
+      schedule:
+        cron: "0 0 * * *"
+    restic:
+      repository: nfs://192.168.0.41/nfs
+      subPath: backups/vaultwarden
+      volumeSnapshotClassName: ceph-block
