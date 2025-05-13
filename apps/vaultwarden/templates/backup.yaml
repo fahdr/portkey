@@ -12,3 +12,4 @@ spec:
     restic:
       repository: nfs://192.168.0.41/nfs
       volumeSnapshotClassName: ceph-block
+      copyMethod: Snapshot
