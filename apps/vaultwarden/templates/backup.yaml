@@ -12,8 +12,8 @@ spec:
         namespace: {{ .Release.Namespace }}
     trigger:
       schedule:
-        cron: "0 0 * * *"
+      # every 20 minutes
+        cron: "*/20 * * * *"
     restic:
       repository: nfs://192.168.0.41/nfs
-      subPath: backups/vaultwarden
       volumeSnapshotClassName: ceph-block
