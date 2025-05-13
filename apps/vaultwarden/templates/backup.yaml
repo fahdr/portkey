@@ -6,14 +6,9 @@ metadata:
   name: vaultwarden
   namespace: {{ .Release.Namespace }}
 spec:
-    source:
-      persistentVolumeClaim:
-        name: vaultwarden-config
-        namespace: {{ .Release.Namespace }}
+    sourcePVC: vaultwarden-config
     trigger:
-      schedule:
-      # every 20 minutes
-        cron: "*/20 * * * *"
+      schedule: "*/20 * * * *"
     restic:
       repository: nfs://192.168.0.41/nfs
       volumeSnapshotClassName: ceph-block
