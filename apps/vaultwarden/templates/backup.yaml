@@ -1,6 +1,6 @@
 # create replication source for vaultwarden volsync for rustic backup
 
-apiVersion: volsync.io/v1alpha1
+apiVersion: volsync.backube/v1alpha1
 kind: ReplicationSource
 metadata:
   name: vaultwarden
