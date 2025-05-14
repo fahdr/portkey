@@ -1,10 +1,9 @@
 gitops:
-  #repo: http://gitea-http.gitea:3000/ops/portkey
   repo: https://github.com/fahdr/portkey
   revision: master
 stacks:
   - name: bootstrap
-    namespace: argocd  # Override default value
+    namespace: argocd  
   - name: system
   - name: platform
   - name: apps
