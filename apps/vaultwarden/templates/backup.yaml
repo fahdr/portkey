@@ -1,0 +1,17 @@
+# create replication source for vaultwarden volsync for rustic backup
+
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: vaultwarden
+  namespace: vaultwarden
+spec:
+    sourcePVC: vaultwarden-config
+    trigger:
+      schedule: "*/20 * * * *"
+    restic:
+      repository: restic-config
+
+    
+      volumeSnapshotClassName: ceph-block
+      copyMethod: Snapshot
