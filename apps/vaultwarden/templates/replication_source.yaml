@@ -13,3 +13,7 @@ spec:
       repository: vaultwarden-volsync-secret
       volumeSnapshotClassName: ceph-block
       copyMethod: Snapshot
+      moverSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
