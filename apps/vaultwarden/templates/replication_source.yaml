@@ -6,12 +6,10 @@ metadata:
   name: vaultwarden
   namespace: vaultwarden
 spec:
-    sourcePVC: vaultwarden-config
+    sourcePVC: vaultwarden-pvc
     trigger:
       schedule: "*/20 * * * *"
     restic:
-      repository: restic-config
-
-    
+      repository: vaultwarden-volsync-secret
       volumeSnapshotClassName: ceph-block
       copyMethod: Snapshot
