@@ -10,7 +10,7 @@ spec:
   restic:
     repository: "vaultwarden-volsync-secret"
     copyMethod: Snapshot
-    volumeSnapshotClassName: "csi-ceph-blockpool"
+    volumeSnapshotClassName: "ceph-blockpool"
     cacheStorageClassName: "ceph-block"
     cacheAccessModes: ["ReadWriteOnce"]
     cacheCapacity: "2Gi"
