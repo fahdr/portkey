@@ -18,10 +18,6 @@ apps = [
         'url': 'https://home.themainfreak.com'
     },
     {
-        'name': 'gitea',
-        'url': 'https://git.themainfreak.com/ops/portkey'
-    },
-    {
         'name': 'argocd',
         'url': 'https://argocd.themainfreak.com/applications/root'
     },

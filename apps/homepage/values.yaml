@@ -98,14 +98,6 @@ app-template:
                 description: Identity management
                 icon: https://auth.themainfreak.com/pkg/img/logo-square.svg
           - Development:
-            - Gitea:
-                href: https://git.themainfreak.com
-                description: Git forge
-                icon: gitea.svg
-            - Woodpecker:
-                href: https://ci.themainfreak.com
-                description: Continuous integration
-                icon: woodpecker-ci.svg
             - ArgoCD:
                 href: https://argocd.themainfreak.com
                 description: Continuous deployment
