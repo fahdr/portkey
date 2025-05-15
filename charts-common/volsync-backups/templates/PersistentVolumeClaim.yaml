@@ -1,0 +1,18 @@
+{{- $volsyncPVC := (default dict .Values.volsyncPVC) }}
+{{- if or (not (hasKey .Values "volsyncPVC")) (default true $volsyncPVC.enabled) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ get $volsyncPVC "name" | default .Release.Name | quote }}
+#  namespace: {{ get $volsyncPVC "namespace" | default .Release.Namespace | quote }}
+spec:
+  accessModes: {{ get $volsyncPVC "accessModes" | default (list "ReadWriteOnce") | toJson }}
+  dataSourceRef:
+    kind: "ReplicationDestination"
+    apiGroup: "volsync.backube"
+    name: {{ get $volsyncPVC "dataSourceRef.name" | default (printf "%s-dst" .Release.Name) | quote }}
+  resources:
+    requests:
+      storage: {{ get $volsyncPVC "storage" | default "1Gi" | quote }}
+  storageClassName: {{ get $volsyncPVC "storageClassName" | default "ceph-block" }}
+{{- end }}

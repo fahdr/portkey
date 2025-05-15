@@ -46,18 +46,9 @@ app-template:
 
   persistence:
     data:
-      accessMode: ReadWriteOnce
       enabled: true
-      type: persistentVolumeClaim
-      size: 1Gi
+      existingClaim: grocy
       globalMounts:
         - path: /config
-
-    # media:
-    #   type: nfs
-    #   server: 192.168.0.41
-    #   path: /nfs/plex
-    #   globalMounts:
-    #     - path: /music
 
 
