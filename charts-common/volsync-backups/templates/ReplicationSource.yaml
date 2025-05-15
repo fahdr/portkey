@@ -6,7 +6,7 @@ metadata:
   name: {{ get $replicationSource "name" | default .Release.Name }}
 #  namespace: {{ get $replicationSource "namespace" | default .Release.Namespace }}
 spec:
-  sourcePVC: {{ get $replicationSource "sourcePVC" | default (printf "%s-pvc" .Release.Name) }}
+  sourcePVC: {{ get $replicationSource "sourcePVC" | default .Release.Name }}
   trigger:
     schedule: {{ get $replicationSource "schedule" | default "0 0 * * *" | quote }}
   restic:
