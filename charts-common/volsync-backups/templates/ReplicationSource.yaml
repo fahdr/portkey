@@ -1,16 +1,19 @@
 {{- $replicationSource := (default dict .Values.replicationSource) }}
+{{- $volsyncPVC := (default dict .Values.volsyncPVC) }}
+{{- $pvcName := (get $volsyncPVC "name" | default .Release.Name) }}
+{{- $replsrcname := (get $replicationSource "name" | default $pvcName) }}
 {{- if or (not (hasKey .Values "replicationSource")) (default true $replicationSource.enabled) }}
 apiVersion: volsync.backube/v1alpha1
 kind: ReplicationSource
 metadata:
-  name: {{ get $replicationSource "name" | default .Release.Name }}
+  name: {{ $replsrcname | quote }}
 #  namespace: {{ get $replicationSource "namespace" | default .Release.Namespace }}
 spec:
-  sourcePVC: {{ get $replicationSource "sourcePVC" | default .Release.Name }}
+  sourcePVC: {{ get $replicationSource "sourcePVC" | default $pvcName }}
   trigger:
     schedule: {{ get $replicationSource "schedule" | default "0 0 * * *" | quote }}
   restic:
-    repository: {{ get $replicationSource "repository" | default (printf "%s-volsync-secret" .Release.Name) }}
+    repository: {{ get $replicationSource "repository" | default (printf "%s-volsync-secret" $pvcName) }}
     volumeSnapshotClassName: {{ get $replicationSource "volumeSnapshotClassName" | default "ceph-block" }}
     copyMethod: {{ get $replicationSource "copyMethod" | default "Snapshot" }}
     moverSecurityContext:
