@@ -1,0 +1,29 @@
+{{- $replicationDestination := (default dict .Values.replicationDestination) }}
+
+{{- if or (not (hasKey .Values "replicationDestination")) (default true $replicationDestination.enabled) }}
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationDestination
+metadata:
+  name: {{ get $replicationDestination "name" | default (printf "%s-dst" .Release.Name) }}
+#  namespace: {{ get $replicationDestination "namespace" | default .Release.Namespace }}
+spec:
+  trigger:
+    manual: {{ get $replicationDestination "manual" | default "restore-once" }}
+  restic:
+    repository: {{ get $replicationDestination "repository" | default (printf "%s-volsync-secret" .Release.Name) }}
+    copyMethod: {{ get $replicationDestination "copyMethod" | default "Snapshot" }}
+    volumeSnapshotClassName: {{ get $replicationDestination "volumeSnapshotClassName" | default "ceph-block" }}
+    cacheStorageClassName: {{ get $replicationDestination "cacheStorageClassName" | default "ceph-block" }}
+    cacheAccessModes: {{ get $replicationDestination "cacheAccessModes" | default (list "ReadWriteOnce") | toJson }}
+    cacheCapacity: {{ get $replicationDestination "cacheCapacity" | default "1Gi" | quote }}
+    storageClassName: {{ get $replicationDestination "storageClassName" | default "ceph-block" }}
+    accessModes: {{ get $replicationDestination "accessModes" | default (list "ReadWriteOnce") | toJson }}
+    capacity: {{ get $replicationDestination "capacity" | default "1Gi" | quote }}
+    moverSecurityContext:
+      runAsUser: {{ get $replicationDestination "moverSecurityContext.runAsUser" | default 1000 }}
+      runAsGroup: {{ get $replicationDestination "moverSecurityContext.runAsGroup" | default 1000 }}
+      fsGroup: {{ get $replicationDestination "moverSecurityContext.fsGroup" | default 1000 }}
+    enableFileDeletion: {{ get $replicationDestination "enableFileDeletion" | default true }}
+    cleanupCachePVC: {{ get $replicationDestination "cleanupCachePVC" | default true }}
+    cleanupTempPVC: {{ get $replicationDestination "cleanupTempPVC" | default true }}
+{{- end }}
