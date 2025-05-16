@@ -13,7 +13,7 @@ app-template:
         main:
           image:
             repository: ghcr.io/onedr0p/home-assistant
-            tag: 2024.9.0@sha256:eb99ee60ea35b37c5f90d79c74c7efcc4cdf611b04eaccf0ed9741e3eb9f1f12
+            tag: 2024.12.5@sha256:638e519c874a06389ce6f03e435dd80a6697e8692eac88b459775839410f3439
           env:
             TZ: Asia/Dubai
             HASS_HTTP_TRUSTED_PROXY_1: 10.0.1.1/24
@@ -35,7 +35,7 @@ app-template:
             repository: ghcr.io/coder/code-server
             # -- image tag
             # this example is not automatically updated, so be sure to use the latest image
-            tag: 4.92.2
+            tag: 4.100.2
           args:
             - --auth
             - "none"
