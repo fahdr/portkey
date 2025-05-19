@@ -9,6 +9,8 @@ rook-ceph-cluster:
         mon:
           disabled: false
           interval: 45s
+    cephVersion:
+      image: quay.io/ceph/ceph:v19.2.1
   cephBlockPools:
     - name: ceph-blockpool
       spec:
