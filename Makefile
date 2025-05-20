@@ -5,7 +5,7 @@
 KUBECONFIG = $(shell pwd)/metal/kubeconfig.yaml
 KUBE_CONFIG_PATH = $(KUBECONFIG)
 
-default: metal bootstrap external smoke-test post-install clean
+default: system external smoke-test post-install clean
 
 configure:
 	./scripts/configure
@@ -14,8 +14,8 @@ configure:
 metal:
 	make -C metal
 
-bootstrap:
-	make -C bootstrap
+system:
+	make -C system
 
 external:
 	make -C external
@@ -41,7 +41,7 @@ tools:
 		--volume portkey-tools-cache:/root/.cache \
 		--volume portkey-tools-nix:/nix \
 		--workdir $(shell pwd) \
-		docker.io/nixos/nix sh -c "env NIXPKGS_ALLOW_UNFREE=1 nix --experimental-features 'nix-command flakes' develop --impure"
+		docker.io/nixos/nix sh -c "env NIXPKGS_ALLOW_UNFREE=1 NIXPKGS_ALLOW_INSECURE=1 nix --experimental-features 'nix-command flakes' develop --impure"
 
 test:
 	make -C test
@@ -49,9 +49,9 @@ test:
 clean:
 	docker compose --project-directory ./metal/roles/pxe_server/files down
 
-dev:
-	make -C metal cluster env=dev
-	make -C bootstrap
+# dev:
+# 	make -C metal cluster env=dev
+# 	make -C bootstrap
 
 docs:
 	mkdocs serve
