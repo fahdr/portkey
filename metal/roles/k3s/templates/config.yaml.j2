@@ -8,3 +8,7 @@ token-file: {{ k3s_token_file }}
 {{ k3s_server_config | to_nice_yaml }}
 {% endif %}
 snapshotter: stargz
+kube-apiserver-arg:
+  - "--enable-aggregator-routing=true"
+  - "--feature-gates=MutatingAdmissionPolicy=true"
+  - "--runtime-config=admissionregistration.k8s.io/v1alpha1=true"
