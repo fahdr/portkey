@@ -1,0 +1,11 @@
+apiVersion: v2
+version: 0.1.0
+name: wordpress-site
+description: "Wordpress Helm Chart with mariadb and backups"
+dependencies:
+  - name: mariadb
+    repository: ./mariadb
+    version: 0.1.0
+  - name: wordpress
+    repository: ./wordpress
+    version: 0.1.0

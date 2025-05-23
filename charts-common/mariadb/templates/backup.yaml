@@ -1,0 +1,44 @@
+{{- if .Values.backup }}
+{{- $release_name := .Release.Name }}
+{{- if .Values.backup.enabled }}
+{{- range $dest := .Values.backup.destination }}
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Backup
+metadata:
+  name: {{ $release_name }}-backup-{{ $dest.name }}
+spec:
+  mariaDbRef:
+    name: {{ $release_name }}-mariadb
+  schedule:
+    cron: {{ $dest.schedule | default "*/1 * * * *" }}
+  maxRetention: {{ $dest.maxRetention | default "10m" }}
+  storage:
+    {{- if eq $dest.name "s3" }}
+    s3:
+      bucket: {{ $dest.bucket | default "mariadb" }}
+      endpoint: {{ $dest.endpoint | default "minio:9000" }}
+      accessKeyIdSecretKeyRef:
+        name: {{ $dest.accessKeyIdSecretKeyRef.name | default "mariadb-secrets" }}
+        key: {{ $dest.accessKeyIdSecretKeyRef.key | default "MINIO_ACCESS_KEY" }}
+      secretAccessKeySecretKeyRef:
+        name: {{ $dest.secretAccessKeySecretKeyRef.name | default "mariadb-secrets" }}
+        key: {{ $dest.secretAccessKeySecretKeyRef.key | default "MINIO_SECRET_KEY" }}
+    {{- else if eq $dest.name "local" }}
+    persistentVolumeClaim:
+      {{- if $dest.storageClassName }}
+      storageClassName: {{ $dest.storageClassName }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ $dest.storage | default "100Mi" }}
+      accessModes:
+        - {{ $dest.accessModes | default "ReadWriteOnce" }}
+    {{- else if eq $dest.name "nfs" }}
+    volume:
+      nfs:
+        server: {{ $dest.server }}
+        path: {{ $dest.path }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

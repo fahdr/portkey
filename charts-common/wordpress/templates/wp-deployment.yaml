@@ -1,0 +1,90 @@
+# wordpress deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-wp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-wp
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-wp
+    spec:
+      {{- if .Values.gitUploads }}
+      initContainers:
+      - name: init
+        image: alpine/git
+        command:
+        - /bin/sh
+        - -c
+        args:
+        - cd /var/www/html;
+          git clone git@{{ .Values.gitUploads.gitUrl | default "github.com" }}:{{ .Values.gitUploads.gitOrg }}/{{ .Values.gitUploads.gitRepo }}.git .;
+          git reset --hard $HASH;
+          rm -rf .git
+        env:
+        - name: HASH
+          value: {{ .Values.gitUploads.gitHashOrBranch | default "master" }}
+        volumeMounts:
+        - name: www-data
+          mountPath: /var/www/html
+        - name: wordpress-dotssh
+          mountPath: /root/.ssh/
+          readOnly: true
+      {{- end }}
+      containers:
+      - name: wordpress
+        image: {{ .Values.wordpress.image | default "wordpress:6.8.1-php8.4-fpm" }}
+        resources:
+            requests:
+            cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
+            memory: {{ .Values.wordpress.resources.requests.memory | default "48Mi" }}
+            limits:
+            cpu: {{ .Values.wordpress.resources.limits.cpu | default "200m" }}
+            memory: {{ .Values.wordpress.resources.limits.memory | default "96Mi" }}
+        ports:
+        - containerPort: 9000
+        volumeMounts:
+        - name: www-data
+          mountPath: /var/www/html
+        envFrom:
+        - secretRef:
+            name: {{ .Release.Name }}-wp-secrets
+        - configMapRef:
+            name: {{ .Release.Name }}-wp-env
+
+      - name: nginx
+        image: {{ .Values.nginx.image | default "nginx:1.27.0" }}
+        resources:
+          requests:
+            cpu: {{ .Values.nginx.resources.requests.cpu | default "50m" }}
+            memory: {{ .Values.nginx.resources.requests.memory | default "16Mi" }}
+          limits:
+            cpu: {{ .Values.nginx.resources.limits.cpu | default "100m" }}
+            memory: {{ .Values.nginx.resources.limits.memory | default "32Mi" }}
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: www-data
+          mountPath: /var/www/html
+          readOnly: true
+        - name: nginx
+          mountPath: /etc/nginx/conf.d
+          readOnly: true
+
+      volumes:
+      - name: www-data
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-wp-pvc
+      {{- if .Values.gitUploads }}
+      - name: wordpress-dotssh
+        secret:
+          secretName: {{ .Release.Name }}-wp-dotssh
+          defaultMode: 0600
+      {{- end }}
+      - name: nginx
+        configMap:
+          name: {{ .Release.Name }}-wp-nginx

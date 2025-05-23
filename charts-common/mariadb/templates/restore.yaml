@@ -1,0 +1,14 @@
+{{- if .Values.restore.enabled }}
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Restore
+metadata:
+  name: {{ .Release.Name }}-restore
+spec:
+  mariaDbRef:
+    name: {{ .Release.Name }}-mariadb
+  backupRef:
+    name: {{ .Release.Name }}-backup-{{ .Values.restore.fromDestination }}
+  {{- if .Values.restore.targetRecoveryTime}}
+  targetRecoveryTime: {{ .Values.restore.targetRecoveryTime }}
+  {{- end }}
+{{- end }}

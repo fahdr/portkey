@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-wp-nginx
+data:
+    wp-nginx.conf: | 
+      {{- if .Values.wordpress.nginxConfFile }}
+      {{- $nginxConf := .Values.wordpress.nginxConfFile | default "nginx.conf" }}
+      {{- $nginxConfContent := .Files.Get $nginxConf }}
+      {{ $nginxConfContent | indent 4 }}
+      {{- else }}
+      server {
+              listen 80 default_server;
+              server_name _;
+              root /var/www/html;
+              index index.php index.html;
+
+              location / {
+                try_files $uri $uri/ /index.php?$args;
+                }
+              {{- if .Values.wordpress.imgStore }}
+              location /wp-content/uploads {
+                rewrite ^/wp-content/(.+) /{{ .Values.wordpress.imgStore.subpath | default (printf "%s-wordpress" .Release.Name) }}/$1 break;
+                proxy_pass {{ .Values.wordpress.imgStore.url }};
+              }
+              {{- end }}
+
+              location ~ \.php$ {
+                include fastcgi_params;
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                fastcgi_pass 127.0.0.1:9000;
+              }
+            }
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-wp-env
+
+data:
+  WORDPRESS_DB_HOST: {{ .Values.wordpress.dbHost | default "wordpress-mariadb-primary" }}
+  WORDPRESS_DB_USER: {{ .Values.wordpress.dbUser | default "wordpress" }}
+  WORDPRESS_DB_NAME: {{ .Values.wordpress.dbName | default "wordpress" }}
+  WORDPRESS_CONFIG_EXTRA: |
+    define( 'WP_AUTO_UPDATE_CORE', {{ .Values.wordpress.autoUpdateCore | default "true" }} );
+    define( 'DISALLOW_FILE_EDIT', {{ .Values.wordpress.disallowFileEdit | default "true" }} );
+    define( 'DISALLOW_FILE_MODS', {{ .Values.wordpress.disallowFileMods | default "true" }} );
+    {{- $configs := .Values.wordpress.extraConfigs | default (list) }}
+    {{- if $configs }}
+    {{- range $config := $configs }}
+    {{ $config | nindent 4 }}
+    {{- end }}
+    {{- end }}
+    {{- if .Values.wordpress.imgStore.s3 }}
+    define( 'S3_UPLOADS_BUCKET', '{{ .Values.wordpress.imgStore.s3.bucket }}' );
+    define( 'S3_UPLOADS_REGION', '{{ .Values.wordpress.imgStore.s3.region }}' );
+    define( 'S3_UPLOADS_KEY', '{{ .Values.wordpress.imgStore.s3.key }}' );
+    define( 'S3_UPLOADS_SECRET', '{{ .Values.wordpress.imgStore.s3.secret }}' );
+    {{- else if .Values.wordpress.imgStore.other }}
+    {{- if .Values.wordpress.imgStore.other.config.filename }}
+    {{- $imgStoreConfig := .Values.wordpress.imgStore.other.config.filename  }}
+    {{- $imgStoreConfigContent := .Files.Get $imgStoreConfig }}
+    {{ $imgStoreConfigContent | indent 4 }}
+    {{- else if .Values.wordpress.imgStore.other.config.values }}
+    {{- $imgStoreConfig := .Values.wordpress.imgStore.other.config.values }}
+    {{- range $k,$v := $imgStoreConfig }}
+    define( '{{ $k }}', '{{ $v }}' );
+    {{- end }}
+    {{- end }}
+    {{- end }}

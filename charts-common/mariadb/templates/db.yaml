@@ -1,0 +1,31 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  mariaDbRef:
+    name: {{ .Release.Name }}-mariadb
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: User
+metadata:
+  name: {{ .Values.mariadb.user | default (printf "%s-user" .Release.Name) }}
+spec:
+  mariaDbRef:
+    name: {{ .Release.Name }}-mariadb
+  passwordSecretKeyRef:
+    name: {{ .Release.Name }}-mariadb-secrets
+    key: MARIADB_PASSWORD
+  maxUserConnections: 0
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Grant
+metadata:
+  name: {{ .Release.Name }}-grant
+spec:
+  mariaDbRef:
+    name: {{ .Release.Name }}-mariadb
+  privileges:
+  - ALL PRIVILEGES
+  database: {{ .Release.Name }}
+  username: {{ .Values.mariadb.user | default (printf "%s-user" .Release.Name) }}

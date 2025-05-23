@@ -1,0 +1,64 @@
+# Default values for the reusable MariaDB Helm chart.
+
+mariadb:
+  replicas: 3
+  user: ""  # If empty, defaults to "<release-name>-user"
+  storage:
+    size: 1Gi
+    #storageClassName: ""  # Optional, set to override default storage class
+  replication:
+    enabled: true
+  primaryService:
+    type: ClusterIP
+  secondaryService:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+backup:
+  # Enable backups (set to false to disable all backup resources)
+  enabled: false
+  # List of backup destinations. Each entry can be "local", "s3", or "nfs".
+  destination: 
+  # Example for local backup:
+  # destination:
+    - name: local
+      schedule: "0 0 * * *"  # Cron schedule for backup
+      maxRetention: "10m"  # Max retention time for backups
+      storageClassName: "standard"
+      storage: "100Mi"
+      accessModes:
+        - ReadWriteOnce
+
+  # Example for s3 backup:
+    - name: s3
+      schedule: "0 0 * * *"  # Cron schedule for backup
+      maxRetention: "10m"  # Max retention time for backups
+      bucket: "mariadb"
+      endpoint: "minio:9000"
+      accessKeyIdSecretKeyRef:
+        name: "mariadb-secrets"
+        key: "MINIO_ACCESS_KEY"
+      secretAccessKeySecretKeyRef:
+        name: "mariadb-secrets"
+        key: "MINIO_SECRET_KEY"
+  # Example for nfs backup:
+    - name: nfs
+      server: "nfs-server"
+      path: "/path/to/backup"
+  # Binlog backup options
+  binlog:
+    enabled: false
+    destination: []
+    # Example: [ "local" ]
+    schedule: "0 0 * * 0"
+
+restore:
+  enabled: false
+  fromDestination: ""  # e.g., "local", "s3", or "nfs"
+  #targetRecoveryTime: ""  # Optional, e.g., "2024-
