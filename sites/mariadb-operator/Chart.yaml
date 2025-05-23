@@ -1,0 +1,11 @@
+apiVersion: v2
+version: 0.1.0
+name: mariadb-operator
+description: "MariaDB Operator Helm Chart"
+dependencies:
+  - name: mariadb-operator-crds
+    repository: https://helm.mariadb.com/mariadb-operator
+    version: 0.38.1
+  - name: mariadb-operator
+    repository: https://helm.mariadb.com/mariadb-operator
+    version: 0.38.1
