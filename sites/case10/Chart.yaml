@@ -1,0 +1,7 @@
+apiVersion: v2
+name: case10
+version: 0.1.0
+dependencies:
+  - name: wordpress-site
+    repository: ../charts-common/wordpress-site
+    version: 0.1.0

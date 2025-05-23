@@ -1,0 +1,116 @@
+wordpress-site:
+  # --- MariaDB dependency options ---
+  mariadb:
+    replicas: 3
+    #user: ""  # If empty, defaults to "<release-name>-user"
+    storage:
+      size: 1Gi
+      #storageClassName: ""  # Optional, set to override default storage class
+    replication:
+      enabled: true
+    primaryService:
+      type: ClusterIP
+    secondaryService:
+      type: ClusterIP
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  # backup:
+  #   enabled: false
+  #   destination: []
+  #   # - name: local
+  #   #   schedule: "0 0 * * *"
+  #   #   maxRetention: "10m"
+  #   #   storageClassName: "standard"
+  #   #   storage: "100Mi"
+  #   #   accessModes:
+  #   #     - ReadWriteOnce
+  #   # - name: s3
+  #   #   schedule: "0 0 * * *"
+  #   #   maxRetention: "10m"
+  #   #   bucket: "mariadb"
+  #   #   endpoint: "minio:9000"
+  #   #   accessKeyIdSecretKeyRef:
+  #   #     name: "mariadb-secrets"
+  #   #     key: "MINIO_ACCESS_KEY"
+  #   #   secretAccessKeySecretKeyRef:
+  #   #     name: "mariadb-secrets"
+  #   #     key: "MINIO_SECRET_KEY"
+  #   # - name: nfs
+  #   #   server: "nfs-server"
+  #   #   path: "/path/to/backup"
+  #   binlog:
+  #     enabled: false
+  #     destination: []
+  #     # Example: [ "local" ]
+  #     schedule: "0 0 * * 0"
+
+  # restore:
+  #   enabled: false
+  #   fromDestination: ""
+  #   #targetRecoveryTime: ""
+
+  # --- Wordpress dependency options ---
+  wordpress:
+    image: wordpress:6.8.1-php8.4-fpm
+    dbHost: wordpress-mariadb-primary
+    dbUser: wordpress
+    dbName: wordpress
+    nginxConfFile: "" # Path to custom nginx.conf (optional)
+    extraConfigs: []  # List of extra WP config lines (optional)
+    autoUpdateCore: true
+    disallowFileEdit: true
+    disallowFileMods: true
+
+
+    imgStore:
+      url: "test.com"
+      subpath: "test"
+      # s3:
+      #   bucket: ""
+      #   region: ""
+      #   key: ""
+      #   secret: ""
+      other:
+        config:
+          #filename: "" # Used if type == "file"
+          values:
+            debug: true
+            mu-plugin: test
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 48Mi
+      limits:
+        cpu: 200m
+        memory: 96Mi
+
+    hpa:
+      maxReplicas: 10
+      cpuUtilization: 80
+
+  nginx:
+    image: nginx:1.27.0
+    resources:
+      requests:
+        cpu: 50m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 32Mi
+
+  # gitUploads:
+  #   enabled: false
+  #   gitUrl: github.com
+  #   gitOrg: ""
+  #   gitRepo: ""
+  #   gitHashOrBranch: master
+
+
+# Remove any options you do not need.

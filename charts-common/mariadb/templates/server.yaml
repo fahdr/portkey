@@ -1,0 +1,36 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: {{ .Release.Name }}-mariadb
+spec:
+  rootPasswordSecretKeyRef:
+    name: {{ .Release.Name }}-mariadb-secrets
+    key: MARIADB_ROOT_PASSWORD
+
+  storage:
+    size: {{ .Values.mariadb.storage.size | default "1Gi" }}
+    {{- if .Values.mariadb.storage.storageClassName }}
+    storageClassName: {{ .Values.mariadb.storage.storageClassName }}
+    {{- end }}
+
+  replicas: {{ .Values.mariadb.replicas | default 3 }}
+  replication:
+    enabled: {{ .Values.mariadb.replication.enabled | default true }}
+    replica:
+      replPasswordSecretKeyRef:
+        name: {{ .Release.Name }}-mariadb-secrets
+        key: MARIADB_REPL_PASSWORD
+
+  primaryService:
+    type: {{ .Values.mariadb.primaryService.type | default "ClusterIP" }}
+
+  secondaryService:
+    type: {{ .Values.mariadb.secondaryService.type | default "ClusterIP" }}
+
+  resources:
+    requests:
+      cpu: {{ .Values.mariadb.resources.requests.cpu | default "100m" }}
+      memory: {{ .Values.mariadb.resources.requests.memory | default "128Mi" }}
+    limits:
+      cpu: {{ .Values.mariadb.resources.limits.cpu | default "200m" }}
+      memory: {{ .Values.mariadb.resources.limits.memory | default "256Mi" }}

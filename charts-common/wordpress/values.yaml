@@ -1,0 +1,73 @@
+# Default values for the reusable Wordpress Helm chart.
+
+wordpress:
+  image: wordpress:6.8.1-php8.4-fpm
+  dbHost: wordpress-mariadb-primary
+  dbUser: wordpress
+  dbName: wordpress
+  nginxConfFile: "" # Path to custom nginx.conf (optional)
+  extraConfigs: []  # List of extra WP config lines (optional)
+  autoUpdateCore: true
+  disallowFileEdit: true
+  disallowFileMods: true
+
+  # Image store configuration
+  imageStore:
+    enabled: false
+    url: ""        # e.g., http://minio:9000
+    subpath: ""    # e.g., my-wp-uploads
+
+  # S3 uploads configuration (used if imgStore == "s3")
+  imgStore:     # "s3" or "other"
+    url: "test.com"
+    subpath: "test"
+    # s3:
+    #   bucket: ""
+    #   region: ""
+    #   key: ""
+    #   secret: ""
+    # Other image store config (used if imgStore == "other")
+    other:
+      config:
+        #filename: "" # Used if type == "file"
+        values:
+          debug: true
+          mu-plugin: test
+          
+
+  # Resource requests and limits for Wordpress container
+  resources:
+    requests:
+      cpu: 100m
+      memory: 48Mi
+    limits:
+      cpu: 200m
+      memory: 96Mi
+
+  # Horizontal Pod Autoscaler settings
+  hpa:
+    maxReplicas: 10
+    cpuUtilization: 80
+
+nginx:
+  image: nginx:1.27.0
+  resources:
+    requests:
+      cpu: 50m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 32Mi
+
+# Git uploads (optional)
+gitUploads:
+  enabled: false
+  gitUrl: github.com
+  gitOrg: ""
+  gitRepo: ""
+  gitHashOrBranch: master
+
+# PVC name for Wordpress data
+persistence:
+  enabled: true
+  existingClaim: "" # If set, use an existing

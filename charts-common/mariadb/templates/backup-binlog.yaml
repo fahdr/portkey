@@ -1,0 +1,49 @@
+{{- if .Values.backup }}
+{{- if .Values.backup.binlog }}
+{{- range $dest := .Values.backup.binlog.destination  }}
+{{- if eq $dest.name "local" }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-mariadb-backup-binlog
+spec:
+  schedule: {{ .Values.backup.binlog.schedule | default "0 0 * * 0" }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: docker-registry1.mariadb.com/library/mariadb:10.11.8
+            command:
+            - bash
+            - -c
+            - >
+              mkdir -p /pvc/binlogs; cd /pvc/binlogs;
+              BINLOG_START=$(mysql --host=${HOST} --user=root
+              --password=${MARIADB_ROOT_PASSWORD} --silent --raw
+              -e 'show binary logs;' | head -1 | awk '{print $1}');
+              mysqlbinlog --read-from-remote-server
+              --host=${HOST} --user=root
+              --password=${MARIADB_ROOT_PASSWORD} --raw
+              --to-last-log $BINLOG_START;
+            env:
+            - name: HOST
+              value: {{ .Release.Name }}-mariadb-primary
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: MARIADB_ROOT_PASSWORD
+                  name: {{ .Release.Name }}-mariadb-secrets
+            volumeMounts:
+            - mountPath: /pvc
+              name: pvc-mount
+          volumes:
+          - name: pvc-mount
+            persistentVolumeClaim:
+              claimName: {{ .Release.Name }}-backup-{{ $dest }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
