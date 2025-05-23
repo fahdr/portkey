@@ -4,8 +4,8 @@ name: wordpress-site
 description: "Wordpress Helm Chart with mariadb and backups"
 dependencies:
   - name: mariadb
-    repository: ./mariadb
+    repository: file://mariadb
     version: 0.1.0
   - name: wordpress
-    repository: ./wordpress
+    repository: file://wordpress
     version: 0.1.0
