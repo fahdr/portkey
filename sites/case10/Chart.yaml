@@ -3,5 +3,5 @@ name: case10
 version: 0.1.0
 dependencies:
   - name: wordpress-site
-    repository: file://../../charts-common/wordpress-site
+    repository: https://fahdr.github.io/portkey/
     version: 0.1.0

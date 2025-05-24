@@ -7,4 +7,4 @@ dependencies:
     repository: https://bjw-s-labs.github.io/helm-charts
   - name: volsync-backups
     version: 0.1.0
-    repository: "file://../../charts-common/volsync-backups"
+    repository: "https://fahdr.github.io/portkey/"
