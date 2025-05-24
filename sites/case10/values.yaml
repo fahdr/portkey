@@ -96,7 +96,7 @@ wordpress-site:
       cpuUtilization: 80
 
   nginx:
-    image: nginx:1.27.0
+    image: nginx:1.28.0
     resources:
       requests:
         cpu: 50m
