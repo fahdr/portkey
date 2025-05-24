@@ -24,7 +24,7 @@ jobs:
       - name: Package Helm charts
         run: |
           mkdir -p packaged
-          helm package charts-common/* --destination packaged
+          helm package --dependency-update charts-common/* --destination packaged
 
       - name: Create Helm repo index
         run: |
