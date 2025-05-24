@@ -38,11 +38,10 @@ jobs:
           helm repo index packaged --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}
 
       - name: Upload Helm charts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: helm-charts
           path: packaged
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        
