@@ -40,11 +40,11 @@ spec:
         image: {{ .Values.wordpress.image | default "wordpress:6.8.1-php8.4-fpm" }}
         resources:
             requests:
-            cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
-            memory: {{ .Values.wordpress.resources.requests.memory | default "48Mi" }}
+              cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
+              memory: {{ .Values.wordpress.resources.requests.memory | default "48Mi" }}
             limits:
-            cpu: {{ .Values.wordpress.resources.limits.cpu | default "200m" }}
-            memory: {{ .Values.wordpress.resources.limits.memory | default "96Mi" }}
+              cpu: {{ .Values.wordpress.resources.limits.cpu | default "200m" }}
+              memory: {{ .Values.wordpress.resources.limits.memory | default "96Mi" }}
         ports:
         - containerPort: 9000
         volumeMounts:
