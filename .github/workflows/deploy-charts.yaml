@@ -15,6 +15,9 @@ jobs:
     permissions:
       pages: write      # to deploy to Pages
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,9 +38,5 @@ jobs:
           helm repo index packaged --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./packaged
-          publish_branch: gh-pages
-          force_orphan: true
+        id: deployment
+        uses: actions/deploy-pages@v4
