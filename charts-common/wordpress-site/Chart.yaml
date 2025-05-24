@@ -1,11 +1,11 @@
-# apiVersion: v2
-# version: 0.1.1
-# name: wordpress-site
-# description: "Wordpress Helm Chart with mariadb and backups"
-# dependencies:
-#   - name: mariadb
-#     repository: https://fahdr.github.io/portkey/
-#     version: 0.1.0
-#   - name: wordpress
-#     repository: https://fahdr.github.io/portkey/
-#     version: 0.1.1
+apiVersion: v2
+version: 0.1.1
+name: wordpress-site
+description: "Wordpress Helm Chart with mariadb and backups"
+dependencies:
+  - name: mariadb
+    repository: https://fahdr.github.io/portkey/
+    version: 0.1.0
+  - name: wordpress
+    repository: https://fahdr.github.io/portkey/
+    version: 0.1.1
