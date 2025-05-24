@@ -24,7 +24,6 @@ jobs:
       - name: Package Helm charts
         run: |
           mkdir -p packaged
-          rm -rf charts-common/wordpress-site
           helm package charts-common/* --destination packaged
 
       - name: Create Helm repo index
