@@ -1,5 +1,5 @@
 apiVersion: v2
-version: 0.1.0
+version: 0.1.1
 name: wordpress-site
 description: "Wordpress Helm Chart with mariadb and backups"
 dependencies:
@@ -8,4 +8,4 @@ dependencies:
     version: 0.1.0
   - name: wordpress
     repository: https://fahdr.github.io/portkey/
-    version: 0.1.0
+    version: 0.1.1
