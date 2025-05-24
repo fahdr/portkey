@@ -40,8 +40,9 @@ jobs:
       - name: Upload Helm charts
         uses: actions/upload-artifact@v4
         with:
-          name: helm-charts
+          name: github-pages
           path: packaged
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
