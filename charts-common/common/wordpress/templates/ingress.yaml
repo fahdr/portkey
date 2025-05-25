@@ -22,8 +22,5 @@ spec:
                   number: 80
   tls:
     hosts:
-      - host: {{ .Values.wordpress.ingress.host }}
-        paths:
-          - path: /
-            pathType: Prefix
-      secretName: {{ .Release.Name }}-wp-tls
+      - {{ .Values.wordpress.ingress.host }}
+    secretName: {{ .Release.Name }}-wp-tls
