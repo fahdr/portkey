@@ -31,18 +31,18 @@ jobs:
       # Steps for common-charts/common
       - name: Package Helm charts (common)
         run: |
-          mkdir -p packaged/common
+          mkdir -p packaged
           helm package --dependency-update charts-common/common/* --destination packaged/
 
       - name: Create Helm repo index (common)
         run: |
-          helm repo index packaged/common --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/
+          helm repo index packaged --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/
 
       - name: Upload static files as artifact (common)
         id: deployment_common
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packaged/common
+          path: packaged/
 
       - name: Deploy to GitHub Pages (common)
         uses: actions/deploy-pages@v4
@@ -52,7 +52,7 @@ jobs:
       # Steps for common-charts/bootstrap
       - name: Package Helm charts (bootstrap)
         run: |
-          mkdir -p packaged/bootstrap
+          mkdir -p packaged
           helm package --dependency-update charts-common/bootstrap/* --destination packaged/bootstrap
 
       - name: Create Helm repo index (bootstrap)
@@ -63,7 +63,7 @@ jobs:
         id: deployment_bootstrap
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packaged/bootstrap
+          path: packaged
 
       - name: Deploy to GitHub Pages (bootstrap)
         uses: actions/deploy-pages@v4
