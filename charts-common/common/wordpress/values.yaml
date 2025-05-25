@@ -2,9 +2,9 @@
 
 wordpress:
   image: wordpress:6.8.1-php8.4-fpm
-  dbHost: wordpress-mariadb-primary
-  dbUser: wordpress
-  dbName: wordpress
+  # dbHost: wordpress-mariadb-primary
+  # dbUser: wordpress
+  # dbName: wordpress
   nginxConfFile: "" # Path to custom nginx.conf (optional)
   extraConfigs: []  # List of extra WP config lines (optional)
   autoUpdateCore: true
@@ -14,14 +14,10 @@ wordpress:
     secretKeyRefName: db-secrets
     secretKeyRefKey: DB_PASSWORD
 
-  # Image store configuration
-  imageStore:
-    enabled: false
-    url: ""        # e.g., http://minio:9000
-    subpath: ""    # e.g., my-wp-uploads
 
   # S3 uploads configuration (used if imgStore == "s3")
   imgStore:     # "s3" or "other"
+    enabled: false
     url: "https://test.com"
     subpath: "test"
     # s3:

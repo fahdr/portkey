@@ -18,7 +18,7 @@ data:
               location / {
                 try_files $uri $uri/ /index.php?$args;
                 }
-              {{- if .Values.wordpress.imgStore }}
+              {{- if .Values.wordpress.imgStore.enabled }}
               location /wp-content/uploads {
                 rewrite ^/wp-content/(.+) /{{ .Values.wordpress.imgStore.subpath | default (printf "%s-wordpress" .Release.Name) }}/$1 break;
                 proxy_pass {{ .Values.wordpress.imgStore.url }};
@@ -52,6 +52,7 @@ data:
     {{ $config | nindent 4 }}
     {{- end }}
     {{- end }}
+    {{- if .Values.wordpress.imgStore.enabled }}
     {{- if .Values.wordpress.imgStore.s3 }}
     define( 'S3_UPLOADS_BUCKET', '{{ .Values.wordpress.imgStore.s3.bucket }}' );
     define( 'S3_UPLOADS_REGION', '{{ .Values.wordpress.imgStore.s3.region }}' );
@@ -66,6 +67,7 @@ data:
     {{- $imgStoreConfig := .Values.wordpress.imgStore.other.config.values }}
     {{- range $k,$v := $imgStoreConfig }}
     define( '{{ $k }}', '{{ $v }}' );
+    {{- end }}
     {{- end }}
     {{- end }}
     {{- end }}
