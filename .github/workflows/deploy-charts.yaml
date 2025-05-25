@@ -10,8 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,53 +23,45 @@ jobs:
         with:
           version: v3.13.3
 
-      - name: Package Helm charts
+      # Steps for common-charts/common
+      - name: Package Helm charts (common)
         run: |
-          mkdir -p packaged
-          #rm -rf charts-common/wordpress-site
-          helm package --dependency-update charts-common/* --destination packaged
+          mkdir -p packaged/common
+          helm package --dependency-update common-charts/common --destination packaged/common
 
-      - name: Create Helm repo index
+      - name: Create Helm repo index (common)
         run: |
-          helm repo index packaged --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}
-      - name: Upload static files as artifact
-        id: deployment
-        uses: actions/upload-pages-artifact@v3 # or specific "vX.X.X" version tag for this action
+          helm repo index packaged/common --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/common
+
+      - name: Upload static files as artifact (common)
+        id: deployment_common
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: packaged
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+          path: packaged/common
+
+      - name: Deploy to GitHub Pages (common)
         uses: actions/deploy-pages@v4
-      # - name: Upload Helm charts
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: github-pages
-      #     path: packaged
-      # - name: Deploy to GitHub Pages
-      #   id: deployment
-      #   uses: actions/deploy-pages@v4
-  
-      # - name: Configure Git
-      #   run: |
-      #     git config user.name "$GITHUB_ACTOR"
-      #     git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+        with:
+          artifact_name: ${{ steps.deployment_common.outputs.artifact_name }}
 
-      # - name: Run chart-releaser
-      #   uses: helm/chart-releaser-action@v1.7.0
-      #   with:
-      #     charts_dir: "charts-common"
-      #     packages_with_index: true
-      #   env:
-      #     CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      # Steps for common-charts/bootstrap
+      - name: Package Helm charts (bootstrap)
+        run: |
+          mkdir -p packaged/bootstrap
+          helm package --dependency-update common-charts/bootstrap --destination packaged/bootstrap
 
+      - name: Create Helm repo index (bootstrap)
+        run: |
+          helm repo index packaged/bootstrap --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/bootstrap
+
+      - name: Upload static files as artifact (bootstrap)
+        id: deployment_bootstrap
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packaged/bootstrap
+
+      - name: Deploy to GitHub Pages (bootstrap)
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ steps.deployment_bootstrap.outputs.artifact_name }}
 
