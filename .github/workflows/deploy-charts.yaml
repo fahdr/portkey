@@ -54,11 +54,12 @@ jobs:
         run: |
           mkdir -p packaged
           helm package --dependency-update charts-common/bootstrap/* --destination packaged/
-
+      
       - name: Create Helm repo index (bootstrap)
         run: |
           helm repo index packaged --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}
-
+          ls packaged
+          cat packaged/index.yaml
       - name: Upload static files as artifact (bootstrap)
         id: deployment_bootstrap
         uses: actions/upload-pages-artifact@v3
