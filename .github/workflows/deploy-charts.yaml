@@ -70,5 +70,5 @@ jobs:
       - name: Deploy to GitHub Pages (bootstrap)
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: ${{ steps.deployment_bootstrap.outputs.artifact_name }}
+          artifact_name: bootstrap
 
