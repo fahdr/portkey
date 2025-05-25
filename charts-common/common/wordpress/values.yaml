@@ -57,6 +57,14 @@ wordpress:
     wwwdata:
       size: 1Gi
       #storageClassName: ""  # Optional, specify if needed
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/target: "portkey-tunnel.themainfreak.com"
+      external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+
 nginx:
   image: nginx:1.27.0
   resources:

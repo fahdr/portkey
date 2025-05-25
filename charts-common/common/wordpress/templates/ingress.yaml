@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.wordpress.ingress.className | default "nginx" }}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    {{- if .Values.wordpress.ingress.annotations }}
+    {{- toYaml .Values.wordpress.ingress.annotations | nindent 4 }}
+    {{- end }}
+spec:
+  rules:
+    - host: {{ .Values.wordpress.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-wp
+                port:
+                  number: 80
+  tls:
+    hosts:
+      - host: {{ .Values.wordpress.ingress.host }}
+        paths:
+          - path: /
+            pathType: Prefix
+      secretName: {{ .Release.Name }}-wp-tls
