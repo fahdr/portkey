@@ -1,6 +1,6 @@
 wordpress:
   db:
-    secretKeyRefName: "mariadb-secrets"
+    secretKeyRefName: "{{ .Release.Name }}-mariadb-secrets"
     secretKeyRefKey: "MARIADB_PASSWORD"
 
 
