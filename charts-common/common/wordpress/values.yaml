@@ -52,6 +52,11 @@ wordpress:
     maxReplicas: 10
     cpuUtilization: 80
 
+# PVC for Wordpress data
+  storage:
+    wwwdata:
+      size: 1Gi
+      #storageClassName: ""  # Optional, specify if needed
 nginx:
   image: nginx:1.27.0
   resources:
@@ -71,6 +76,3 @@ gitUploads:
   gitHashOrBranch: master
 
 # PVC name for Wordpress data
-persistence:
-  enabled: true
-  existingClaim: "" # If set, use an existing
