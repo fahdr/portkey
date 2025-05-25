@@ -67,7 +67,7 @@ wordpress-site:
     disallowFileEdit: true
     disallowFileMods: true
     db:
-      secretKeyRefName: mariadb-secrets
+      secretKeyRefName: "{{ .Release.Name }}-mariadb-secrets"
       secretKeyRefKey: "MARIADB_PASSWORD"
 
     imgStore:

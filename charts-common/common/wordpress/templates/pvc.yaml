@@ -8,6 +8,7 @@ spec:
   resources:
     requests:
       storage: {{ .Values.wordpress.storage.wwwdata.size | default "1Gi" }}
+  {{- if .Values.wordpress.storage.wwwdata }}
   {{- if .Values.wordpress.storage.wwwdata.storageClassName }}
   storageClassName: {{ .Values.wordpress.storage.wwwdata.storageClassName }}
   {{- end }}
