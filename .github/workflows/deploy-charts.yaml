@@ -53,7 +53,7 @@ jobs:
       - name: Package Helm charts (bootstrap)
         run: |
           mkdir -p packaged
-          helm package --dependency-update charts-common/bootstrap/* --destination packaged/bootstrap
+          helm package --dependency-update charts-common/bootstrap/* --destination packaged/
 
       - name: Create Helm repo index (bootstrap)
         run: |
