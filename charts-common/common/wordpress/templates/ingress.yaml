@@ -21,6 +21,6 @@ spec:
                 port:
                   number: 80
   tls:
-    hosts:
-      - {{ .Values.wordpress.ingress.host }}
-    secretName: {{ .Release.Name }}-wp-tls
+    - hosts:
+        - {{ .Values.wordpress.ingress.host }}
+      secretName: {{ .Release.Name }}-wp-tls
