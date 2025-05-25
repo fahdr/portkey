@@ -32,11 +32,11 @@ jobs:
       - name: Package Helm charts (common)
         run: |
           mkdir -p packaged/common
-          helm package --dependency-update charts-common/common/* --destination packaged/common
+          helm package --dependency-update charts-common/common/* --destination packaged/
 
       - name: Create Helm repo index (common)
         run: |
-          helm repo index packaged/common --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/common
+          helm repo index packaged/common --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/
 
       - name: Upload static files as artifact (common)
         id: deployment_common
@@ -57,7 +57,7 @@ jobs:
 
       - name: Create Helm repo index (bootstrap)
         run: |
-          helm repo index packaged/bootstrap --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}/bootstrap
+          helm repo index packaged/bootstrap --url https://$GITHUB_REPOSITORY_OWNER.github.io/${{ github.event.repository.name }}
 
       - name: Upload static files as artifact (bootstrap)
         id: deployment_bootstrap
