@@ -8,4 +8,4 @@ dependencies:
     version: 0.1.0
   - name: wordpress
     repository: https://fahdr.github.io/portkey/
-    version: 0.1.2
+    version: 0.1.4

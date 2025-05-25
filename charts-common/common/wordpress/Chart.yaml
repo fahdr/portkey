@@ -1,7 +1,7 @@
 # Wordpress Helm Chart
 apiVersion: v2
 name: wordpress
-version: 0.1.2
+version: 0.1.4
 type: application
 description: "Reusable Wordpress chart"
 icon: https://raw.githubusercontent.com/bitnami/bitnami-docker-wordpress/master/bitnami.png
