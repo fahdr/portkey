@@ -10,6 +10,9 @@ wordpress:
   autoUpdateCore: true
   disallowFileEdit: true
   disallowFileMods: true
+  db:
+    secretKeyRefName: db-secrets
+    secretKeyRefKey: DB_PASSWORD
 
   # Image store configuration
   imageStore:

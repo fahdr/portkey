@@ -1,0 +1,6 @@
+wordpress:
+  db:
+    secretKeyRefName: "mariadb-secrets"
+    secretKeyRefKey: "MARIADB_PASSWORD"
+
+
