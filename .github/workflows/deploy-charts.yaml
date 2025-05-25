@@ -27,7 +27,7 @@ jobs:
       - name: Package Helm charts (common)
         run: |
           mkdir -p packaged/common
-          helm package --dependency-update common-charts/common --destination packaged/common
+          helm package --dependency-update charts-common/common --destination packaged/common
 
       - name: Create Helm repo index (common)
         run: |
@@ -48,7 +48,7 @@ jobs:
       - name: Package Helm charts (bootstrap)
         run: |
           mkdir -p packaged/bootstrap
-          helm package --dependency-update common-charts/bootstrap --destination packaged/bootstrap
+          helm package --dependency-update charts-common/bootstrap --destination packaged/bootstrap
 
       - name: Create Helm repo index (bootstrap)
         run: |
