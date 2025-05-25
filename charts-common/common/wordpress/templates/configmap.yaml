@@ -39,9 +39,9 @@ metadata:
   name: {{ .Release.Name }}-wp-env
 
 data:
-  WORDPRESS_DB_HOST: {{ .Values.wordpress.dbHost | default "wordpress-mariadb-primary" }}
-  WORDPRESS_DB_USER: {{ .Values.wordpress.dbUser | default "wordpress" }}
-  WORDPRESS_DB_NAME: {{ .Values.wordpress.dbName | default "wordpress" }}
+  WORDPRESS_DB_HOST: {{ .Values.wordpress.dbHost | default (printf "%s-mariadb-primary" .Release.Name) }}
+  WORDPRESS_DB_USER: {{ .Values.wordpress.dbUser | default (printf "%s-user" .Release.Name) }} 
+  WORDPRESS_DB_NAME: {{ .Values.wordpress.dbName | default .Release.Name }}
   WORDPRESS_CONFIG_EXTRA: |
     define( 'WP_AUTO_UPDATE_CORE', {{ .Values.wordpress.autoUpdateCore | default "true" }} );
     define( 'DISALLOW_FILE_EDIT', {{ .Values.wordpress.disallowFileEdit | default "true" }} );
