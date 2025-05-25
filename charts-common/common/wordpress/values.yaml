@@ -19,7 +19,7 @@ wordpress:
 
   # S3 uploads configuration (used if imgStore == "s3")
   imgStore:     # "s3" or "other"
-    url: "test.com"
+    url: "https://test.com"
     subpath: "test"
     # s3:
     #   bucket: ""
@@ -59,7 +59,7 @@ nginx:
       cpu: 100m
       memory: 32Mi
 
-# Git uploads (optional)
+#Git uploads (optional)
 gitUploads:
   enabled: false
   gitUrl: github.com

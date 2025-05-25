@@ -13,7 +13,7 @@ spec:
       labels:
         app: {{ .Release.Name }}-wp
     spec:
-      {{- if .Values.gitUploads }}
+      {{- if .Values.gitUploads.enabled }}
       initContainers:
       - name: init
         image: alpine/git
@@ -50,6 +50,12 @@ spec:
         volumeMounts:
         - name: www-data
           mountPath: /var/www/html
+        env:
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.wordpress.db.secretKeyRefName }}
+              key: {{ .Values.wordpress.db.secretKeyRefKey | default "WORDPRESS_DB_PASSWORD" }}
         envFrom:
         - secretRef:
             name: {{ .Release.Name }}-wp-secrets
@@ -79,7 +85,7 @@ spec:
       - name: www-data
         persistentVolumeClaim:
           claimName: {{ .Release.Name }}-wp-pvc
-      {{- if .Values.gitUploads }}
+      {{- if .Values.gitUploads.enabled }}
       - name: wordpress-dotssh
         secret:
           secretName: {{ .Release.Name }}-wp-dotssh

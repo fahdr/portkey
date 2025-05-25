@@ -83,13 +83,13 @@ wordpress-site:
             debug: true
             mu-plugin: test
 
-    resources:
-      requests:
-        cpu: 100m
-        memory: 48Mi
-      limits:
-        cpu: 200m
-        memory: 96Mi
+    # resources:
+    #   requests:
+    #     cpu: 100m
+    #     memory: 48Mi
+    #   limits:
+    #     cpu: 200m
+    #     memory: 96Mi
 
     hpa:
       maxReplicas: 10
