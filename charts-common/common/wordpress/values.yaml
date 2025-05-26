@@ -1,7 +1,7 @@
 # Default values for the reusable Wordpress Helm chart.
 
 wordpress:
-  image: wordpress:6.8.1-php8.4-fpm
+  image: ghcr.io/fahdr/wordpress:6.8.1-php8.4-fpm
   # dbHost: wordpress-mariadb-primary
   # dbUser: wordpress
   # dbName: wordpress
