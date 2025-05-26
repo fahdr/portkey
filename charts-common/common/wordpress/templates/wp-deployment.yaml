@@ -56,7 +56,7 @@ spec:
       - name: wordpress
         image: {{ .Values.wordpress.image | default "wordpress:6.8.1-php8.4-fpm" }}
         command:
-        - /tmp/bootstrap.sh
+        - /tmp/wp/bootstrap.sh
         resources:
             requests:
               cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
@@ -70,9 +70,9 @@ spec:
         - name: www-data
           mountPath: /var/www/html
         - name: wp-bootstrap
-          mountPath: /tmp/
+          mountPath: /tmp/wp
         - name: wp-cli
-          mountPath: /usr/local/bin/
+          mountPath: /usr/local/bin/wp
         env:
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:

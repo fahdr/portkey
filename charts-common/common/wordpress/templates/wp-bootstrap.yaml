@@ -6,7 +6,7 @@ data:
   bootstrap.sh: |
         #!/bin/sh
         # check if wp-cli is installed
-        if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
+        if ! /usr/local/bin/wp/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
             ls -l /usr/local/bin/wp
             ls -l /tmp/
@@ -15,7 +15,7 @@ data:
         fi
         WORDPRESS_PATH="/var/www/html"
 
-        WP_CLI=$(/usr/local/bin/wp --path="${WORDPRESS_PATH}" --allow-root)
+        WP_CLI=$(/usr/local/bin/wp/wp --path="${WORDPRESS_PATH}" --allow-root)
         $WP_CLI --info
         count=0
         until $WP_CLI db check >/dev/null 2>&1; do
