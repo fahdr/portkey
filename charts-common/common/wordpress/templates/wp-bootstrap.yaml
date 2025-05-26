@@ -5,21 +5,20 @@ metadata:
 data:
   bootstrap.sh: |
         #!/bin/bash
-        if ! command -v wp &> /dev/null; then
+        if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
             echo "wp-cli not found, installing..."
             curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
             chmod +x wp-cli.phar
             mv wp-cli.phar /usr/local/bin/wp
         fi
         # check if wp-cli is installed
-        if ! command -v wp &> /dev/null; then
-            /
+        if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
             exit 1
         fi
         WORDPRESS_PATH="/var/www/html"
 
-        WP_CLI=$(command -v /usr/local/bin/wp)
+        WP_CLI=$(/usr/local/bin/wp --path="${WORDPRESS_PATH}" --allow-root)
         $WP_CLI --info
         count=0
         until $WP_CLI db check >/dev/null 2>&1; do
