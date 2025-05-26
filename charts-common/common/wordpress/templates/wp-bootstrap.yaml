@@ -15,6 +15,10 @@ data:
         WORDPRESS_PATH="/var/www/html"
 
         WP_CLI=$(command -v /usr/local/bin/wp)
+        until $WP_CLI db check >/dev/null 2>&1; do
+            echo "Waiting for database to be ready..."
+            sleep 5
+        done
         if ! $WP_CLI core is-installed 2>/dev/null; then
             $WP_CLI core install --url="${WORDPRESS_URL}" \
                 --title="${WORDPRESS_TITLE}" \

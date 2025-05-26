@@ -53,7 +53,7 @@ spec:
         - name: www-data
           mountPath: /var/www/html
         - name: wp-bootstrap
-          mountPath: /usr/local/bin/bootstrap.sh
+          mountPath: /usr/local/bin
         env:
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
