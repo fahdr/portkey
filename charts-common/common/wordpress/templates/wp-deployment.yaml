@@ -13,8 +13,25 @@ spec:
       labels:
         app: {{ .Release.Name }}-wp
     spec:
-      {{- if .Values.gitUploads.enabled }}
       initContainers:
+      - name: wp-bootstrap
+        image: php:8.4-cli
+        command:
+        - /bin/sh
+        - -c
+        args:
+        - |
+          # download wp-cli if not present
+          if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
+            echo "wp-cli not found, installing..."
+            curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+            chmod +x wp-cli.phar
+            mv wp-cli.phar /wp-cli/wp
+          fi
+        volumeMounts:
+        - name: wp-cli
+          mountPath: /wp-cli
+      {{- if .Values.gitUploads.enabled }}
       - name: init
         image: alpine/git
         command:
@@ -54,6 +71,8 @@ spec:
           mountPath: /var/www/html
         - name: wp-bootstrap
           mountPath: /tmp/
+        - name: wp-cli
+          mountPath: /usr/local/bin/
         env:
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
@@ -101,3 +120,5 @@ spec:
         configMap:
           name: {{ .Release.Name }}-wp-bootstrap
           defaultMode: 0755
+      - name: wp-cli
+        emptyDir: {}
