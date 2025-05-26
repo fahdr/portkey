@@ -9,7 +9,7 @@ data:
             echo "wp-cli not found, installing..."
             curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
             chmod +x wp-cli.phar
-            cp wp-cli.phar /usr/local/bin/wp
+            mv wp-cli.phar /usr/local/bin/wp
         fi
 
         WORDPRESS_PATH="/var/www/html"
