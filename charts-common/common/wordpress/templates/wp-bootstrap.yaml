@@ -15,8 +15,8 @@ data:
         $WP_CLI --info
         count=0
         until $WP_CLI db check >/dev/null 2>&1; do
-            if [ $count -ge 60 ]; then
-                echo "Database is not ready after 5 minutes, exiting..."
+            if [ $count -ge 12 ]; then
+                echo "Database is not ready after 1 minute, exiting..."
                 exit 1
             fi
             count=$((count + 1))
