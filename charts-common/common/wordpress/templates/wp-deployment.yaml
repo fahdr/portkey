@@ -54,9 +54,8 @@ spec:
       {{- end }}
       containers:
       - name: wordpress
-        image: {{ .Values.wordpress.image | default "wordpress:6.8.1-php8.4-fpm" }}
-        command:
-        - /tmp/wp/bootstrap.sh
+        image: {{ .Values.wordpress.image | default "ghcr.io/fahdr/wordpress:6.8.1-php8.4-fpm" }}
+        imagePullPolicy: {{ .Values.wordpress.imagePullPolicy | default "Always" }}
         resources:
             requests:
               cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
