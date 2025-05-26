@@ -4,6 +4,7 @@ metadata:
   name: {{ .Release.Name }}-wp-bootstrap
 data:
   bootstrap.sh: |
+        #!/bin/sh
         # check if wp-cli is installed
         if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
