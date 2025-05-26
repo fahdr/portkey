@@ -54,9 +54,6 @@ spec:
           mountPath: /var/www/html
         - name: wp-bootstrap
           mountPath: /usr/local/bin/bootstrap.sh
-          subPath: bootstrap.sh
-          readOnly: true
-          execute: true
         env:
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
