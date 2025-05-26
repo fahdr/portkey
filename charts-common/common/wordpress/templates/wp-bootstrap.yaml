@@ -11,7 +11,7 @@ data:
             ls -l /usr/local/bin/wp
             ls -l /tmp/
             ls -l /usr/local/bin/
-            exit 1
+            break
         fi
         WORDPRESS_PATH="/var/www/html"
 
@@ -21,7 +21,8 @@ data:
         until $WP_CLI db check >/dev/null 2>&1; do
             if [ $count -ge 12 ]; then
                 echo "Database is not ready after 1 minute, exiting..."
-                exit 1
+                # exit the loop and continue with the script
+
             fi
             count=$((count + 1))
             echo "Waiting for database to be ready..."
