@@ -45,8 +45,8 @@ data:
   WORDPRESS_ADMIN_USER: {{ .Values.wordpress.adminUser | default "admin" }}
   WORDPRESS_ADMIN_EMAIL: {{ .Values.wordpress.adminEmail | default (printf "%s@%s" .Values.wordpress.adminUser .Values.wordpress.ingress.host) }}
   WORDPRESS_BLOG_NAME: {{ .Values.wordpress.blogName | default .Release.Name }}
-  WORDPRESS_SITE_URL: {{ .Values.wordpress.siteUrl | default (printf "https://%s" .Values.wordpress.ingress.host) }}
-  WORDPRESS_HOME: {{ .Values.wordpress.homeUrl | default (printf "https://%s" .Values.wordpress.ingress.host) }}
+  WORDPRESS_SITE_URL: "{{ .Values.wordpress.siteUrl | default (printf "https://%s" .Values.wordpress.ingress.host) }}"
+  WORDPRESS_HOME: "{{ .Values.wordpress.homeUrl | default (printf "https://%s" .Values.wordpress.ingress.host) }}"
   WORDPRESS_CONFIG_EXTRA: |
     define( 'WPLANG', '{{ .Values.wordpress.language | default "en_US" }}' );
     define( 'WP_AUTO_UPDATE_CORE', {{ .Values.wordpress.autoUpdateCore | default "true" }} );
