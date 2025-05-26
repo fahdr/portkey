@@ -8,6 +8,9 @@ data:
         # check if wp-cli is installed
         if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
+            ls -l /usr/local/bin/wp
+            ls -l /tmp/
+            ls -l /usr/local/bin/
             exit 1
         fi
         WORDPRESS_PATH="/var/www/html"
