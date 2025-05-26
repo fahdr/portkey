@@ -100,4 +100,4 @@ spec:
       - name: wp-bootstrap
         configMap:
           name: {{ .Release.Name }}-wp-bootstrap
-          default_mode: 0755
+          defaultMode: 0755
