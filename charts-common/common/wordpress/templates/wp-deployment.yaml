@@ -38,6 +38,8 @@ spec:
       containers:
       - name: wordpress
         image: {{ .Values.wordpress.image | default "wordpress:6.8.1-php8.4-fpm" }}
+        command:
+        - /usr/local/bin/bootstrap.sh
         resources:
             requests:
               cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
@@ -50,6 +52,11 @@ spec:
         volumeMounts:
         - name: www-data
           mountPath: /var/www/html
+        - name: wp-bootstrap
+          mountPath: /usr/local/bin/bootstrap.sh
+          subPath: bootstrap.sh
+          readOnly: true
+          execute: true
         env:
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
@@ -80,7 +87,6 @@ spec:
         - name: nginx
           mountPath: /etc/nginx/conf.d
           readOnly: true
-
       volumes:
       - name: www-data
         persistentVolumeClaim:
@@ -94,3 +100,6 @@ spec:
       - name: nginx
         configMap:
           name: {{ .Release.Name }}-wp-nginx
+      - name: wp-bootstrap
+        configMap:
+          name: {{ .Release.Name }}-wp-bootstrap
