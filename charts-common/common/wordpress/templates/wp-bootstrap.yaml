@@ -11,11 +11,22 @@ data:
             chmod +x wp-cli.phar
             mv wp-cli.phar /usr/local/bin/wp
         fi
-
+        # check if wp-cli is installed
+        if ! command -v wp &> /dev/null; then
+            /usr/local/bin/wp --info
+            echo "wp-cli installation failed, exiting..."
+            exit 1
+        fi
         WORDPRESS_PATH="/var/www/html"
 
         WP_CLI=$(command -v /usr/local/bin/wp)
+        count=0
         until $WP_CLI db check >/dev/null 2>&1; do
+            if [ $count -ge 60 ]; then
+                echo "Database is not ready after 5 minutes, exiting..."
+                exit 1
+            fi
+            count=$((count + 1))
             echo "Waiting for database to be ready..."
             sleep 5
         done
