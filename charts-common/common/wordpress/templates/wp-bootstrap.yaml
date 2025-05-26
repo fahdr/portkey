@@ -4,13 +4,6 @@ metadata:
   name: {{ .Release.Name }}-wp-bootstrap
 data:
   bootstrap.sh: |
-        #!/bin/bash
-        if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
-            echo "wp-cli not found, installing..."
-            curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-            chmod +x wp-cli.phar
-            mv wp-cli.phar /usr/local/bin/wp
-        fi
         # check if wp-cli is installed
         if ! /usr/local/bin/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
