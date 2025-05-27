@@ -19,7 +19,7 @@ app-template:
         main:
             image:
               repository: lscr.io/linuxserver/transmission
-              tag: 4.0.5
+              tag: 2021.11.18
             resources:
               requests:
                 cpu: 100m
