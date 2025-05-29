@@ -12,8 +12,10 @@ app-template:
           resources:
             requests:
               cpu: 100m
+              memory: 1Gi
             limits:
-              memory: 8Gi
+              memory: 4Gi
+              cpu: 500m
     transmission:
       containers:
         main:
@@ -23,8 +25,10 @@ app-template:
             resources:
               requests:
                 cpu: 100m
+                memory: 256Mi
               limits:
-                memory: 4Gi
+                cpu: 200m
+                memory: 1Gi
     prowlarr:
       containers:
         main:
@@ -34,8 +38,10 @@ app-template:
             resources:
               requests:
                 cpu: 100m
+              memory: 256Mi
               limits:
-                memory: 4Gi
+                memory: 1Gi
+                cpu: 200m
     radarr:
       containers:
         main:
@@ -45,8 +51,10 @@ app-template:
             resources:
               requests:
                 cpu: 100m
+                memory: 256Mi
               limits:
-                memory: 4Gi
+                memory: 1Gi
+                cpu: 200m
     sonarr:
       containers:
         main:
@@ -56,8 +64,10 @@ app-template:
           resources:
             requests:
               cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 4Gi
+              memory: 1Gi
+              cpu: 200m
     jellyseerr:
       containers:
         main:
@@ -67,8 +77,10 @@ app-template:
           resources:
             requests:
               cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 4Gi
+              memory: 1Gi
+              cpu: 200m
     lidarr:
       containers:
         main:
@@ -78,8 +90,10 @@ app-template:
           resources:
             requests:
               cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 4Gi
+              memory: 1Gi
+              cpu: 200m
       initContainers:
         steroids:
           image:
@@ -99,8 +113,10 @@ app-template:
           resources:
             requests:
               cpu: 100m
+              memory: 256Mi
             limits:
-              memory: 4Gi
+              memory: 1Gi
+              cpu: 200m
   
   service:
     main:
