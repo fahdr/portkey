@@ -6,12 +6,12 @@ dependencies:
   # - name: device-plugin-operator 
   #   repository: https://intel.github.io/helm-charts/
   #   version: v0.32.1
-  - name: intel/intel-device-plugins-operator
+  - name: intel-device-plugins-operator
     repository: https://intel.github.io/helm-charts/
     version: v0.32.1
-  - name: nfd/node-feature-discovery
+  - name: node-feature-discovery
     repository: https://kubernetes-sigs.github.io/node-feature-discovery/charts
     version: 0.16.4
-  - name: intel/intel-device-plugins-gpu
+  - name: intel-device-plugins-gpu
     repository: https://intel.github.io/helm-charts/
     version: v0.32.1
