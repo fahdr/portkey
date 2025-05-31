@@ -1,11 +1,11 @@
 app-template:
-  defaultPodOptions:
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 1000
-      runAsGroup: 1000
-      fsGroup: 1000
-      fsGroupChangePolicy: OnRootMismatch
+  # defaultPodOptions:
+  #   securityContext:
+  #     runAsNonRoot: true
+  #     runAsUser: 1000
+  #     runAsGroup: 1000
+  #     fsGroup: 1000
+  #     fsGroupChangePolicy: OnRootMismatch
   controllers:
     main:
       type: statefulset
@@ -30,10 +30,10 @@ app-template:
               akri.sh/akri-bluetooth: "1"
             requests:
               akri.sh/akri-bluetooth: "1"
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities: { drop: ["ALL"] }
+          # securityContext:
+          #   allowPrivilegeEscalation: false
+          #   readOnlyRootFilesystem: true
+          #   capabilities: { drop: ["ALL"] }
 
         code:
           dependsOn: main
