@@ -115,17 +115,18 @@ app-template:
       size: 1Gi
       globalMounts:
         - path: /config/.venv
-    tmpfs:
+    logs:
       type: emptyDir
-      advancedMounts:
-        home-assistant:
-          app:
-            - path: /config/logs
-              subPath: logs
-            - path: /config/tts
-              subPath: tts
-            - path: /tmp
-              subPath: tmp
+      globalMounts:
+        - path: /config/logs
+    tts:
+      type: emptyDir
+      globalMounts:
+        - path: /config/tts
+    tmp:
+      type: emptyDir
+      globalMounts:
+        - path: /tmp
     bluetooth:
       enabled: true
       type: hostPath
