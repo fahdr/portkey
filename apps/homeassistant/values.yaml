@@ -95,33 +95,30 @@ app-template:
         - hosts:
             - *host
           secretName: homeassistant-code-tls-certificate
+
   persistence:
     config:
+      existingClaim: homeassistant
+      globalMounts:
+        - path: /config
+    config-cache:
       accessMode: ReadWriteOnce
       enabled: true
       type: persistentVolumeClaim
-      size: 2Gi
+      size: 1Gi
       globalMounts:
-        - path: /config
-    logs:
+        - path: /config/.venv
+    tmpfs:
       type: emptyDir
-      globalMounts:
-        - path: /config/logs
-    tts:
-      type: emptyDir
-      globalMounts:
-        - path: /config/tts
-    tmp:
-      type: emptyDir
-      globalMounts:
-        - path: /tmp
-
-    backup:
-      type: nfs
-      server: 192.168.0.41
-      path: /nfs/backups/homeassistant
-      globalMounts:
-        - path: /config/backups
+      advancedMounts:
+        home-assistant:
+          app:
+            - path: /config/logs
+              subPath: logs
+            - path: /config/tts
+              subPath: tts
+            - path: /tmp
+              subPath: tmp
     bluetooth:
       enabled: true
       type: hostPath

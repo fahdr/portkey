@@ -42,8 +42,7 @@ app-template:
           secretName: paperless-tls-certificate
   persistence:
     data:
-      accessMode: ReadWriteOnce
-      size: 10Gi
+      existingClaim: paperless
       advancedMounts:
         main:
           main:
