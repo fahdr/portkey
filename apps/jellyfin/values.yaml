@@ -16,6 +16,7 @@ app-template:
             limits:
               memory: 4Gi
               cpu: 500m
+              gpu.intel.com/i915: 1
     transmission:
       containers:
         main:
