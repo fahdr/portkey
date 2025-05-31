@@ -3,6 +3,15 @@ name: intel-gpu
 version: 0.1.0
 description: Intel GPU Operator Helm Chart
 dependencies:
-  - name: intel-device-plugins-operator
-    repository: oci://ghcr.io/home-operations/charts-mirror
-    version: 0.32.1
+  - name: device-plugin-operator 
+    repository: https://intel.github.io/helm-charts/
+    version: v0.32.1
+  - name: intel/intel-device-plugins-operator
+    repository: https://intel.github.io/helm-charts/
+    version: v0.32.1
+  - name: nfd/node-feature-discovery
+    repository: https://kubernetes-sigs.github.io/node-feature-discovery/charts
+    version: 0.16.4
+  - name: intel/intel-device-plugins-gpu
+    repository: https://intel.github.io/helm-charts/
+    version: v0.32.1
