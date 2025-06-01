@@ -1,11 +1,17 @@
 app-template:
-  # defaultPodOptions:
+  defaultPodOptions:
   #   securityContext:
   #     runAsNonRoot: true
   #     runAsUser: 1000
   #     runAsGroup: 1000
   #     fsGroup: 1000
   #     fsGroupChangePolicy: OnRootMismatch
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: "OnRootMismatch"
+        runAsNonRoot: false
   controllers:
     main:
       type: statefulset
@@ -30,11 +36,15 @@ app-template:
               akri.sh/akri-bluetooth: "1"
             requests:
               akri.sh/akri-bluetooth: "1"
-          # securityContext:
+          securityContext:
           #   allowPrivilegeEscalation: false
           #   readOnlyRootFilesystem: true
           #   capabilities: { drop: ["ALL"] }
-
+              allowPrivilegeEscalation: false
+              # s6-rmrf: fatal: unable to remove /run/s6: Read-only file system
+              readOnlyRootFilesystem: false
+              # Needs chown
+              #capabilities: { drop: ["ALL"] }
         code:
           dependsOn: main
           image:
@@ -53,6 +63,12 @@ app-template:
             - --port
             - "8081"
             - "/config"
+          securityContext:
+              allowPrivilegeEscalation: false
+              # fixuid: open /var/run/fixuid.ran: read-only file system
+              readOnlyRootFilesystem: false
+              # Needs chown
+              #capabilities: { drop: ["ALL"] }
   service:
     main:
       type: ClusterIP
