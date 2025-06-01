@@ -22,9 +22,9 @@ app-template:
             tag: 2025.5.3@sha256:a480637f5064050f27e053a756ef2083b4346656e7c15713b574cfb1a9bbf3af
           env:
             TZ: Asia/Dubai
-            HASS_HTTP_TRUSTED_PROXY_1: 10.0.1.0/16
+            HASS_HTTP_TRUSTED_PROXY_1: 10.0.1.0/8
             HASS_HTTP_TRUSTED_PROXY_2: 192.168.0.0/16
-            HASS_HTTP_TRUSTED_PROXY_3: 127.0.0.1
+            HASS_HTTP_TRUSTED_PROXY_3: 10.43.0.0/8
             HOME_ASSISTANT__HACS_INSTALL: "true"
 
 
