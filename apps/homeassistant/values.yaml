@@ -18,8 +18,8 @@ app-template:
       containers:
         main:
           image:
-            repository: ghcr.io/home-operations/home-assistant
-            tag: 2025.5.3@sha256:a480637f5064050f27e053a756ef2083b4346656e7c15713b574cfb1a9bbf3af
+              repository: ghcr.io/onedr0p/home-assistant
+              tag: 2024.10.4@sha256:d788b59a4ee584f7cbeee7cff896e922faa8f0673c83187045e77e0fc77c8457
           env:
             TZ: Asia/Dubai
             HASS_HTTP_TRUSTED_PROXY_1: 10.0.1.0/8
