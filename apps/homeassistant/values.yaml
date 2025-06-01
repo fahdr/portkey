@@ -79,7 +79,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: main
+                identifier: main
                 port: http
       tls:
         - hosts:
@@ -96,7 +96,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: code
+                identifier: code
                 port: http
       tls:
         - hosts:
