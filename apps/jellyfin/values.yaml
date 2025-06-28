@@ -15,7 +15,6 @@ app-template:
               memory: 1Gi
             limits:
               memory: 4Gi
-              cpu: 500m
               gpu.intel.com/i915: 1
     transmission:
       containers:
@@ -28,7 +27,6 @@ app-template:
                 cpu: 100m
                 memory: 256Mi
               limits:
-                cpu: 200m
                 memory: 1Gi
     prowlarr:
       containers:
@@ -42,7 +40,6 @@ app-template:
                 memory: 256Mi
               limits:
                 memory: 1Gi
-                cpu: 200m
     radarr:
       containers:
         main:
@@ -55,7 +52,6 @@ app-template:
                 memory: 256Mi
               limits:
                 memory: 1Gi
-                cpu: 200m
     sonarr:
       containers:
         main:
@@ -68,7 +64,6 @@ app-template:
               memory: 256Mi
             limits:
               memory: 1Gi
-              cpu: 200m
     jellyseerr:
       containers:
         main:
@@ -81,7 +76,6 @@ app-template:
               memory: 256Mi
             limits:
               memory: 1Gi
-              cpu: 200m
     lidarr:
       containers:
         main:
@@ -94,7 +88,6 @@ app-template:
               memory: 256Mi
             limits:
               memory: 1Gi
-              cpu: 200m
       initContainers:
         steroids:
           image:
@@ -117,7 +110,6 @@ app-template:
               memory: 256Mi
             limits:
               memory: 1Gi
-              cpu: 200m
   
   service:
     main:
