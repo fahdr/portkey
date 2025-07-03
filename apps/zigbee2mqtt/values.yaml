@@ -1,0 +1,74 @@
+app-template:
+  defaultPodOptions:
+  #   securityContext:
+  #     runAsNonRoot: true
+  #     runAsUser: 1000
+  #     runAsGroup: 1000
+  #     fsGroup: 1000
+  #     fsGroupChangePolicy: OnRootMismatch
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: "OnRootMismatch"
+        runAsNonRoot: false
+
+  controllers:
+      zigbee2mqtt:
+        containers:
+          main:
+            image:
+              repository: ghcr.io/koenkk/zigbee2mqtt
+              tag: 2.5.1
+            resources:
+              requests:
+                cpu: 15m
+                memory: 110Mi
+              limits:
+                memory: 136Mi
+            securityContext:
+              privileged: true
+            probes:
+              startup:
+                enabled: true
+                spec:
+                  failureThreshold: 30
+                  periodSeconds: 5
+              liveness:
+                enabled: true
+              readiness:
+                enabled: true
+            env:
+              ZIGBEE2MQTT_DATA: /config
+  service:
+      main:
+        controller: zigbee2mqtt
+        ports:
+          http:
+            port: 8080
+
+  ingress:
+    main:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: &host z2m.themainfreak.com
+          paths:
+            - path: /
+              pathType: Prefix
+              service:
+                identifier: main
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: zigbee2mqtt-tls-certificate
+
+  persistence:
+      config:
+        enabled: true
+        existingClaim: zigbee2mqtt
+        globalMounts:
+          - path: /config
