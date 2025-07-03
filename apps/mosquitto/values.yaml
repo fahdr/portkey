@@ -1,0 +1,71 @@
+app-template:
+  defaultPodOptions:
+  #   securityContext:
+  #     runAsNonRoot: true
+  #     runAsUser: 1000
+  #     runAsGroup: 1000
+  #     fsGroup: 1000
+  #     fsGroupChangePolicy: OnRootMismatch
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+        fsGroupChangePolicy: "OnRootMismatch"
+        runAsNonRoot: false
+
+
+  controllers:
+    mosquitto:
+      containers:
+        main:
+          image:
+            repository: eclipse-mosquitto
+            tag: 2.0.21
+          resources:
+            requests:
+              cpu: 15m
+              memory: 105Mi
+            limits:
+              memory: 105Mi
+          probes:
+            startup:
+              enabled: true
+              spec:
+                failureThreshold: 30
+                periodSeconds: 5
+            liveness:
+              enabled: true
+            readiness:
+              enabled: true
+  service:
+    main:
+      controller: mosquitto
+      ports:
+        mqtt:
+          port: 1883
+  configMaps:
+    config:
+      suffix: config
+      enabled: true
+      data:
+        mosquitto.conf: |
+          listener 1883
+          allow_anonymous true
+          persistence true
+          persistence_location /mosquitto/data
+          connection_messages false
+  persistence:
+    config:
+      enabled: true
+      type: configMap
+      name: mosquitto-config
+      globalMounts:
+        - path: /mosquitto/config/mosquitto.conf
+          subPath: mosquitto.conf
+    data:
+      enabled: true
+      existingClaim: mosquitto
+      globalMounts:
+        - path: /mosquitto/data
+
+
