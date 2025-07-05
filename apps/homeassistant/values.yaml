@@ -31,11 +31,11 @@ app-template:
           envFrom:
             - secretRef:
                 name: "{{ .Release.Name }}-secret"
-          resources:
-            limits:
-              akri.sh/akri-bluetooth: "1"
-            requests:
-              akri.sh/akri-bluetooth: "1"
+          # resources:
+          #   limits:
+          #     akri.sh/akri-bluetooth: "1"
+          #   requests:
+          #     akri.sh/akri-bluetooth: "1"
           securityContext:
           #   allowPrivilegeEscalation: false
           #   readOnlyRootFilesystem: true
