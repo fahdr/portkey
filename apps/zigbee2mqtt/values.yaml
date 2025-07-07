@@ -78,4 +78,5 @@ app-template:
         advancedMounts:
           zigbee2mqtt:
             main:
-              - path: /config/external_converters
+              - path: /config/external_converters/curtainbot.js
+                subPath: curtainbot.js
