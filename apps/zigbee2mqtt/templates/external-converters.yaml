@@ -4,4 +4,4 @@ metadata:
   name: curtainbot
   namespace: {{ .Release.Namespace }}
 data:
-{{ (.Files.Glob "files/config/*").AsConfig | indent 2 }}
+{{ (.Files.Glob "files/*").AsConfig | indent 2 }}
