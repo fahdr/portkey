@@ -76,6 +76,6 @@ app-template:
         type: configMap
         name: curtainbot
         advancedMounts:
-          prowlarr:
+          zigbee2mqtt:
             main:
               - path: /app/data/external-converters
