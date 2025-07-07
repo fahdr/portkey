@@ -72,3 +72,10 @@ app-template:
         existingClaim: zigbee2mqtt
         globalMounts:
           - path: /config
+      external-converter:
+        type: configMap
+        name: curtainbot
+        advancedMounts:
+          prowlarr:
+            main:
+              - path: /app/data/external-converters
