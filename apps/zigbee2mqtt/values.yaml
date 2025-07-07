@@ -78,4 +78,4 @@ app-template:
         advancedMounts:
           zigbee2mqtt:
             main:
-              - path: /app/data/external-converters
+              - path: /config/external_converters
