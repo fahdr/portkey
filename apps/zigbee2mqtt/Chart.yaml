@@ -1,10 +1,10 @@
-# apiVersion: v2
-# name: zigbee2mqtt
-# version: 0.0.0
-# dependencies:
-#   - name: app-template
-#     version: 3.5.1
-#     repository: https://bjw-s-labs.github.io/helm-charts
-#   - name: volsync-backups
-#     version: 0.1.0
-#     repository: "https://fahdr.github.io/portkey/"
+apiVersion: v2
+name: zigbee2mqtt
+version: 0.0.0
+dependencies:
+  - name: app-template
+    version: 3.5.1
+    repository: https://bjw-s-labs.github.io/helm-charts
+  - name: volsync-backups
+    version: 0.1.0
+    repository: "https://fahdr.github.io/portkey/"
