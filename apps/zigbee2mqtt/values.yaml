@@ -24,7 +24,7 @@ app-template:
               - sh
               - -c
               - |
-                cp /tmp/curtainbot.js /config/external_converters/curtainbot.js
+                cp -R /tmp/ /config/external_converters/
         containers:
           main:
             image:
