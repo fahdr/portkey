@@ -17,12 +17,14 @@ const definition = {
             e.position(),
             e.battery(),
             e.illuminance(),
+            e.direction(),
         ],
         meta: {
             tuyaDatapoints: [
                 [3, 'position', tuya.valueConverter.raw],
                 [13, 'battery', tuya.valueConverter.raw],
-                [107, 'illuminance', tuya.valueConverter.raw],                      
+                [107, 'illuminance', tuya.valueConverter.raw], 
+                [5, 'direction', tuya.valueConverter.raw],                     
               ],
         },
 };
