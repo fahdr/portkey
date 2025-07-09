@@ -87,5 +87,5 @@ app-template:
         name: curtainbot
         advancedMounts:
           zigbee2mqtt:
-            initcontainer:
+            externalcontrollers:
               - path: /tmp
