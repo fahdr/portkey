@@ -16,6 +16,21 @@ app-template:
   controllers:
       zigbee2mqtt:
         containers:
+          initcontainer:
+            image:
+              repository: alpine
+              tag: latest
+            command:
+              - sh
+              - -c
+              - |
+                cp /tmp/curtainbot.js /config/external_converters/curtainbot.js
+            volumeMounts:
+              - name: config
+                mountPath: /config
+              - name: curtainbot
+                mountPath: /tmp/curtainbot.js
+                subPath: curtainbot.js
           main:
             image:
               repository: ghcr.io/koenkk/zigbee2mqtt
@@ -72,11 +87,11 @@ app-template:
         existingClaim: zigbee2mqtt
         globalMounts:
           - path: /config
-      # external-converter:
-      #   type: configMap
-      #   name: curtainbot
-      #   advancedMounts:
-      #     zigbee2mqtt:
-      #       main:
-      #         - path: /config/external_converters/curtainsbot.js
-      #           subPath: curtainsbot.js
+      external-converter:
+        type: configMap
+        name: curtainbot
+        advancedMounts:
+          zigbee2mqtt:
+            main:
+              - path: /config/external_converters/curtainsbot.js
+                subPath: curtainsbot.js
