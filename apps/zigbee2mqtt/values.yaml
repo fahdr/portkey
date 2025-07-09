@@ -15,15 +15,16 @@ app-template:
 
   controllers:
       zigbee2mqtt:
-        initcontainer:
-          image:
-            repository: alpine
-            tag: latest
-          command:
-            - sh
-            - -c
-            - |
-              cp /tmp/curtainbot.js /config/external_converters/curtainbot.js
+        initContainers:
+          externalcontrollers:
+            image:
+              repository: alpine
+              tag: latest
+            command:
+              - sh
+              - -c
+              - |
+                cp /tmp/curtainbot.js /config/external_converters/curtainbot.js
         containers:
           main:
             image:
