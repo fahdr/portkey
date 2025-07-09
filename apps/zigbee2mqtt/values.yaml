@@ -24,7 +24,7 @@ app-template:
               - sh
               - -c
               - |
-                cp -R /tmp/* /config/external_converters/
+                mkdir -p /config/external_converters/ && cp -LR /tmp/* /config/external_converters/
         containers:
           main:
             image:
