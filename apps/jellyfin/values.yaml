@@ -11,7 +11,7 @@ app-template:
             tag: 10.8.13
           resources:
             requests:
-              cpu: 100m
+              cpu: 25m
               memory: 1Gi
             limits:
               memory: 4Gi
@@ -24,7 +24,7 @@ app-template:
               tag: 4.0.5
             resources:
               requests:
-                cpu: 100m
+                cpu: 25m
                 memory: 256Mi
               limits:
                 memory: 1Gi
@@ -36,7 +36,7 @@ app-template:
               tag: 1.13.3
             resources:
               requests:
-                cpu: 100m
+                cpu: 25m
                 memory: 256Mi
               limits:
                 memory: 1Gi
@@ -48,7 +48,7 @@ app-template:
               tag: 5.3.6
             resources:
               requests:
-                cpu: 100m
+                cpu: 25m
                 memory: 256Mi
               limits:
                 memory: 1Gi
@@ -60,7 +60,7 @@ app-template:
             tag: 4.0.2
           resources:
             requests:
-              cpu: 100m
+              cpu: 25m
               memory: 256Mi
             limits:
               memory: 1Gi
@@ -72,7 +72,7 @@ app-template:
             tag: 1.7.0
           resources:
             requests:
-              cpu: 100m
+              cpu: 25m
               memory: 256Mi
             limits:
               memory: 1Gi
@@ -84,7 +84,7 @@ app-template:
             tag: 2.6.4.4402-ls14
           resources:
             requests:
-              cpu: 100m
+              cpu: 15m
               memory: 256Mi
             limits:
               memory: 1Gi
@@ -106,7 +106,7 @@ app-template:
             tag: latest
           resources:
             requests:
-              cpu: 100m
+              cpu: 15m
               memory: 256Mi
             limits:
               memory: 1Gi
