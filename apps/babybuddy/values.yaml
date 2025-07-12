@@ -1,0 +1,63 @@
+app-template:
+  controllers:
+    babybuddy:
+      containers:
+        babybuddy:
+          image:
+            repository: lscr.io/linuxserver/babybuddy
+            tag: 2.7.1@sha256:30e455e7ba1fc3329019602741dcb2d7e273ae8343ab172c26e868d1fae01147
+
+          env:
+            TZ: Asia/Dubai
+            PUID: 1000
+            PGID: 1000
+            CSRF_TRUSTED_ORIGINS: https://babybuddy.themainfreak.com
+
+          resources:
+            requests:
+              cpu: 15m
+            limits:
+              memory: 256Mi
+          probes:
+            liveness:
+              enabled: true
+            readiness:
+              enabled: true
+            startup:
+              enabled: true
+              spec:
+                failureThreshold: 30
+                periodSeconds: 5
+
+  service:
+    babybuddy:
+      controller: babybuddy
+      ports:
+        http:
+          port: 8000
+
+  ingress:
+    babybuddy:
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: &host babybuddy.themainfreak.com
+          paths:
+            - path: /
+              service:
+                identifier: babybuddy
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: babybuddy-tls-certificate
+
+  persistence:
+    data:
+      enabled: true
+      existingClaim: babybuddy
+      globalMounts:
+        - path: /config
+
+
