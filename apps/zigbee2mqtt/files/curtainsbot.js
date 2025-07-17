@@ -28,10 +28,11 @@
 // };
     
 // module.exports = definition;
+
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
 const ea = exposes.access;
 
-// Local datatype map
+// Manual Tuya datatype map
 const datatypes = {
     raw: 0x00,
     bool: 0x01,
@@ -41,7 +42,7 @@ const datatypes = {
     bitmap: 0x05,
 };
 
-// Manual payload builder
+// Encode payload manually
 function convertDataToPayload(datatype, value) {
     switch (datatype) {
         case 'bool':
@@ -54,7 +55,7 @@ function convertDataToPayload(datatype, value) {
         case 'enum':
             return Buffer.from([value]);
         case 'string': {
-            const strBuf = Buffer.from(value);
+            const strBuf = Buffer.from(value, 'utf8');
             return Buffer.concat([Buffer.from([strBuf.length]), strBuf]);
         }
         default:
@@ -62,7 +63,7 @@ function convertDataToPayload(datatype, value) {
     }
 }
 
-// Tuya command sender
+// Send Tuya datapoint command
 const sendDataPoint = async (entity, dp, datatype, value) => {
     await entity.command(
         'manuSpecificTuya',
@@ -74,10 +75,11 @@ const sendDataPoint = async (entity, dp, datatype, value) => {
             data: convertDataToPayload(datatype, value),
         },
         {},
-        2,
+        2
     );
 };
 
+// fromZigbee decoder
 const fromZigbeeTuyaCurtain = {
     cluster: 'manuSpecificTuya',
     type: ['commandDataResponse'],
@@ -87,11 +89,16 @@ const fromZigbeeTuyaCurtain = {
         const datatype = msg.data.datatype;
 
         let value;
-        switch (datatype) {
-            case 0x01: value = data[0] === 1; break;
-            case 0x02: value = data.readUInt32BE(0); break;
-            case 0x04: value = data[0]; break;
-            default: value = data.toString();
+        try {
+            switch (datatype) {
+                case 0x01: value = data[0] === 1; break;
+                case 0x02: value = data.readUInt32BE(0); break;
+                case 0x04: value = data[0]; break;
+                default: value = data.toString();
+            }
+        } catch (err) {
+            meta.logger.warn(`DP ${dp} decoding error: ${err}`);
+            return {};
         }
 
         switch (dp) {
@@ -105,38 +112,39 @@ const fromZigbeeTuyaCurtain = {
             case 12: return {fault: value};
             case 10: return {total_time: value};
             default:
-                meta.logger.warn(`Unmapped DP: ${dp}, value: ${value}`);
+                meta.logger.debug(`Unmapped DP: ${dp}, value: ${value}`);
                 return {};
         }
     },
 };
 
+// toZigbee encoder
 const toZigbeeTuyaCurtain = {
     key: ['control', 'percent_control', 'motor_direction'],
     convertSet: async (entity, key, value, meta) => {
         switch (key) {
             case 'control': {
-                const ctrlLookup = {'open': 0, 'stop': 1, 'close': 2};
-                await sendDataPoint(entity, 1, 'enum', ctrlLookup[value]);
+                const map = {'open': 0, 'stop': 1, 'close': 2};
+                await sendDataPoint(entity, 1, 'enum', map[value]);
                 return {state: value};
             }
-            case 'percent_control': {
+            case 'percent_control':
                 await sendDataPoint(entity, 2, 'value', value);
                 return {percent_control: value};
-            }
-            case 'motor_direction': {
-                const dirVal = value === 'reverse' ? 1 : 0;
-                await sendDataPoint(entity, 5, 'enum', dirVal);
+            case 'motor_direction':
+                await sendDataPoint(entity, 5, 'enum', value === 'reverse' ? 1 : 0);
                 return {motor_direction: value};
-            }
             default:
-                throw new Error(`Unsupported key ${key}`);
+                throw new Error(`Unsupported key: ${key}`);
         }
     },
 };
 
 module.exports = {
-    fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
+    fingerprint: [{
+        modelID: 'TS030F',
+        manufacturerName: '_TZ3210_sxtfesc6', // Replace if needed
+    }],
     model: 'ADCBZI01',
     vendor: 'Moes',
     description: 'Battery-operated Zigbee curtain robot (Tuya-based)',
