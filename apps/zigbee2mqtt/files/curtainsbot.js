@@ -195,7 +195,7 @@ module.exports = {
     fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
     model: 'ADCBZI01',
     vendor: 'Moes',
-    description: 'Curtain bot using default Tuya decoder',
+    description: 'Curtain Robot (Tuya-based)',
     fromZigbee: [tuya.fz.datapoints],
     toZigbee: [tuya.tz.datapoints],
     configure: tuya.configureMagicPacket,
@@ -209,6 +209,7 @@ module.exports = {
         exposes.enum('charge_state', ea.STATE, ['charging', 'not_charging']).withDescription('Charging status'),
         exposes.numeric('fault', ea.STATE).withDescription('Device fault code'),
         exposes.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operating time'),
+        exposes.numeric('illuminance', ea.STATE).withUnit('lx').withDescription('Ambient light level'),
     ],
     meta: {
         tuyaDatapoints: [
@@ -221,6 +222,7 @@ module.exports = {
             [101, 'charge_state', tuya.valueConverterBasic.lookup({not_charging: 0, charging: 1})],
             [12, 'fault', tuya.valueConverter.raw],
             [10, 'total_time', tuya.valueConverter.raw],
+            [107, 'illuminance', tuya.valueConverter.raw],
         ],
     },
 };
