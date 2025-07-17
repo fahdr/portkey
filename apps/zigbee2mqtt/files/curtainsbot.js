@@ -32,6 +32,13 @@
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
 const ea = exposes.access;
 
+// Safe logging wrapper
+const safeLog = (meta, level, message) => {
+    if (meta && meta.logger && typeof meta.logger[level] === 'function') {
+        meta.logger[level](message);
+    }
+};
+
 // Manual Tuya datatype map
 const datatypes = {
     raw: 0x00,
@@ -102,15 +109,15 @@ const fromZigbeeTuyaCurtain = {
                 case 0x02: value = data.readUInt32BE(0); break;
                 case 0x04: value = data[0]; break;
                 default:
-                    meta.logger.warn(`Unsupported datatype ${datatype} for DP ${dp}`);
+                    safeLog(meta, 'warn', `Unsupported datatype ${datatype} for DP ${dp}`);
                     return {};
             }
         } catch (err) {
-            meta.logger.warn(`DP ${dp} decoding error: ${err}`);
+            safeLog(meta, 'warn', `DP ${dp} decoding error: ${err}`);
             return {};
         }
 
-        meta.logger.debug(`Decoded DP ${dp} (type ${datatype}) with value: ${value}`);
+        safeLog(meta, 'debug', `Decoded DP ${dp} (type ${datatype}) with value: ${value}`);
 
         switch (dp) {
             case 1: {
@@ -131,7 +138,7 @@ const fromZigbeeTuyaCurtain = {
             case 12: return {fault: value};
             case 10: return {total_time: value};
             default:
-                meta.logger.debug(`Unmapped DP: ${dp}, value: ${value}`);
+                safeLog(meta, 'debug', `Unmapped DP: ${dp}, value: ${value}`);
                 return {};
         }
     },
@@ -141,7 +148,7 @@ const fromZigbeeTuyaCurtain = {
 const toZigbeeTuyaCurtain = {
     key: ['control', 'percent_control', 'motor_direction'],
     convertSet: async (entity, key, value, meta) => {
-        meta.logger.debug(`Sending '${key}' with value '${value}'`);
+        safeLog(meta, 'debug', `Sending '${key}' with value '${value}'`);
         switch (key) {
             case 'control': {
                 const map = {'open': 0, 'stop': 1, 'close': 2};
