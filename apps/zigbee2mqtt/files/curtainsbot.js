@@ -68,12 +68,12 @@ const sendDataPoint = async (entity, dp, datatype, value) => {
     const seq = Math.floor(Math.random() * 255);
 
     const payload = {
-        seq, // Required top-level field
+        seq,
         dpValues: [{
             dp,
             datatype: datatypes[datatype],
             data: convertDataToPayload(datatype, value),
-            seq, // Required inside each dpValue
+            seq,
         }],
     };
 
@@ -101,7 +101,9 @@ const fromZigbeeTuyaCurtain = {
                 case 0x01: value = data[0] === 1; break;
                 case 0x02: value = data.readUInt32BE(0); break;
                 case 0x04: value = data[0]; break;
-                default: value = undefined;
+                default:
+                    meta.logger.warn(`Unsupported datatype ${datatype} for DP ${dp}`);
+                    return {};
             }
         } catch (err) {
             meta.logger.warn(`DP ${dp} decoding error: ${err}`);
@@ -109,11 +111,17 @@ const fromZigbeeTuyaCurtain = {
         }
 
         switch (dp) {
-            case 1: return {control: ['open', 'stop', 'close'][value]};
+            case 1: {
+                const map = ['open', 'stop', 'close'];
+                return {control: map[value] ?? null};
+            }
             case 2: return {percent_control: value};
             case 3: return {percent_state: value};
             case 5: return {motor_direction: value === 0 ? 'forward' : 'reverse'};
-            case 7: return {work_state: ['opening', 'closing', 'stopped'][value]};
+            case 7: {
+                const map = ['opening', 'closing', 'stopped'];
+                return {work_state: map[value] ?? null};
+            }
             case 13: return {battery_percentage: value};
             case 101: return {charge_state: value ? 'charging' : 'not_charging'};
             case 12: return {fault: value};
