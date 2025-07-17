@@ -63,19 +63,22 @@ function convertDataToPayload(datatype, value) {
     }
 }
 
-// Send Tuya datapoint command
+// Send Tuya datapoint command using dpValues array
 const sendDataPoint = async (entity, dp, datatype, value) => {
-    await entity.command(
-        'manuSpecificTuya',
-        'dataRequest',
-        {
-            seq: Math.floor(Math.random() * 255),
+    const payload = {
+        dpValues: [{
             dp,
             datatype: datatypes[datatype],
             data: convertDataToPayload(datatype, value),
-        },
+        }],
+    };
+
+    await entity.command(
+        'manuSpecificTuya',
+        'dataRequest',
+        payload,
         {},
-        2
+        2,
     );
 };
 
@@ -141,10 +144,7 @@ const toZigbeeTuyaCurtain = {
 };
 
 module.exports = {
-    fingerprint: [{
-        modelID: 'TS030F',
-        manufacturerName: '_TZ3210_sxtfesc6', // Replace if needed
-    }],
+    fingerprint: require('zigbee-herdsman-converters/lib/tuya').fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
     model: 'ADCBZI01',
     vendor: 'Moes',
     description: 'Battery-operated Zigbee curtain robot (Tuya-based)',
