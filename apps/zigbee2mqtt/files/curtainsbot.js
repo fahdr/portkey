@@ -233,9 +233,9 @@ const ea = exposes.access;
 const definition = {
     // The zigbeeModel is typically found in the device's Zigbee information.
     // Based on the provided image, it's 'TS0601'.
-    zigbeeModel: ['TS0601'],
+    zigbeeModel: ['TS030F'],
     // The model identifier from the manufacturer data in the image.
-    model: '_TZE200_fhnxklf8',
+    model: '_TZ3210_sxtfesc6',
     // The vendor of the device.
     vendor: 'Moes',
     // A description of the device.
