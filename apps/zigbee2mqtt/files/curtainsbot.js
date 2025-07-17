@@ -28,6 +28,16 @@
 // };
     
 // module.exports = definition;
+
+const datatypes = {
+    raw: 0x00,
+    bool: 0x01,
+    value: 0x02,
+    enum: 0x04,
+    string: 0x03,
+    bitmap: 0x05,
+};
+
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
 const tuya = require('zigbee-herdsman-converters/lib/tuya');
 const ea = exposes.access;
@@ -39,7 +49,7 @@ const sendDataPoint = async (entity, dp, datatype, value) => {
         {
             seq: Math.floor(Math.random() * 255),
             dp: dp,
-            datatype: tuya.datatypes[datatype],
+            datatype: datatypes[datatype],
             data: tuya.convertDataToPayload(datatype, value),
         },
         {},
