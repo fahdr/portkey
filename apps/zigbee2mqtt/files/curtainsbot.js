@@ -101,7 +101,7 @@ const fromZigbeeTuyaCurtain = {
                 case 0x01: value = data[0] === 1; break;
                 case 0x02: value = data.readUInt32BE(0); break;
                 case 0x04: value = data[0]; break;
-                default: value = data.toString();
+                default: value = undefined;
             }
         } catch (err) {
             meta.logger.warn(`DP ${dp} decoding error: ${err}`);
