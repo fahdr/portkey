@@ -113,14 +113,16 @@ const fromZigbeeTuyaCurtain = {
         switch (dp) {
             case 1: {
                 const map = ['open', 'stop', 'close'];
-                return {control: map[value] ?? null};
+                const result = map[value];
+                return {control: typeof result === 'string' ? result : null};
             }
             case 2: return {percent_control: value};
             case 3: return {percent_state: value};
             case 5: return {motor_direction: value === 0 ? 'forward' : 'reverse'};
             case 7: {
                 const map = ['opening', 'closing', 'stopped'];
-                return {work_state: map[value] ?? null};
+                const result = map[value];
+                return {work_state: typeof result === 'string' ? result : null};
             }
             case 13: return {battery_percentage: value};
             case 101: return {charge_state: value ? 'charging' : 'not_charging'};
