@@ -230,23 +230,83 @@ const e = exposes.presets;
 const ea = exposes.access;
 
 const definition = {
-  // The zigbeeModel is typically found in the device's Zigbee information.
-  // Based on the provided image, it's 'TS0601'.
-  // The model identifier from the manufacturer data in the image.
-  model: "ADCBZI01",
-  // The vendor of the device.
-  vendor: "Moes",
-  // A description of the device.
-  description: "Moes Curtain Robot",
-  // Add fingerprints for more robust device identification.
-  // These values (manufacturerName and modelID) are taken directly from the device's
-  // basic cluster attributes, as seen in the image you provided.
-  fingerprints: [
-    {
-      manufacturerName: "_TZ3210_sxtfesc6",
-      modelID: "TS030F",
+    // The zigbeeModel is typically found in the device's Zigbee information.
+    // Based on the provided image, it's 'TS0601'.
+    // The model identifier from the manufacturer data in the image.
+    model: "ADCBZI01",
+    // The vendor of the device.
+    vendor: "Moes",
+    // A description of the device.
+    description: "Moes Curtain Robot",
+    // Add fingerprints for more robust device identification.
+    // These values (manufacturerName and modelID) are taken directly from the device's
+    // basic cluster attributes, as seen in the image you provided.
+    fingerprints: [
+        {
+        manufacturerName: "_TZ3210_sxtfesc6",
+        modelID: "TS030F",
+        },
+    ],
+
+    // Define the exposed features of the device in Zigbee2MQTT.
+    exposes: [
+        // Cover control with position (0-100%).
+        e.cover_position(),
+        // Battery percentage.
+        e.battery(),
+        // Light intensity, assuming DP 107 is for a light sensor.
+        e.illuminance(),
+        // Add a motor direction switch if needed, mapped to DP 5
+        e
+            .enum("motor_direction", ea.ALL, ["none", "left_start", "right_start", "completed"])
+            .withDescription("Reports motor direction status."),
+        // Add work state
+        e
+            .enum("work_state", ea.ALL, ["standby", "opening", "closing"])
+            .withDescription("Reports the current work state of the motor."),
+        // Add charge state
+        e
+            .enum("charge_state", ea.ALL, ["none", "uncharged", "charging", "charged"])
+            .withDescription("Reports the charging status of the device."),
+    ],
+    // Converters for messages coming FROM the device TO Zigbee2MQTT.
+    fromZigbee: [
+        fz.ignore_basic_report, // Ignore basic cluster reports if not needed
+        fz.battery, // Standard battery reporting
+        tuya.fz.datapoints,
+    ],
+    // Converters for messages going FROM Zigbee2MQTT TO the device.
+    toZigbee: [tuya.tz.datapoints],
+    // Metadata for Tuya devices, mapping standard Zigbee2MQTT attributes to Tuya datapoints.
+    meta: {
+        // This array is crucial. It tells the generic tuya.fz.datapoints and tuya.tz.datapoints
+        // how to map Zigbee2MQTT attributes to Tuya Data Points (DPs).
+        tuyaDatapoints: [
+            // [exposes_preset, Tuya_DP_ID, Tuya_DP_Type]
+            [e.cover_position(), 2, "value"], // Target position (set) - DP 2: Percent control
+            [e.cover_position(), 3, "value"], // Current position (get) - DP 3: Percent state
+            [e.battery(), 13, "value"], // Battery percentage - DP 13: Battery percentage
+            [e.illuminance(), 107, "value"], // Light intensity - DP 107: Lightness
+            // Custom enums for additional datapoints
+            [e.enum("motor_direction", ea.ALL, ["none", "left_start", "right_start", "completed"]), 5, "enum"], // DP 5: Motor direction
+            [e.enum("work_state", ea.ALL, ["standby", "opening", "closing"]), 7, "enum"], // DP 7: Work state
+            [e.enum("charge_state", ea.ALL, ["none", "uncharged", "charging", "charged"]), 101, "enum"], // DP 101: Charge state
+        ],
     },
-  ],
+    // Configuration for reporting (how often the device sends updates).
+    configure: async (device, coordinatorEndpoint, logger) => {
+        logger.debug(`Configuring Moes Curtain Robot: ${device.ieeeAddr}`);
+        // The generic Tuya datapoints converter will handle most of the reporting.
+        // You can add specific reporting configurations here if needed,
+        // for example, to request battery reports every hour:
+        const endpoint = device.getEndpoint(1); // Get the primary endpoint
+        await reporting.batteryPercentageRemaining(endpoint); // Add an await expression here
+        device.getEndpoint(1).addTuyaDataPointListener((dpValue) => logger.debug(`Received Tuya DP: ${JSON.stringify(dpValue)}`));
+    },
+};
+
+module.exports = definition;
+
   // Define the exposed features of the device in Zigbee2MQTT.
   exposes: [
     // Cover control with position (0-100%).
