@@ -187,103 +187,40 @@
 //     ],
 // };
 
+const tuya = require('zigbee-herdsman-converters/lib/tuya');
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
 const ea = exposes.access;
-const tuya = require('zigbee-herdsman-converters/lib/tuya');
-
-const datatypes = {
-    enum: 0x04,
-};
-
-const convertDataToPayload = (value) => Buffer.from([value]);
-
-const sendDataPoint = async (entity, dp, value) => {
-    const seq = Math.floor(Math.random() * 255);
-    const payload = {
-        seq,
-        dpValues: [{
-            dp,
-            datatype: datatypes.enum,
-            data: convertDataToPayload(value),
-            seq,
-        }],
-    };
-
-    await entity.command(
-        'manuSpecificTuya',
-        'dataRequest',
-        payload,
-        {},
-        2,
-    );
-};
-
-const fromZigbeeTuyaCurtain = {
-    cluster: 'manuSpecificTuya',
-    type: ['commandDataResponse'],
-    convert: (model, msg, publish, options, meta) => {
-        const dp = msg.data.dp;
-        const data = msg.data.data;
-        const datatype = msg.data.datatype;
-
-        if (!Buffer.isBuffer(data)) {
-            console.warn(`DP ${dp}: data is not a Buffer`);
-            return {};
-        }
-
-        let value;
-        try {
-            switch (datatype) {
-                case 0x04: // enum
-                    value = data[0];
-                    break;
-                default:
-                    console.warn(`DP ${dp}: unsupported datatype ${datatype}`);
-                    return {};
-            }
-        } catch (err) {
-            console.warn(`DP ${dp}: decoding error`, err);
-            return {};
-        }
-
-        console.log(`Decoded DP ${dp} (enum) with value ${value}`);
-
-        if (dp === 1) {
-            const map = ['open', 'stop', 'close'];
-            const result = map[value];
-            if (typeof result === 'string') {
-                return { control: result };
-            } else {
-                console.warn(`DP ${dp}: unknown control value ${value}`);
-                return { control: null };
-            }
-        }
-
-        return {};
-    },
-};
-
-const toZigbeeTuyaCurtain = {
-    key: ['control'],
-    convertSet: async (entity, key, value, meta) => {
-        const map = {open: 0, stop: 1, close: 2};
-        const code = map[value];
-        if (code !== undefined) {
-            await sendDataPoint(entity, 1, code);
-            return {control: value};
-        }
-    },
-};
 
 module.exports = {
     fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
     model: 'ADCBZI01',
     vendor: 'Moes',
-    description: 'Minimal curtain control converter (Tuya)',
-    fromZigbee: [fromZigbeeTuyaCurtain],
-    toZigbee: [toZigbeeTuyaCurtain],
+    description: 'Curtain bot using default Tuya decoder',
+    fromZigbee: [tuya.fz.datapoints],
+    toZigbee: [tuya.tz.datapoints],
+    configure: tuya.configureMagicPacket,
     exposes: [
         exposes.enum('control', ea.SET, ['open', 'stop', 'close']).withDescription('Curtain control'),
+        exposes.numeric('percent_control', ea.SET).withUnit('%').withDescription('Set curtain position'),
+        exposes.numeric('percent_state', ea.STATE).withUnit('%').withDescription('Curtain position feedback'),
+        exposes.enum('motor_direction', ea.SET, ['forward', 'reverse']).withDescription('Motor direction'),
+        exposes.enum('work_state', ea.STATE, ['opening', 'closing', 'stopped']).withDescription('Current activity'),
+        exposes.numeric('battery_percentage', ea.STATE).withUnit('%').withDescription('Battery level'),
+        exposes.enum('charge_state', ea.STATE, ['charging', 'not_charging']).withDescription('Charging status'),
+        exposes.numeric('fault', ea.STATE).withDescription('Device fault code'),
+        exposes.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operating time'),
     ],
+    meta: {
+        tuyaDatapoints: [
+            [1, 'control', tuya.valueConverterBasic.lookup({open: 0, stop: 1, close: 2})],
+            [2, 'percent_control', tuya.valueConverter.raw],
+            [3, 'percent_state', tuya.valueConverter.raw],
+            [5, 'motor_direction', tuya.valueConverterBasic.lookup({forward: 0, reverse: 1})],
+            [7, 'work_state', tuya.valueConverterBasic.lookup({opening: 0, closing: 1, stopped: 2})],
+            [13, 'battery_percentage', tuya.valueConverter.raw],
+            [101, 'charge_state', tuya.valueConverterBasic.lookup({not_charging: 0, charging: 1})],
+            [12, 'fault', tuya.valueConverter.raw],
+            [10, 'total_time', tuya.valueConverter.raw],
+        ],
+    },
 };
-
