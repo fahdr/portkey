@@ -28,12 +28,24 @@
 // };
     
 // module.exports = definition;
-
-const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
-const tz = require('zigbee-herdsman-converters/converters/toZigbee');
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
-const ea = exposes.access;
 const tuya = require('zigbee-herdsman-converters/lib/tuya');
+const ea = exposes.access;
+
+const sendDataPoint = async (entity, dp, datatype, value) => {
+    await entity.command(
+        'manuSpecificTuya',
+        'dataRequest',
+        {
+            seq: Math.floor(Math.random() * 255),
+            dp: dp,
+            datatype: tuya.datatypes[datatype],
+            data: tuya.convertDataToPayload(datatype, value),
+        },
+        {},
+        2,
+    );
+};
 
 const fromZigbeeTuyaCurtain = {
     cluster: 'manuSpecificTuya',
@@ -63,26 +75,27 @@ const toZigbeeTuyaCurtain = {
     key: ['control', 'percent_control', 'motor_direction'],
     convertSet: async (entity, key, value, meta) => {
         switch (key) {
-            case 'control':
+            case 'control': {
                 const ctrlLookup = {'open': 0, 'stop': 1, 'close': 2};
-                await tuya.sendDataPoint(entity, 1, 'enum', ctrlLookup[value]);
+                await sendDataPoint(entity, 1, 'enum', ctrlLookup[value]);
                 return {state: value};
-            case 'percent_control':
-                await tuya.sendDataPoint(entity, 2, 'value', value);
+            }
+            case 'percent_control': {
+                await sendDataPoint(entity, 2, 'value', value);
                 return {percent_control: value};
-            case 'motor_direction':
+            }
+            case 'motor_direction': {
                 const dirVal = value === 'reverse' ? 1 : 0;
-                await tuya.sendDataPoint(entity, 5, 'enum', dirVal);
+                await sendDataPoint(entity, 5, 'enum', dirVal);
                 return {motor_direction: value};
+            }
+            default:
+                throw new Error(`Unsupported key ${key}`);
         }
     },
 };
 
 module.exports = {
-    // fingerprint: [{
-    //     modelID: 'TS0601',
-    //     manufacturerName: '_TZE200_xzunvf6o', // Update if yours differs
-    // }],
     fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
     model: 'ADCBZI01',
     vendor: 'Moes',
