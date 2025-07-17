@@ -221,25 +221,31 @@
 //     },
 // };
 
-
 // moes_curtain_robot.js
-const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
-const exposes = require('zigbee-herdsman-converters/lib/exposes');
-const reporting = require('zigbee-herdsman-converters/lib/reporting');
-const tuya = require('zigbee-herdsman-converters/lib/tuya');
+const fz = require("zigbee-herdsman-converters/converters/fromZigbee");
+const exposes = require("zigbee-herdsman-converters/lib/exposes");
+const reporting = require("zigbee-herdsman-converters/lib/reporting");
+const tuya = require("zigbee-herdsman-converters/lib/tuya");
 const e = exposes.presets;
 const ea = exposes.access;
 
 const definition = {
     // The zigbeeModel is typically found in the device's Zigbee information.
     // Based on the provided image, it's 'TS0601'.
-    zigbeeModel: ['TS030F'],
+    zigbeeModel: ["TS030F"],
     // The model identifier from the manufacturer data in the image.
-    model: '_TZ3210_sxtfesc6',
+    model: "ADCBZI01",
     // The vendor of the device.
-    vendor: 'Moes',
+    vendor: "Moes",
     // A description of the device.
-    description: 'Moes Curtain Robot',
+    description: "Moes Curtain Robot",
+    // Add fingerprints for more robust device identification.
+    // These values (manufacturerName and modelID) are taken directly from the device's
+    // basic cluster attributes, as seen in the image you provided.
+    fingerprints: [{
+        manufacturerName: "_TZ3210_sxtfesc6",
+        modelID: "TS030F",
+    }],
     // Define the exposed features of the device in Zigbee2MQTT.
     exposes: [
         // Cover control with position (0-100%).
@@ -249,14 +255,14 @@ const definition = {
         // Light intensity, assuming DP 107 is for a light sensor.
         e.illuminance_lux(),
         // Add a motor direction switch if needed, mapped to DP 5
-        e.enum('motor_direction', ea.ALL, ['none', 'left_start', 'right_start', 'completed'])
-            .withDescription('Reports motor direction status.'),
+        e.enum("motor_direction", ea.ALL, ["none", "left_start", "right_start", "completed"])
+            .withDescription("Reports motor direction status."),
         // Add work state
-        e.enum('work_state', ea.ALL, ['standby', 'opening', 'closing'])
-            .withDescription('Reports the current work state of the motor.'),
+        e.enum("work_state", ea.ALL, ["standby", "opening", "closing"])
+            .withDescription("Reports the current work state of the motor."),
         // Add charge state
-        e.enum('charge_state', ea.ALL, ['none', 'uncharged', 'charging', 'charged'])
-            .withDescription('Reports the charging status of the device.'),
+        e.enum("charge_state", ea.ALL, ["none", "uncharged", "charging", "charged"])
+            .withDescription("Reports the charging status of the device."),
     ],
     // Converters for messages coming FROM the device TO Zigbee2MQTT.
     fromZigbee: [
@@ -268,23 +274,22 @@ const definition = {
             // Tuya reports 0-100, Zigbee2MQTT also uses 0-100 for position.
             dp: 3,
             // The type of data point, here it's a value.
-            type: 'value',
+            type: "value",
             // The endpoint property to be updated.
-            propertyName: 'position',
+            propertyName: "position",
             // Function to convert the Tuya value to the desired Zigbee2MQTT format.
             // For cover position, 0% is closed, 100% is open.
             // Tuya's 0-100 directly maps to Zigbee2MQTT's 0-100.
             converter: (value) => {
-                // Tuya's 0 is closed, 100 is open. Zigbee2MQTT's 0 is closed, 100 is open.
-                // So, a direct mapping is suitable.
+                // Ensure value is within 0-100 range.
                 return { position: value };
             },
         }),
         tuya.fz.datapoint({
             // DP 13: Battery percentage
             dp: 13,
-            type: 'value',
-            propertyName: 'battery',
+            type: "value",
+            propertyName: "battery",
             converter: (value) => {
                 // Tuya reports 0-100, which directly maps to Zigbee2MQTT's battery percentage.
                 return { battery: value };
@@ -293,8 +298,8 @@ const definition = {
         tuya.fz.datapoint({
             // DP 107: Light intensity
             dp: 107,
-            type: 'value',
-            propertyName: 'illuminance_lux',
+            type: "value",
+            propertyName: "illuminance_lux",
             converter: (value) => {
                 // Assuming value is 0-100, convert to lux if needed, or use directly.
                 // For simplicity, we'll map 0-100 to 0-100 lux.
@@ -304,14 +309,14 @@ const definition = {
         tuya.fz.datapoint({
             // DP 5: Motor direction
             dp: 5,
-            type: 'enum',
-            propertyName: 'motor_direction',
+            type: "enum",
+            propertyName: "motor_direction",
             converter: (value) => {
                 const motorDirectionMap = {
-                    0: 'none',
-                    1: 'left_start',
-                    2: 'right_start',
-                    3: 'completed',
+                    0: "none",
+                    1: "left_start",
+                    2: "right_start",
+                    3: "completed",
                 };
                 return { motor_direction: motorDirectionMap[value] };
             },
@@ -319,13 +324,13 @@ const definition = {
         tuya.fz.datapoint({
             // DP 7: Work state
             dp: 7,
-            type: 'enum',
-            propertyName: 'work_state',
+            type: "enum",
+            propertyName: "work_state",
             converter: (value) => {
                 const workStateMap = {
-                    0: 'standby',
-                    1: 'opening',
-                    2: 'closing',
+                    0: "standby",
+                    1: "opening",
+                    2: "closing",
                 };
                 return { work_state: workStateMap[value] };
             },
@@ -333,14 +338,14 @@ const definition = {
         tuya.fz.datapoint({
             // DP 101: Charge state
             dp: 101,
-            type: 'enum',
-            propertyName: 'charge_state',
+            type: "enum",
+            propertyName: "charge_state",
             converter: (value) => {
                 const chargeStateMap = {
-                    0: 'none',
-                    1: 'uncharged',
-                    2: 'charging',
-                    3: 'charged',
+                    0: "none",
+                    1: "uncharged",
+                    2: "charging",
+                    3: "charged",
                 };
                 return { charge_state: chargeStateMap[value] };
             },
@@ -353,8 +358,8 @@ const definition = {
             // Maps Zigbee2MQTT's 'position' attribute to Tuya DP 2.
             // This handles setting the curtain to a specific percentage.
             dp: 2,
-            type: 'value',
-            propertyName: 'position',
+            type: "value",
+            propertyName: "position",
             // Function to convert the Zigbee2MQTT value to the Tuya format.
             // Zigbee2MQTT's 0-100 directly maps to Tuya's 0-100.
             converter: (value) => {
@@ -366,16 +371,16 @@ const definition = {
             // DP 1: Control (open/stop/close)
             // This handles the 'open', 'close', and 'stop' commands.
             dp: 1,
-            type: 'enum',
-            propertyName: 'state',
+            type: "enum",
+            propertyName: "state",
             // Converter for 'open', 'close', 'stop' commands.
             converter: (value) => {
                 switch (value) {
-                    case 'open':
+                    case "open":
                         return 0; // Tuya DP 1: 0 for open
-                    case 'close':
+                    case "close":
                         return 2; // Tuya DP 1: 2 for close
-                    case 'stop':
+                    case "stop":
                         return 1; // Tuya DP 1: 1 for stop
                     default:
                         // No action for other states, or throw an error.
@@ -389,14 +394,14 @@ const definition = {
         // Defines the Tuya datapoint IDs for various functionalities.
         // This helps the generic Tuya converters understand how to interact with the device.
         tuyaDatapoints: [
-            [e.cover_position(), 2, 'value'], // Target position (set)
-            [e.cover_position(), 3, 'value'], // Current position (get)
-            [e.battery(), 13, 'value'], // Battery percentage
-            [e.illuminance_lux(), 107, 'value'], // Light intensity
-            [e.cover_state(), 1, 'enum'], // Open/Close/Stop commands
-            [e.enum('motor_direction', ea.ALL, ['none', 'left_start', 'right_start', 'completed']), 5, 'enum'],
-            [e.enum('work_state', ea.ALL, ['standby', 'opening', 'closing']), 7, 'enum'],
-            [e.enum('charge_state', ea.ALL, ['none', 'uncharged', 'charging', 'charged']), 101, 'enum'],
+            [e.cover_position(), 2, "value"], // Target position (set)
+            [e.cover_position(), 3, "value"], // Current position (get)
+            [e.battery(), 13, "value"], // Battery percentage
+            [e.illuminance_lux(), 107, "value"], // Light intensity
+            [e.cover_state(), 1, "enum"], // Open/Close/Stop commands
+            [e.enum("motor_direction", ea.ALL, ["none", "left_start", "right_start", "completed"]), 5, "enum"],
+            [e.enum("work_state", ea.ALL, ["standby", "opening", "closing"]), 7, "enum"],
+            [e.enum("charge_state", ea.ALL, ["none", "uncharged", "charging", "charged"]), 101, "enum"],
         ],
     },
     // Configuration for reporting (how often the device sends updates).
