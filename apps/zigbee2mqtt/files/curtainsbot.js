@@ -110,6 +110,8 @@ const fromZigbeeTuyaCurtain = {
             return {};
         }
 
+        meta.logger.debug(`Decoded DP ${dp} (type ${datatype}) with value: ${value}`);
+
         switch (dp) {
             case 1: {
                 const map = ['open', 'stop', 'close'];
@@ -139,6 +141,7 @@ const fromZigbeeTuyaCurtain = {
 const toZigbeeTuyaCurtain = {
     key: ['control', 'percent_control', 'motor_direction'],
     convertSet: async (entity, key, value, meta) => {
+        meta.logger.debug(`Sending '${key}' with value '${value}'`);
         switch (key) {
             case 'control': {
                 const map = {'open': 0, 'stop': 1, 'close': 2};
