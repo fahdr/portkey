@@ -187,42 +187,36 @@
 //     ],
 // };
 
-const tuya = require('zigbee-herdsman-converters/lib/tuya');
+const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
+const tz = require('zigbee-herdsman-converters/converters/toZigbee');
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
+const e = exposes.presets;
 const ea = exposes.access;
+const tuya = require('zigbee-herdsman-converters/lib/tuya');
 
 module.exports = {
     fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
     model: 'ADCBZI01',
     vendor: 'Moes',
-    description: 'Curtain Robot (Tuya-based)',
-    fromZigbee: [tuya.fz.datapoints],
-    toZigbee: [tuya.tz.datapoints],
+    description: 'Curtain Robot (Hybrid Tuya + Zigbee)',
+    fromZigbee: [fz.cover_position_tilt, tuya.fz.datapoints],
+    toZigbee: [tz.cover_position_tilt, tz.cover_state, tuya.tz.datapoints],
     configure: tuya.configureMagicPacket,
     exposes: [
-        exposes.enum('control', ea.SET, ['open', 'stop', 'close']).withDescription('Curtain control'),
-        exposes.numeric('percent_control', ea.SET).withUnit('%').withDescription('Set curtain position'),
-        exposes.numeric('percent_state', ea.STATE).withUnit('%').withDescription('Curtain position feedback'),
+        e.cover_position(), // Standard cover control
+        e.position(),       // Position slider
+        e.battery(),        // Battery percentage
+        e.illuminance(),    // Ambient light
         exposes.enum('motor_direction', ea.SET, ['forward', 'reverse']).withDescription('Motor direction'),
         exposes.enum('work_state', ea.STATE, ['opening', 'closing', 'stopped']).withDescription('Current activity'),
-        exposes.numeric('battery_percentage', ea.STATE).withUnit('%').withDescription('Battery level'),
-        exposes.enum('charge_state', ea.STATE, ['charging', 'not_charging']).withDescription('Charging status'),
-        exposes.numeric('fault', ea.STATE).withDescription('Device fault code'),
-        exposes.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operating time'),
-        exposes.numeric('illuminance', ea.STATE).withUnit('lx').withDescription('Ambient light level'),
     ],
     meta: {
         tuyaDatapoints: [
-            [1, 'control', tuya.valueConverterBasic.lookup({open: 0, stop: 1, close: 2})],
-            [2, 'percent_control', tuya.valueConverter.raw],
-            [3, 'percent_state', tuya.valueConverter.raw],
+            [3, 'position', tuya.valueConverter.raw],           // Position feedback
+            [13, 'battery', tuya.valueConverter.raw],           // Battery level
+            [107, 'illuminance', tuya.valueConverter.raw],      // Light sensor
             [5, 'motor_direction', tuya.valueConverterBasic.lookup({forward: 0, reverse: 1})],
             [7, 'work_state', tuya.valueConverterBasic.lookup({opening: 0, closing: 1, stopped: 2})],
-            [13, 'battery_percentage', tuya.valueConverter.raw],
-            [101, 'charge_state', tuya.valueConverterBasic.lookup({not_charging: 0, charging: 1})],
-            [12, 'fault', tuya.valueConverter.raw],
-            [10, 'total_time', tuya.valueConverter.raw],
-            [107, 'illuminance', tuya.valueConverter.raw],
         ],
     },
 };
