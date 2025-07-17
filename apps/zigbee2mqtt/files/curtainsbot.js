@@ -1,30 +1,104 @@
+// const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
+// const tz = require('zigbee-herdsman-converters/converters/toZigbee');
+// const exposes = require('zigbee-herdsman-converters/lib/exposes');
+// const e = exposes.presets;
+// const ea = exposes.access;
+// const tuya = require('zigbee-herdsman-converters/lib/tuya');
+
+// const definition = {
+//         fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
+//         model: 'ADCBZI01',
+//         vendor: 'Moes',
+//         description: 'Curtain Robot',
+//         fromZigbee: [fz.cover_position_tilt, tuya.fz.datapoints],
+//         toZigbee: [tz.cover_position_tilt, tz.cover_state, tuya.tz.datapoints],
+//         exposes: [
+//             e.cover_position(),
+//             e.position(),
+//             e.battery(),
+//             e.illuminance(),
+//         ],
+//         meta: {
+//             tuyaDatapoints: [
+//                 [3, 'position', tuya.valueConverter.raw],
+//                 [13, 'battery', tuya.valueConverter.raw],
+//                 [107, 'illuminance', tuya.valueConverter.raw], 
+//               ],
+//         },
+// };
+    
+// module.exports = definition;
+
 const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
 const tz = require('zigbee-herdsman-converters/converters/toZigbee');
 const exposes = require('zigbee-herdsman-converters/lib/exposes');
-const e = exposes.presets;
 const ea = exposes.access;
 const tuya = require('zigbee-herdsman-converters/lib/tuya');
 
-const definition = {
-        fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
-        model: 'ADCBZI01',
-        vendor: 'Moes',
-        description: 'Curtain Robot',
-        fromZigbee: [fz.cover_position_tilt, tuya.fz.datapoints],
-        toZigbee: [tz.cover_position_tilt, tz.cover_state, tuya.tz.datapoints],
-        exposes: [
-            e.cover_position(),
-            e.position(),
-            e.battery(),
-            e.illuminance(),
-        ],
-        meta: {
-            tuyaDatapoints: [
-                [3, 'position', tuya.valueConverter.raw],
-                [13, 'battery', tuya.valueConverter.raw],
-                [107, 'illuminance', tuya.valueConverter.raw], 
-              ],
-        },
+const fromZigbeeTuyaCurtain = {
+    cluster: 'manuSpecificTuya',
+    type: ['commandDataResponse'],
+    convert: (model, msg, publish, options, meta) => {
+        const dp = msg.data.dp;
+        const value = tuya.getDataValue(msg.data.datatype, msg.data.data);
+
+        switch (dp) {
+            case 1: return {control: ['open', 'stop', 'close'][value]};
+            case 2: return {percent_control: value};
+            case 3: return {percent_state: value};
+            case 5: return {motor_direction: value === 0 ? 'forward' : 'reverse'};
+            case 7: return {work_state: ['opening', 'closing', 'stopped'][value]};
+            case 13: return {battery_percentage: value};
+            case 101: return {charge_state: value === 1 ? 'charging' : 'not_charging'};
+            case 12: return {fault: value};
+            case 10: return {total_time: value};
+            default:
+                meta.logger.warn(`Unmapped DP: ${dp} with value ${value}`);
+                return {};
+        }
+    },
 };
-    
-module.exports = definition;
+
+const toZigbeeTuyaCurtain = {
+    key: ['control', 'percent_control', 'motor_direction'],
+    convertSet: async (entity, key, value, meta) => {
+        switch (key) {
+            case 'control':
+                const ctrlLookup = {'open': 0, 'stop': 1, 'close': 2};
+                await tuya.sendDataPoint(entity, 1, 'enum', ctrlLookup[value]);
+                return {state: value};
+            case 'percent_control':
+                await tuya.sendDataPoint(entity, 2, 'value', value);
+                return {percent_control: value};
+            case 'motor_direction':
+                const dirVal = value === 'reverse' ? 1 : 0;
+                await tuya.sendDataPoint(entity, 5, 'enum', dirVal);
+                return {motor_direction: value};
+        }
+    },
+};
+
+module.exports = {
+    // fingerprint: [{
+    //     modelID: 'TS0601',
+    //     manufacturerName: '_TZE200_xzunvf6o', // Update if yours differs
+    // }],
+    fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
+    model: 'ADCBZI01',
+    vendor: 'Moes',
+    description: 'Battery-operated Zigbee curtain robot (Tuya-based)',
+    fromZigbee: [fromZigbeeTuyaCurtain],
+    toZigbee: [toZigbeeTuyaCurtain],
+    configure: tuya.configureMagicPacket,
+    exposes: [
+        exposes.enum('control', ea.SET, ['open', 'stop', 'close']).withDescription('Curtain control'),
+        exposes.numeric('percent_control', ea.SET).withValueMin(0).withValueMax(100).withUnit('%').withDescription('Set curtain position'),
+        exposes.numeric('percent_state', ea.STATE).withValueMin(0).withValueMax(100).withUnit('%').withDescription('Curtain position feedback'),
+        exposes.enum('motor_direction', ea.SET, ['forward', 'reverse']).withDescription('Motor direction'),
+        exposes.enum('work_state', ea.STATE, ['opening', 'closing', 'stopped']).withDescription('Current activity'),
+        exposes.numeric('battery_percentage', ea.STATE).withUnit('%').withDescription('Battery level'),
+        exposes.enum('charge_state', ea.STATE, ['charging', 'not_charging']).withDescription('Charging status'),
+        exposes.numeric('fault', ea.STATE).withDescription('Device fault code'),
+        exposes.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operating time'),
+    ],
+};
