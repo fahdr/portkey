@@ -187,6 +187,37 @@
 //     ],
 // };
 
+const exposes = require('zigbee-herdsman-converters/lib/exposes');
+const ea = exposes.access;
+const tuya = require('zigbee-herdsman-converters/lib/tuya');
+
+const datatypes = {
+    enum: 0x04,
+};
+
+const convertDataToPayload = (value) => Buffer.from([value]);
+
+const sendDataPoint = async (entity, dp, value) => {
+    const seq = Math.floor(Math.random() * 255);
+    const payload = {
+        seq,
+        dpValues: [{
+            dp,
+            datatype: datatypes.enum,
+            data: convertDataToPayload(value),
+            seq,
+        }],
+    };
+
+    await entity.command(
+        'manuSpecificTuya',
+        'dataRequest',
+        payload,
+        {},
+        2,
+    );
+};
+
 const fromZigbeeTuyaCurtain = {
     cluster: 'manuSpecificTuya',
     type: ['commandDataResponse'],
@@ -216,3 +247,28 @@ const fromZigbeeTuyaCurtain = {
         return {};
     },
 };
+
+const toZigbeeTuyaCurtain = {
+    key: ['control'],
+    convertSet: async (entity, key, value, meta) => {
+        const map = {open: 0, stop: 1, close: 2};
+        const code = map[value];
+        if (code !== undefined) {
+            await sendDataPoint(entity, 1, code);
+            return {control: value};
+        }
+    },
+};
+
+module.exports = {
+    fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
+    model: 'ADCBZI01',
+    vendor: 'Moes',
+    description: 'Minimal curtain control converter (Tuya)',
+    fromZigbee: [fromZigbeeTuyaCurtain],
+    toZigbee: [toZigbeeTuyaCurtain],
+    exposes: [
+        exposes.enum('control', ea.SET, ['open', 'stop', 'close']).withDescription('Curtain control'),
+    ],
+};
+
