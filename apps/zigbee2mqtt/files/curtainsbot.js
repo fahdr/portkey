@@ -226,22 +226,37 @@ const fromZigbeeTuyaCurtain = {
         const data = msg.data.data;
         const datatype = msg.data.datatype;
 
-        if (!Buffer.isBuffer(data)) return {};
+        if (!Buffer.isBuffer(data)) {
+            console.warn(`DP ${dp}: data is not a Buffer`);
+            return {};
+        }
 
         let value;
         try {
             switch (datatype) {
-                case 0x04: value = data[0]; break; // enum
-                default: return {};
+                case 0x04: // enum
+                    value = data[0];
+                    break;
+                default:
+                    console.warn(`DP ${dp}: unsupported datatype ${datatype}`);
+                    return {};
             }
         } catch (err) {
+            console.warn(`DP ${dp}: decoding error`, err);
             return {};
         }
+
+        console.log(`Decoded DP ${dp} (enum) with value ${value}`);
 
         if (dp === 1) {
             const map = ['open', 'stop', 'close'];
             const result = map[value];
-            return {control: typeof result === 'string' ? result : null};
+            if (typeof result === 'string') {
+                return { control: result };
+            } else {
+                console.warn(`DP ${dp}: unknown control value ${value}`);
+                return { control: null };
+            }
         }
 
         return {};
