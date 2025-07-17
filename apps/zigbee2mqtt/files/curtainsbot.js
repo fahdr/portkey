@@ -63,13 +63,14 @@ function convertDataToPayload(datatype, value) {
     }
 }
 
-// Send Tuya datapoint command using dpValues array
+// Send Tuya datapoint command using dpValues array with seq
 const sendDataPoint = async (entity, dp, datatype, value) => {
     const payload = {
         dpValues: [{
             dp,
             datatype: datatypes[datatype],
             data: convertDataToPayload(datatype, value),
+            seq: Math.floor(Math.random() * 255), // Required per dpValue
         }],
     };
 
