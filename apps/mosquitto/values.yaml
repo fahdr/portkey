@@ -56,7 +56,7 @@ app-template:
               pathType: Prefix
               service:
                 identifier: main
-                port: http
+                port: mqtt
       tls:
         - hosts:
             - *host
