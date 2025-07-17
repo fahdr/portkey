@@ -28,29 +28,50 @@
 // };
     
 // module.exports = definition;
+const exposes = require('zigbee-herdsman-converters/lib/exposes');
+const ea = exposes.access;
 
+// Local datatype map
 const datatypes = {
     raw: 0x00,
     bool: 0x01,
     value: 0x02,
-    enum: 0x04,
     string: 0x03,
+    enum: 0x04,
     bitmap: 0x05,
 };
 
-const exposes = require('zigbee-herdsman-converters/lib/exposes');
-const tuya = require('zigbee-herdsman-converters/lib/tuya');
-const ea = exposes.access;
+// Manual payload builder
+function convertDataToPayload(datatype, value) {
+    switch (datatype) {
+        case 'bool':
+            return Buffer.from([value ? 1 : 0]);
+        case 'value': {
+            const buf = Buffer.alloc(4);
+            buf.writeUInt32BE(value);
+            return buf;
+        }
+        case 'enum':
+            return Buffer.from([value]);
+        case 'string': {
+            const strBuf = Buffer.from(value);
+            return Buffer.concat([Buffer.from([strBuf.length]), strBuf]);
+        }
+        default:
+            throw new Error(`Unsupported datatype: ${datatype}`);
+    }
+}
 
+// Tuya command sender
 const sendDataPoint = async (entity, dp, datatype, value) => {
     await entity.command(
         'manuSpecificTuya',
         'dataRequest',
         {
             seq: Math.floor(Math.random() * 255),
-            dp: dp,
+            dp,
             datatype: datatypes[datatype],
-            data: tuya.convertDataToPayload(datatype, value),
+            data: convertDataToPayload(datatype, value),
         },
         {},
         2,
@@ -62,7 +83,16 @@ const fromZigbeeTuyaCurtain = {
     type: ['commandDataResponse'],
     convert: (model, msg, publish, options, meta) => {
         const dp = msg.data.dp;
-        const value = tuya.getDataValue(msg.data.datatype, msg.data.data);
+        const data = msg.data.data;
+        const datatype = msg.data.datatype;
+
+        let value;
+        switch (datatype) {
+            case 0x01: value = data[0] === 1; break;
+            case 0x02: value = data.readUInt32BE(0); break;
+            case 0x04: value = data[0]; break;
+            default: value = data.toString();
+        }
 
         switch (dp) {
             case 1: return {control: ['open', 'stop', 'close'][value]};
@@ -71,11 +101,11 @@ const fromZigbeeTuyaCurtain = {
             case 5: return {motor_direction: value === 0 ? 'forward' : 'reverse'};
             case 7: return {work_state: ['opening', 'closing', 'stopped'][value]};
             case 13: return {battery_percentage: value};
-            case 101: return {charge_state: value === 1 ? 'charging' : 'not_charging'};
+            case 101: return {charge_state: value ? 'charging' : 'not_charging'};
             case 12: return {fault: value};
             case 10: return {total_time: value};
             default:
-                meta.logger.warn(`Unmapped DP: ${dp} with value ${value}`);
+                meta.logger.warn(`Unmapped DP: ${dp}, value: ${value}`);
                 return {};
         }
     },
@@ -112,7 +142,6 @@ module.exports = {
     description: 'Battery-operated Zigbee curtain robot (Tuya-based)',
     fromZigbee: [fromZigbeeTuyaCurtain],
     toZigbee: [toZigbeeTuyaCurtain],
-    configure: tuya.configureMagicPacket,
     exposes: [
         exposes.enum('control', ea.SET, ['open', 'stop', 'close']).withDescription('Curtain control'),
         exposes.numeric('percent_control', ea.SET).withValueMin(0).withValueMax(100).withUnit('%').withDescription('Set curtain position'),
