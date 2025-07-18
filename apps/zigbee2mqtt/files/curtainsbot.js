@@ -17,16 +17,17 @@ const definition = {
             e.position(),
             e.battery(),
             e.illuminance(),
-            e.enum('motor_direction', ea.STATE, ['forward', 'reverse']).withDescription('Motor rotation direction'),
-            e.enum('work_state', ea.STATE, ['idle', 'opening', 'closing', 'stopped']).withDescription('Current work state'),
+            e.enum('control_back', ea.STATE_SET, ['none', 'left_start', 'right_start', 'completed']).withDescription('Motor direction control'),
+            e.enum('work_state', ea.STATE, ['standby', 'opening', 'closing']).withDescription('Current work state'),
             e.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operation time'),
-            e.enum('situation', ea.STATE, ['normal', 'blocked', 'limit_reached']).withDescription('Current situation'),
-            e.enum('fault', ea.STATE, ['none', 'motor_fault', 'sensor_fault', 'power_fault']).withDescription('Fault status'),
-            e.enum('charging_status', ea.STATE, ['not_charging', 'charging', 'charged']).withDescription('Charging status'),
+            e.enum('situation_set', ea.STATE_SET, ['fully_open', 'fully_close']).withDescription('Situation control'),
+            e.enum('fault', ea.STATE, ['none']).withDescription('Fault status'),
+            e.enum('charging_status', ea.STATE, ['none', 'uncharged', 'charging', 'charged']).withDescription('Charging status'),
             e.numeric('open_threshold', ea.STATE_SET).withValueMin(0).withValueMax(100).withDescription('Light threshold for opening'),
             e.numeric('close_threshold', ea.STATE_SET).withValueMin(0).withValueMax(100).withDescription('Light threshold for closing'),
-            e.enum('robot_status', ea.STATE, ['normal', 'calibrating', 'error']).withDescription('Robot status'),
+            e.numeric('curtain_status', ea.STATE_SET).withValueMin(0).withValueMax(255).withDescription('Curtain status'),
             e.numeric('total_distance', ea.STATE).withUnit('m').withDescription('Total distance traveled'),
+            e.numeric('factory_test', ea.STATE).withValueMin(0).withValueMax(100).withDescription('Factory test feedback'),
             e.numeric('custom_week_prog_1', ea.STATE_SET).withDescription('Custom week program 1'),
             e.numeric('custom_week_prog_2', ea.STATE_SET).withDescription('Custom week program 2'),
             e.numeric('custom_week_prog_3', ea.STATE_SET).withDescription('Custom week program 3'),
@@ -35,25 +36,25 @@ const definition = {
         ],
         meta: {
             tuyaDatapoints: [
-                [1, 'state', tuya.valueConverter.onOff], // Control - open/close command
-                [2, 'position', tuya.valueConverter.coverPosition], // Percent control - set position
-                [3, 'position', tuya.valueConverter.coverPosition], // Percent state - current position
-                [5, 'motor_direction', tuya.valueConverter.raw], // Motor direction - changed to raw for debugging
-                [7, 'work_state', tuya.valueConverter.raw], // Work state - changed to raw for debugging
-                [10, 'total_time', tuya.valueConverter.raw], // Total time
-                [11, 'situation', tuya.valueConverterBasic.lookup({'normal': 0, 'blocked': 1, 'limit_reached': 2})], // Situation
-                [12, 'fault', tuya.valueConverterBasic.lookup({'none': 0, 'motor_fault': 1, 'sensor_fault': 2, 'power_fault': 3})], // Fault
-                [13, 'battery', tuya.valueConverter.raw], // Battery percentage
-                [101, 'charging_status', tuya.valueConverterBasic.lookup({'not_charging': 0, 'charging': 1, 'charged': 2})], // Charging status
-                [103, 'custom_week_prog_1', tuya.valueConverter.raw], // Custom week program 1
-                [104, 'custom_week_prog_2', tuya.valueConverter.raw], // Custom week program 2
-                [105, 'custom_week_prog_3', tuya.valueConverter.raw], // Custom week program 3
-                [106, 'custom_week_prog_4', tuya.valueConverter.raw], // Custom week program 4
-                [107, 'illuminance', tuya.valueConverter.raw], // Lightness
-                [108, 'open_threshold', tuya.valueConverter.raw], // Open window threshold
-                [109, 'close_threshold', tuya.valueConverter.raw], // Close window threshold
-                [110, 'robot_status', tuya.valueConverterBasic.lookup({'normal': 0, 'calibrating': 1, 'error': 2})], // Robot status
-                [111, 'production_test', tuya.valueConverter.raw], // Production test feedback
+                [1, 'state', tuya.valueConverterBasic.lookup({'open': 0, 'stop': 1, 'close': 2})], // Control - open/stop/close
+                [2, 'position', tuya.valueConverter.coverPosition], // Percent control - set position (0-100)
+                [3, 'position', tuya.valueConverter.coverPosition], // Percent state - current position (0-100)
+                [5, 'control_back', tuya.valueConverterBasic.lookup({'none': 0, 'left_start': 1, 'right_start': 2, 'completed': 3})], // Motor direction control
+                [7, 'work_state', tuya.valueConverterBasic.lookup({'standby': 0, 'opening': 1, 'closing': 2})], // Work state
+                [10, 'total_time', tuya.valueConverter.raw], // Total time (0-120000)
+                [11, 'situation_set', tuya.valueConverterBasic.lookup({'fully_open': 0, 'fully_close': 1})], // Situation control
+                [12, 'fault', tuya.valueConverterBasic.lookup({'none': 0})], // Fault (only 'none' available)
+                [13, 'battery', tuya.valueConverter.raw], // Battery percentage (0-100)
+                [101, 'charging_status', tuya.valueConverterBasic.lookup({'none': 0, 'uncharged': 1, 'charging': 2, 'charged': 3})], // Charging status
+                [103, 'custom_week_prog_1', tuya.valueConverter.raw], // Custom week program 1 (raw)
+                [104, 'custom_week_prog_2', tuya.valueConverter.raw], // Custom week program 2 (raw)
+                [105, 'custom_week_prog_3', tuya.valueConverter.raw], // Custom week program 3 (raw)
+                [106, 'custom_week_prog_4', tuya.valueConverter.raw], // Custom week program 4 (raw)
+                [107, 'illuminance', tuya.valueConverter.raw], // Light intensity (0-100)
+                [108, 'open_threshold', tuya.valueConverter.raw], // Open window threshold (0-100)
+                [109, 'close_threshold', tuya.valueConverter.raw], // Close window threshold (0-100)
+                [110, 'curtain_status', tuya.valueConverter.raw], // Curtain status (0-255)
+                [111, 'factory_test', tuya.valueConverter.raw], // Factory test (0-100)
                 [112, 'total_distance', tuya.valueConverter.raw], // Total running distance in meters
             ],
         },
