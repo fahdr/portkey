@@ -17,11 +17,6 @@ const definition = {
             e.position(),
             e.battery(),
             e.illuminance(),
-            e.numeric('control_back', ea.STATE_SET).withDescription('Motor direction control (raw for debugging)'),
-            e.numeric('motor_direction', ea.STATE).withDescription('Motor direction (raw for debugging)'),
-            e.numeric('motor_reversal', ea.STATE_SET).withDescription('Motor reversal setting (raw for debugging)'),
-            e.numeric('debug_dp_8', ea.STATE_SET).withDescription('Debug DP8 - potential motor control'),
-            e.numeric('debug_dp_9', ea.STATE_SET).withDescription('Debug DP9 - potential motor control'),
             e.enum('work_state', ea.STATE, ['standby', 'opening', 'closing']).withDescription('Current work state'),
             e.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operation time'),
             e.enum('situation_set', ea.STATE_SET, ['fully_open', 'fully_close']).withDescription('Situation control'),
@@ -32,32 +27,26 @@ const definition = {
             e.numeric('curtain_status', ea.STATE_SET).withValueMin(0).withValueMax(255).withDescription('Curtain status'),
             e.numeric('total_distance', ea.STATE).withUnit('m').withDescription('Total distance traveled'),
             e.numeric('factory_test', ea.STATE).withValueMin(0).withValueMax(100).withDescription('Factory test feedback'),
-            e.numeric('custom_week_prog_1', ea.STATE_SET).withDescription('Custom week program 1'),
-            e.numeric('custom_week_prog_2', ea.STATE_SET).withDescription('Custom week program 2'),
-            e.numeric('custom_week_prog_3', ea.STATE_SET).withDescription('Custom week program 3'),
-            e.numeric('custom_week_prog_4', ea.STATE_SET).withDescription('Custom week program 4'),
-            e.numeric('production_test', ea.STATE).withDescription('Production test feedback'),
+            e.text('custom_week_prog_1', ea.STATE_SET).withDescription('Custom week program 1'),
+            e.text('custom_week_prog_2', ea.STATE_SET).withDescription('Custom week program 2'),
+            e.text('custom_week_prog_3', ea.STATE_SET).withDescription('Custom week program 3'),
+            e.text('custom_week_prog_4', ea.STATE_SET).withDescription('Custom week program 4'),
         ],
         meta: {
             tuyaDatapoints: [
                 [1, 'state', tuya.valueConverterBasic.lookup({'open': 0, 'stop': 1, 'close': 2})], // Control - open/stop/close
                 [2, 'position', tuya.valueConverter.coverPosition], // Percent control - set position (0-100)
                 [3, 'position', tuya.valueConverter.coverPosition], // Percent state - current position (0-100)
-                [4, 'motor_direction', tuya.valueConverter.raw], // Motor direction - raw for debugging
-                [5, 'control_back', tuya.valueConverter.raw], // Motor direction control - raw for debugging
-                [6, 'motor_reversal', tuya.valueConverter.raw], // Motor reversal setting - raw for debugging
-                [8, 'debug_dp_8', tuya.valueConverter.raw], // Debug DP8 - might be motor control
-                [9, 'debug_dp_9', tuya.valueConverter.raw], // Debug DP9 - might be motor control
                 [7, 'work_state', tuya.valueConverterBasic.lookup({'standby': 0, 'opening': 1, 'closing': 2})], // Work state
                 [10, 'total_time', tuya.valueConverter.raw], // Total time (0-120000)
                 [11, 'situation_set', tuya.valueConverterBasic.lookup({'fully_open': 0, 'fully_close': 1})], // Situation control
                 [12, 'fault', tuya.valueConverterBasic.lookup({'none': 0})], // Fault (only 'none' available)
                 [13, 'battery', tuya.valueConverter.raw], // Battery percentage (0-100)
                 [101, 'charging_status', tuya.valueConverterBasic.lookup({'none': 0, 'uncharged': 1, 'charging': 2, 'charged': 3})], // Charging status
-                [103, 'custom_week_prog_1', tuya.valueConverter.raw], // Custom week program 1 (raw)
-                [104, 'custom_week_prog_2', tuya.valueConverter.raw], // Custom week program 2 (raw)
-                [105, 'custom_week_prog_3', tuya.valueConverter.raw], // Custom week program 3 (raw)
-                [106, 'custom_week_prog_4', tuya.valueConverter.raw], // Custom week program 4 (raw)
+                [103, 'custom_week_prog_1', tuya.valueConverter.raw], // Custom week program 1
+                [104, 'custom_week_prog_2', tuya.valueConverter.raw], // Custom week program 2
+                [105, 'custom_week_prog_3', tuya.valueConverter.raw], // Custom week program 3
+                [106, 'custom_week_prog_4', tuya.valueConverter.raw], // Custom week program 4
                 [107, 'illuminance', tuya.valueConverter.raw], // Light intensity (0-100)
                 [108, 'open_threshold', tuya.valueConverter.raw], // Open window threshold (0-100)
                 [109, 'close_threshold', tuya.valueConverter.raw], // Close window threshold (0-100)
