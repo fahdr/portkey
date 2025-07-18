@@ -241,12 +241,8 @@ const definition = {
     // Add fingerprints for more robust device identification.
     // These values (manufacturerName and modelID) are taken directly from the device's
     // basic cluster attributes, as seen in the image you provided.
-    fingerprints: [
-        {
-        manufacturerName: "_TZ3210_sxtfesc6",
-        modelID: "TS030F",
-        },
-    ],
+    fingerprint: tuya.fingerprint('TS030F', ['_TZ3210_sxtfesc6']),
+
     // Define the exposed features of the device in Zigbee2MQTT.
     exposes: [
         // Cover control with position (0-100%).
