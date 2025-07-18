@@ -17,7 +17,7 @@ const definition = {
             e.position(),
             e.battery(),
             e.illuminance(),
-            e.enum('motor_direction', ea.STATE_SET, ['forward', 'reverse']).withDescription('Motor rotation direction'),
+            e.enum('motor_direction', ea.STATE, ['forward', 'reverse']).withDescription('Motor rotation direction'),
             e.enum('work_state', ea.STATE, ['idle', 'opening', 'closing', 'stopped']).withDescription('Current work state'),
             e.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operation time'),
             e.enum('situation', ea.STATE, ['normal', 'blocked', 'limit_reached']).withDescription('Current situation'),
@@ -38,8 +38,8 @@ const definition = {
                 [1, 'state', tuya.valueConverter.onOff], // Control - open/close command
                 [2, 'position', tuya.valueConverter.coverPosition], // Percent control - set position
                 [3, 'position', tuya.valueConverter.coverPosition], // Percent state - current position
-                [5, 'motor_direction', tuya.valueConverterBasic.lookup({'forward': 0, 'reverse': 1})], // Motor direction
-                [7, 'work_state', tuya.valueConverterBasic.lookup({'idle': 0, 'opening': 1, 'closing': 2, 'stopped': 3})], // Work state
+                [5, 'motor_direction', tuya.valueConverter.raw], // Motor direction - changed to raw for debugging
+                [7, 'work_state', tuya.valueConverter.raw], // Work state - changed to raw for debugging
                 [10, 'total_time', tuya.valueConverter.raw], // Total time
                 [11, 'situation', tuya.valueConverterBasic.lookup({'normal': 0, 'blocked': 1, 'limit_reached': 2})], // Situation
                 [12, 'fault', tuya.valueConverterBasic.lookup({'none': 0, 'motor_fault': 1, 'sensor_fault': 2, 'power_fault': 3})], // Fault
