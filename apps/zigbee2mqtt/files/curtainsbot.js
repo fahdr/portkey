@@ -18,6 +18,8 @@ const definition = {
             e.battery(),
             e.illuminance(),
             e.enum('control_back', ea.STATE_SET, ['none', 'left_start', 'right_start', 'completed']).withDescription('Motor direction control'),
+            e.enum('motor_direction', ea.STATE, ['forward', 'reverse']).withDescription('Motor direction'),
+            e.enum('motor_reversal', ea.STATE_SET, ['ON', 'OFF']).withDescription('Motor reversal setting'),
             e.enum('work_state', ea.STATE, ['standby', 'opening', 'closing']).withDescription('Current work state'),
             e.numeric('total_time', ea.STATE).withUnit('s').withDescription('Total operation time'),
             e.enum('situation_set', ea.STATE_SET, ['fully_open', 'fully_close']).withDescription('Situation control'),
@@ -39,7 +41,9 @@ const definition = {
                 [1, 'state', tuya.valueConverterBasic.lookup({'open': 0, 'stop': 1, 'close': 2})], // Control - open/stop/close
                 [2, 'position', tuya.valueConverter.coverPosition], // Percent control - set position (0-100)
                 [3, 'position', tuya.valueConverter.coverPosition], // Percent state - current position (0-100)
+                [4, 'motor_direction', tuya.valueConverterBasic.lookup({'forward': 0, 'reverse': 1})], // Motor direction
                 [5, 'control_back', tuya.valueConverterBasic.lookup({'none': 0, 'left_start': 1, 'right_start': 2, 'completed': 3})], // Motor direction control
+                [6, 'motor_reversal', tuya.valueConverterBasic.lookup({'OFF': 0, 'ON': 1})], // Motor reversal setting
                 [7, 'work_state', tuya.valueConverterBasic.lookup({'standby': 0, 'opening': 1, 'closing': 2})], // Work state
                 [10, 'total_time', tuya.valueConverter.raw], // Total time (0-120000)
                 [11, 'situation_set', tuya.valueConverterBasic.lookup({'fully_open': 0, 'fully_close': 1})], // Situation control
