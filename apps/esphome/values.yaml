@@ -16,9 +16,9 @@ app-template:
           resources:
             requests:
               cpu: 5m
-              memory: 1374M
+              memory: 256Mi
             limits:
-              memory: 2048M
+              memory: 512Mi
   service:
     app:
       controller: esphome
