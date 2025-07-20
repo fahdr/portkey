@@ -2,17 +2,15 @@
 metrics:
   service:
     enabled: true
-    port: 8443
+    port: 8080
   # Disable authentication to allow Prometheus to scrape metrics easily
-  disableAuth: false
+  disableAuth: true
 
 # ServiceMonitor configuration for Prometheus
 serviceMonitor:
   enabled: true
   interval: 30s
-  scheme: https
-  tlsConfig:
-    insecureSkipVerify: true
+  scheme: http
 
 # Additional RBAC configuration to allow Prometheus to scrape metrics
 rbac:
