@@ -1,0 +1,52 @@
+---
+# ClusterRoleBinding to allow Prometheus to access volsync metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-volsync-metrics-reader
+  labels:
+    app.kubernetes.io/name: volsync
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: metrics
+subjects:
+- kind: ServiceAccount
+  name: monitoring-system-kube-pro-prometheus
+  namespace: monitoring-system
+roleRef:
+  kind: ClusterRole
+  name: volsync-metrics-reader
+  apiGroup: rbac.authorization.k8s.ioinding to allow Prometheus to access volsync metrics reader
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-volsync-metrics-reader
+  labels:
+    app.kubernetes.io/name: volsync
+    app.kubernetes.io/instance: volsync
+    app.kubernetes.io/component: metrics
+subjects:
+- kind: ServiceAccount
+  name: monitoring-system-kube-pro-prometheus
+  namespace: monitoring-system
+roleRef:
+  kind: ClusterRole
+  name: volsync-metrics-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRoleBinding to allow Prometheus to access volsync proxy for metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-volsync-proxy
+  labels:
+    app.kubernetes.io/name: volsync
+    app.kubernetes.io/instance: volsync
+    app.kubernetes.io/component: metrics
+subjects:
+- kind: ServiceAccount
+  name: monitoring-system-kube-pro-prometheus
+  namespace: monitoring-system
+roleRef:
+  kind: ClusterRole
+  name: volsync-proxy
+  apiGroup: rbac.authorization.k8s.io
