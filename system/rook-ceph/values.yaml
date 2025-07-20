@@ -55,8 +55,8 @@ rook-ceph-cluster:
             limits:
               memory: "4Gi"
             requests:
-              cpu: "1000m"
-              memory: "4Gi"
+              cpu: "200m"
+              memory: "2Gi"
           priorityClassName: system-cluster-critical
       storageClass:
         enabled: true
@@ -95,7 +95,7 @@ rook-ceph-cluster:
             limits:
               memory: "2Gi"
             requests:
-              cpu: "1000m"
+              cpu: "200m"
               memory: "1Gi"
           instances: 1
           priorityClassName: system-cluster-critical

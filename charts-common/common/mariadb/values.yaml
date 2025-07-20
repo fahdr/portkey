@@ -14,10 +14,10 @@ mariadb:
     type: ClusterIP
   resources:
     requests:
-      cpu: 200m
+      cpu: 100m
       memory: 512Mi
     limits:
-      cpu: 300m
+      cpu: 200m
       memory: 1024Mi
 
 backup:
