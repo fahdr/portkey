@@ -41,7 +41,7 @@ spec:
               /entrypoint.sh "${ZEROTIER_NETWORK_ID}"
           resources:
             requests:
-              cpu: 100m
+              cpu: 20m
               memory: 128Mi
           env:
             - name: POD_IP
