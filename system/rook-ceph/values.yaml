@@ -1,5 +1,9 @@
 # Reduce CSI driver resource usage
 rook-ceph:
+  # Environment variables for the operator to disable multisite for external clusters
+  env:
+    - name: ROOK_ENABLE_OBJECT_STORE_MULTISITE
+      value: "false"
   csi:
     # Disable CephFS CSI since we're not using CephFS
     enableCephfsDriver: false
@@ -142,9 +146,6 @@ rook-ceph-cluster:
               memory: "512Mi"  # Reduced from 1Gi
           instances: 1
           priorityClassName: system-cluster-critical
-        # Disable multisite for external clusters - set to null/empty
-        realm: null
-        zone: null
       storageClass:
         enabled: true
         name: ceph-bucket
