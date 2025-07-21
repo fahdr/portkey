@@ -1,10 +1,11 @@
 # Enable metrics for Prometheus monitoring
-metrics:
-  service:
-    enabled: true
-    port: 8080
-  # Disable authentication to allow Prometheus to scrape metrics easily
-  disableAuth: true
+volsync:
+  metrics:
+    service:
+      enabled: true
+      port: 8080
+    # Disable authentication to allow Prometheus to scrape metrics easily
+    disableAuth: true
 
 # # ServiceMonitor configuration for Prometheus
 # serviceMonitor:
