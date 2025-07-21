@@ -157,9 +157,11 @@ rook-ceph-cluster:
         enabled: true
         annotations:
           cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        host:
-          name: s3.themainfreak.com
-          path: /
+        hosts:
+          - host: s3.themainfreak.com
+            paths:
+              - path: /
+                pathType: Prefix
         tls:
           - secretName: s3-tls-certificate
             hosts:
