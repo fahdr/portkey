@@ -1,9 +1,5 @@
 # Reduce CSI driver resource usage
 rook-ceph:
-  # Environment variables for the operator to disable multisite for external clusters
-  env:
-    - name: ROOK_ENABLE_OBJECT_STORE_MULTISITE
-      value: "false"
   csi:
     # Disable CephFS CSI since we're not using CephFS
     enableCephfsDriver: false
@@ -138,6 +134,10 @@ rook-ceph-cluster:
         preservePoolsOnDelete: true
         gateway:
           port: 80
+          # Uncomment for NodePort access (alternative to ingress)
+          # service:
+          #   type: NodePort
+          #   nodePort: 30080
           resources:
             limits:
               memory: "1Gi"  # Reduced from 2Gi
@@ -154,7 +154,14 @@ rook-ceph-cluster:
         parameters:
           region: us-east-1
       ingress:
-        enabled: false
+        enabled: true
+        annotations:
+          nginx.ingress.kubernetes.io/rewrite-target: /
+          nginx.ingress.kubernetes.io/proxy-body-size: "0"
+          nginx.ingress.kubernetes.io/proxy-max-temp-file-size: "0"
+        host:
+          name: s3.themainfreak.com
+          path: /
 
   # CephFS Volume Snapshot Class - explicitly disabled since CephFS is disabled
   # Set to empty object to override any chart defaults
