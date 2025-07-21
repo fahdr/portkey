@@ -142,14 +142,9 @@ rook-ceph-cluster:
               memory: "512Mi"  # Reduced from 1Gi
           instances: 1
           priorityClassName: system-cluster-critical
-        # Disable multisite completely for external clusters
+        # Disable multisite for external clusters by setting empty zone name
         zone:
           name: ""
-        realm:
-          name: ""
-        # Disable multisite features  
-        hosting:
-          dnsNames: []
       storageClass:
         enabled: true
         name: ceph-bucket
