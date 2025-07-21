@@ -156,16 +156,12 @@ rook-ceph-cluster:
       ingress:
         enabled: true
         annotations:
-          nginx.ingress.kubernetes.io/rewrite-target: /
-          nginx.ingress.kubernetes.io/proxy-body-size: "0"
-          nginx.ingress.kubernetes.io/proxy-max-temp-file-size: "0"
           cert-manager.io/cluster-issuer: "letsencrypt-prod"
-          nginx.ingress.kubernetes.io/ssl-redirect: "true"
         host:
           name: s3.themainfreak.com
           path: /
         tls:
-          - secretName: s3-themainfreak-com-tls
+          - secretName: s3-tls-certificate
             hosts:
               - s3.themainfreak.com
 
