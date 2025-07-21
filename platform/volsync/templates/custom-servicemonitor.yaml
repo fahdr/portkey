@@ -12,7 +12,7 @@ spec:
   endpoints:
   - interval: {{ .Values.serviceMonitor.interval }}
     path: /metrics
-    port: http
+    port: 8080
     scheme: http
   selector:
     matchLabels:
