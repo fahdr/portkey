@@ -72,12 +72,15 @@ rook-ceph-cluster:
           csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
           csi.storage.k8s.io/fstype: ext4
 
-  # CephFS temporarily disabled to reduce CPU usage
+  # CephFS explicitly disabled to reduce CPU usage - set to empty array to override chart defaults
   # To re-enable CephFS:
-  # 1. Uncomment the cephFileSystems section below
-  # 2. Set enableCephfsDriver: true in the CSI section above
+  # 1. Replace the empty array below with the full cephFileSystems configuration
+  # 2. Set enableCephfsDriver: true in the CSI section above  
   # 3. Uncomment cephFileSystemVolumeSnapshotClass section below
   # 4. Increase MDS resources if needed (activeStandby: true, resources)
+  cephFileSystems: []  # EXPLICITLY DISABLED - prevents Helm chart defaults from creating CephFS
+  # 
+  # Full configuration to restore when needed:
   # cephFileSystems:
   #   - name: ceph-filesystem
   #     spec:
@@ -149,8 +152,11 @@ rook-ceph-cluster:
       ingress:
         enabled: false
 
-  # CephFS Volume Snapshot Class - disabled since CephFS is disabled
-  # Uncomment when re-enabling CephFS above
+  # CephFS Volume Snapshot Class - explicitly disabled since CephFS is disabled
+  # Set to empty object to override any chart defaults
+  cephFileSystemVolumeSnapshotClass: {}  # EXPLICITLY DISABLED
+  #
+  # Uncomment when re-enabling CephFS above:
   # cephFileSystemVolumeSnapshotClass:
   #   enabled: true
   #   name: ceph-filesystem
