@@ -2,18 +2,20 @@
 metrics:
   service:
     enabled: true
-    port: 8443
+    port: 8080
   # Disable authentication to allow Prometheus to scrape metrics easily
- # disableAuth: true
+  disableAuth: true
 
 # ServiceMonitor configuration for Prometheus
 serviceMonitor:
-  enabled: true
+  enabled: false
   interval: 30s
-  scheme: https
-  tlsConfig:
-    insecureSkipVerify: true
-  bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  scheme: http
+  port: 8080
+
+# Custom ServiceMonitor with proper authentication
+customServiceMonitor:
+  enabled: true
 
 # Additional RBAC configuration to allow Prometheus to scrape metrics
 rbac:
