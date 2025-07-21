@@ -158,12 +158,16 @@ rook-ceph-cluster:
         ingressClassName: nginx
         annotations:
           cert-manager.io/cluster-issuer: "letsencrypt-prod"
-        hosts:
-          - s3.themainfreak.com
+        host:
+          name: s3.themainfreak.com
+          path: /
+          pathType: ImplementationSpecific
+          pathprefix: /  # Ensure path prefix is set for S3 compatibility
         tls:
           - secretName: s3-tls-certificate
             hosts:
               - s3.themainfreak.com
+
 
   # CephFS Volume Snapshot Class - explicitly disabled since CephFS is disabled
   # Set to empty object to override any chart defaults
