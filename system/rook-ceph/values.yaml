@@ -142,6 +142,9 @@ rook-ceph-cluster:
               memory: "512Mi"  # Reduced from 1Gi
           instances: 1
           priorityClassName: system-cluster-critical
+        # Explicitly disable multisite for single-site external cluster
+        zone:
+          name: ""
       storageClass:
         enabled: true
         name: ceph-bucket
