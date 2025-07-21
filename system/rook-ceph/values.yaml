@@ -155,13 +155,11 @@ rook-ceph-cluster:
           region: us-east-1
       ingress:
         enabled: true
+        ingressClassName: nginx
         annotations:
           cert-manager.io/cluster-issuer: "letsencrypt-prod"
         hosts:
-          - host: s3.themainfreak.com
-            paths:
-              - path: /
-                pathType: Prefix
+          - s3.themainfreak.com
         tls:
           - secretName: s3-tls-certificate
             hosts:
