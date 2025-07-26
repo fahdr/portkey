@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vaultwarden-cli
-  namespace: global-secrets
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: vaultwarden-cli
     app.kubernetes.io/name: vaultwarden-cli
@@ -74,7 +74,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vaultwarden-cli
-  namespace: global-secrets
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: vaultwarden-cli
     app.kubernetes.io/name: vaultwarden-cli
@@ -92,7 +92,7 @@ spec:
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  namespace: global-secrets
+  namespace: {{ .Release.Namespace }}
   name: external-secret-2-vw-cli
 spec:
   podSelector:
