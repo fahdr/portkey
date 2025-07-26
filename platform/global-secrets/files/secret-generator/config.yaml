@@ -41,9 +41,9 @@
       length: 32
       special: true
 
-# Case10 MariaDB passwords - sync to Vaultwarden only
+# Case10 MariaDB passwords - sync to Vaultwarden
 - name: case10-mariadb
-  syncTo: ["vaultwarden"]
+  syncTo: ["kubernetes", "vaultwarden"]
   syncDirection: "kubernetes-to-vaultwarden"
   data:
     - key: user_password
@@ -56,9 +56,9 @@
       length: 24
       special: true
 
-# Case10 MinIO credentials - sync to Vaultwarden only
+# Case10 MinIO credentials - sync to Vaultwarden
 - name: case10-minio
-  syncTo: ["vaultwarden"]
+  syncTo: ["kubernetes", "vaultwarden"]
   syncDirection: "kubernetes-to-vaultwarden"
   data:
     - key: access_key
