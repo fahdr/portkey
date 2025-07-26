@@ -40,3 +40,30 @@
     - key: VAULTWARDEN_ADMIN_TOKEN
       length: 32
       special: true
+
+# Case10 MariaDB passwords - sync to Vaultwarden only
+- name: case10-mariadb
+  syncTo: ["vaultwarden"]
+  syncDirection: "kubernetes-to-vaultwarden"
+  data:
+    - key: user_password
+      length: 24
+      special: true
+    - key: root_password
+      length: 24
+      special: true
+    - key: repl_password
+      length: 24
+      special: true
+
+# Case10 MinIO credentials - sync to Vaultwarden only
+- name: case10-minio
+  syncTo: ["vaultwarden"]
+  syncDirection: "kubernetes-to-vaultwarden"
+  data:
+    - key: access_key
+      length: 16
+      special: false
+    - key: secret_key
+      length: 32
+      special: true

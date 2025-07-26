@@ -8,6 +8,11 @@ cloudflare_api_key = "foobarkey"
 # https://my.zerotier.com/account
 zerotier_central_token = "foobartoken"
 
+# Vaultwarden OAuth2 credentials for external secrets integration
+# Get these from your Vaultwarden web interface -> Account Settings -> API Access
+vaultwarden_client_id = "your_vaultwarden_client_id_here"
+vaultwarden_client_secret = "your_vaultwarden_client_secret_here"
+
 ntfy = {
   # https://ntfy.sh or your own instance
   url = "https://ntfy.sh"
