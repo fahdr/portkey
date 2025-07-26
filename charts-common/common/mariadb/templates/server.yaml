@@ -27,6 +27,11 @@ spec:
   secondaryService:
     type: {{ .Values.mariadb.secondaryService.type | default "ClusterIP" }}
 
+  {{- if hasKey .Values.mariadb "tls" }}
+  tls:
+    enabled: {{ .Values.mariadb.tls.enabled | default true }}
+  {{- end }}
+
   resources:
     requests:
       cpu: {{ .Values.mariadb.resources.requests.cpu | default "100m" }}

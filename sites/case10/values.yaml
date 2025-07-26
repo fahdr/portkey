@@ -12,6 +12,8 @@ wordpress-site:
       type: ClusterIP
     secondaryService:
       type: ClusterIP
+    tls:
+      enabled: false
     resources:
       requests:
         cpu: 100m
