@@ -64,77 +64,36 @@ func generateRandomPassword(length int, special bool) (string, error) {
 	return password.Generate(length, numDigits, numSymbols, false, true)
 }
 
-func getVaultwardenToken() (string, error) {
-	// Try to get token from environment variable first
-	if token := os.Getenv("VAULTWARDEN_TOKEN"); token != "" {
-		return token, nil
-	}
-	
-	// If not in env, try to read from Kubernetes secret
-	client, err := getClient()
-	if err != nil {
-		return "", fmt.Errorf("unable to create Kubernetes client: %v", err)
-	}
-	
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), "vaultwarden-token", metav1.GetOptions{})
-	if err != nil {
-		return "", fmt.Errorf("unable to get vaultwarden-token secret: %v", err)
-	}
-	
-	token, exists := secret.Data["token"]
-	if !exists {
-		return "", fmt.Errorf("token key not found in vaultwarden-token secret")
-	}
-	
-	return string(token), nil
-}
-
 func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
-	token, err := getVaultwardenToken()
+	// Use the webhook endpoint instead of direct API
+	webhookURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
+	
+	req, err := http.NewRequest("GET", webhookURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get Vaultwarden token: %v", err)
+		return nil, fmt.Errorf("error creating webhook request: %v", err)
 	}
-	
-	vaultwardenURL := os.Getenv("VAULTWARDEN_URL")
-	if vaultwardenURL == "" {
-		vaultwardenURL = "https://vaultwarden.themainfreak.com"
-	}
-	
-	// Search for the item by name
-	req, err := http.NewRequest("GET", vaultwardenURL+"/api/ciphers", nil)
-	if err != nil {
-		return nil, fmt.Errorf("error creating HTTP request: %v", err)
-	}
-	
-	req.Header.Set("Authorization", "Bearer "+token)
 	
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request to Vaultwarden: %v", err)
+		return nil, fmt.Errorf("error sending webhook request: %v", err)
 	}
 	defer resp.Body.Close()
 	
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil // Item not found
+	}
+	
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Vaultwarden API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("webhook returned status %d", resp.StatusCode)
 	}
 	
-	var response struct {
-		Data []VaultwardenItem `json:"data"`
+	var item VaultwardenItem
+	if err := json.NewDecoder(resp.Body).Decode(&item); err != nil {
+		return nil, fmt.Errorf("error decoding webhook response: %v", err)
 	}
 	
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("error decoding response: %v", err)
-	}
-	
-	// Find item by name
-	for _, item := range response.Data {
-		if item.Name == secretName {
-			return &item, nil
-		}
-	}
-	
-	return nil, nil // Item not found
+	return &item, nil
 }
 
 func getVaultwardenSecretData(item *VaultwardenItem) map[string]string {
@@ -152,10 +111,8 @@ func getVaultwardenSecretData(item *VaultwardenItem) map[string]string {
 }
 
 func syncToVaultwarden(secretName string, secretData map[string]string) error {
-	token, err := getVaultwardenToken()
-	if err != nil {
-		return fmt.Errorf("unable to get Vaultwarden token: %v", err)
-	}
+	// Use the webhook endpoint to create/update the item
+	webhookURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
 	
 	// Create Vaultwarden item structure
 	item := VaultwardenItem{
@@ -182,33 +139,27 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		return fmt.Errorf("error marshaling item to JSON: %v", err)
 	}
 	
-	// Create HTTP request to Vaultwarden API
-	vaultwardenURL := os.Getenv("VAULTWARDEN_URL")
-	if vaultwardenURL == "" {
-		vaultwardenURL = "https://vaultwarden.themainfreak.com"
-	}
-	
-	req, err := http.NewRequest("POST", vaultwardenURL+"/api/ciphers", bytes.NewBuffer(jsonData))
+	// Create HTTP request to webhook
+	req, err := http.NewRequest("POST", webhookURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("error creating HTTP request: %v", err)
+		return fmt.Errorf("error creating webhook request: %v", err)
 	}
 	
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
 	
 	// Send request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request to Vaultwarden: %v", err)
+		return fmt.Errorf("error sending webhook request: %v", err)
 	}
 	defer resp.Body.Close()
 	
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("Vaultwarden API returned status %d", resp.StatusCode)
+		return fmt.Errorf("webhook returned status %d", resp.StatusCode)
 	}
 	
-	log.Printf("Successfully synced secret '%s' to Vaultwarden", secretName)
+	log.Printf("Successfully synced secret '%s' to Vaultwarden via webhook", secretName)
 	return nil
 }
 
