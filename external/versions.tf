@@ -1,5 +1,5 @@
 terraform {
-  required_version = "~> 1.6.4"
+  required_version = ">= 1.6.0"
 
   backend "remote" {
     hostname     = "app.terraform.io"
@@ -36,5 +36,5 @@ provider "cloudflare" {
 provider "kubernetes" {
   # Use KUBE_CONFIG_PATH environment variables
   # Or in cluster service account
-  config_path="/root/code/portkey/metal/kubeconfig.yaml"
+  config_path = "/workspaces/portkey/metal/kubeconfig.yaml"
 }
