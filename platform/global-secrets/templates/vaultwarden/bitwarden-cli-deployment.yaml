@@ -28,7 +28,7 @@ spec:
             - name: BW_HOST
               valueFrom:
                 secretKeyRef:
-                  name: vaultwarden-cli
+                  name: vaultwarden-cli-host
                   key: BW_HOST
             - name: BW_CLIENTID
               valueFrom:
