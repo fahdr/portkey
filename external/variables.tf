@@ -15,6 +15,18 @@ variable "zerotier_central_token" {
   type = string
 }
 
+variable "vaultwarden_client_id" {
+  type        = string
+  description = "Vaultwarden OAuth2 client ID for external secrets integration"
+  sensitive   = true
+}
+
+variable "vaultwarden_client_secret" {
+  type        = string
+  description = "Vaultwarden OAuth2 client secret for external secrets integration"
+  sensitive   = true
+}
+
 variable "ntfy" {
   type = object({
     url   = string
