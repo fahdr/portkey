@@ -150,6 +150,8 @@ func getVaultwardenSecretData(item *VaultwardenItem) map[string]string {
 	
 	return secretData
 }
+
+func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	token, err := getVaultwardenToken()
 	if err != nil {
 		return fmt.Errorf("unable to get Vaultwarden token: %v", err)
