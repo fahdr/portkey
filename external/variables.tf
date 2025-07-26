@@ -27,6 +27,12 @@ variable "vaultwarden_client_secret" {
   sensitive   = true
 }
 
+variable "vaultwarden_master_password" {
+  type        = string
+  description = "Vaultwarden master password for vault unlocking"
+  sensitive   = true
+}
+
 variable "ntfy" {
   type = object({
     url   = string
