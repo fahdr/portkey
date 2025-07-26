@@ -41,7 +41,7 @@
       length: 32
       special: true
 
-# Case10 MariaDB passwords - sync to Vaultwarden
+# Case10 MariaDB passwords - sync to Vaultwarden using correct Bitwarden CLI API
 - name: case10-mariadb
   syncTo: ["kubernetes", "vaultwarden"]
   syncDirection: "kubernetes-to-vaultwarden"
@@ -56,7 +56,7 @@
       length: 24
       special: true
 
-# Case10 MinIO credentials - sync to Vaultwarden
+# Case10 MinIO credentials - sync to Vaultwarden using correct Bitwarden CLI API
 - name: case10-minio
   syncTo: ["kubernetes", "vaultwarden"]
   syncDirection: "kubernetes-to-vaultwarden"
