@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: vaultwarden-cli
-          image: ghcr.io/charlesthomas/bitwarden-cli:2023.12.1
+          image: ghcr.io/charlesthomas/bitwarden-cli:2025.6.1
           imagePullPolicy: IfNotPresent
           env:
             - name: BW_HOST
