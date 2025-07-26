@@ -21,7 +21,8 @@ module "ntfy" {
 module "extra_secrets" {
   source = "./modules/extra-secrets"
   data = merge(var.extra_secrets, {
-    "vaultwarden-client-id"     = var.vaultwarden_client_id
-    "vaultwarden-client-secret" = var.vaultwarden_client_secret
+    "vaultwarden-client-id"      = var.vaultwarden_client_id
+    "vaultwarden-client-secret"  = var.vaultwarden_client_secret
+    "vaultwarden-master-password" = var.vaultwarden_master_password
   })
 }
