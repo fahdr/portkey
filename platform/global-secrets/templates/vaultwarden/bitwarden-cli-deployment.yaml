@@ -103,19 +103,18 @@ spec:
     app.kubernetes.io/name: vaultwarden-cli
     app.kubernetes.io/instance: vaultwarden-cli
 ---
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
-metadata:
-  namespace: {{ .Release.Namespace }}
-  name: external-secret-2-vw-cli
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/instance: vaultwarden-cli
-      app.kubernetes.io/name: vaultwarden-cli
-  ingress:
-  - from:
-      - podSelector:
-          matchLabels:
-            app.kubernetes.io/instance: external-secrets
-            app.kubernetes.io/name: external-secrets
+# kind: NetworkPolicy
+# apiVersion: networking.k8s.io/v1
+# metadata:
+#   namespace: {{ .Release.Namespace }}
+#   name: external-secret-2-vw-cli
+# spec:
+#   podSelector:
+#     matchLabels:
+#       app.kubernetes.io/instance: vaultwarden-cli
+#       app.kubernetes.io/name: vaultwarden-cli
+#   ingress:
+#   - from:
+#       - namespaceSelector:
+#           matchLabels:
+#             kubernetes.io/metadata.name: external-secrets
