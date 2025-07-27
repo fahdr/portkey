@@ -7,6 +7,12 @@
     release_namespace: "{{ cilium_namespace }}"
     values: "{{ cilium_values }}"
 
+- name: Install kubernetes Python library
+  pip:
+    name: kubernetes
+    state: present
+  delegate_to: localhost
+
 - name: Wait for Cilium CRDs
   kubernetes.core.k8s_info:
     kind: CustomResourceDefinition
@@ -15,7 +21,7 @@
     - ciliuml2announcementpolicies.cilium.io
     - ciliumloadbalancerippools.cilium.io
   register: crd
-  until: crd.resources | length > 0
+  until: crd.resources is defined and crd.resources | length > 0
   retries: 5
   delay: 10
 
