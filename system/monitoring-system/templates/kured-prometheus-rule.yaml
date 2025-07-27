@@ -1,0 +1,49 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kured-monitoring
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: kured-monitoring
+    {{- include "monitoring-system.labels" . | nindent 4 }}
+spec:
+  groups:
+  - name: kured.rules
+    rules:
+    - alert: KuredRebootRequired
+      expr: kured_reboot_required == 1
+      for: 5m
+      labels:
+        severity: warning
+        component: kured
+      annotations:
+        summary: "Node {{ $labels.node }} requires reboot"
+        description: "Node {{ $labels.node }} has been marked for reboot by kured. A reboot will be scheduled soon to apply security updates."
+        runbook_url: "https://github.com/kubereboot/kured#overview"
+
+    - alert: KuredRebootScheduled
+      expr: kured_reboot_scheduled == 1
+      for: 0m
+      labels:
+        severity: critical
+        component: kured
+      annotations:
+        summary: "Node {{ $labels.node }} reboot scheduled"
+        description: "Node {{ $labels.node }} is being drained and will reboot shortly to apply security updates."
+        runbook_url: "https://github.com/kubereboot/kured#overview"
+
+    - alert: KuredDaemonSetRollout
+      expr: |
+        (
+          kube_daemonset_status_number_ready{daemonset="kured",namespace="kured"}
+          /
+          kube_daemonset_status_desired_number_scheduled{daemonset="kured",namespace="kured"}
+        ) < 0.5
+      for: 15m
+      labels:
+        severity: warning
+        component: kured
+      annotations:
+        summary: "Kured DaemonSet not fully available"
+        description: "Kured DaemonSet has only {{ $value | humanizePercentage }} of desired pods ready."
+        runbook_url: "https://github.com/kubereboot/kured#overview"
