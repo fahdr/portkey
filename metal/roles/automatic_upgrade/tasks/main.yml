@@ -4,6 +4,24 @@
       - dnf-automatic
       - dnf-utils
 
+- name: Create sentinel directory for kured
+  ansible.builtin.file:
+    path: /sentinel
+    state: directory
+    mode: '0755'
+
+- name: Copy notification script
+  ansible.builtin.copy:
+    src: notify-updates.sh
+    dest: /usr/local/bin/notify-updates.sh
+    mode: '0755'
+
+- name: Set NTFY_TOPIC environment variable
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    line: 'NTFY_TOPIC={{ ntfy_topic | default("portkey_a8sd7fkjxlkcjasdw33813") }}'
+    regexp: '^NTFY_TOPIC='
+
 - name: Copy automatic upgrade config file
   ansible.builtin.copy:
     src: automatic.conf
