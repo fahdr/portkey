@@ -14,8 +14,9 @@ wordpress-site:
       type: ClusterIP
     tls:
       enabled: false
-    externalSecret:
-      enabled: true  # Use External Secrets instead of generated secrets
+    mariadb:
+      externalSecret:
+        enabled: true  # Use External Secrets instead of generated secrets
     resources:
       requests:
         cpu: 100m
