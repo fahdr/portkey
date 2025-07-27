@@ -1,0 +1,311 @@
+name: Deploy Feature App for Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Name of the app to deploy (e.g., nextcloud, jellyfin, homeassistant)'
+        required: true
+        type: string
+      branch_name:
+        description: 'Branch to deploy from (e.g., feature/new-config, dev-branch)'
+        required: true
+        type: string
+        default: 'master'
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - cleanup
+        default: 'deploy'
+      namespace_suffix:
+        description: 'Optional suffix for namespace (useful for multiple tests)'
+        required: false
+        type: string
+        default: ''
+      force_cleanup:
+        description: 'Force cleanup by removing finalizers (use with caution)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+
+jobs:
+  deploy-feature-app:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch_name }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup ArgoCD CLI
+        run: |
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+          rm argocd-linux-amd64
+
+      - name: Setup kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Validate inputs
+        run: |
+          # Check if app exists in the repository
+          if [ ! -d "apps/${{ github.event.inputs.app_name }}" ]; then
+            echo "❌ App '${{ github.event.inputs.app_name }}' not found in apps/ directory"
+            echo "Available apps:"
+            ls -1 apps/ | grep -v "^Chart\|^values" || echo "No apps found"
+            exit 1
+          fi
+          
+          # Sanitize branch name for Kubernetes naming
+          SANITIZED_BRANCH=$(echo "${{ github.event.inputs.branch_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+          SANITIZED_SUFFIX=$(echo "${{ github.event.inputs.namespace_suffix }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
+          
+          # Create environment variables for subsequent steps
+          echo "SANITIZED_BRANCH=${SANITIZED_BRANCH}" >> $GITHUB_ENV
+          echo "SANITIZED_SUFFIX=${SANITIZED_SUFFIX}" >> $GITHUB_ENV
+          
+          if [ -n "${{ github.event.inputs.namespace_suffix }}" ]; then
+            echo "APP_INSTANCE=dev-${{ github.event.inputs.app_name }}-${SANITIZED_SUFFIX}-${SANITIZED_BRANCH}" >> $GITHUB_ENV
+            echo "NAMESPACE=dev-${{ github.event.inputs.app_name }}-${SANITIZED_SUFFIX}" >> $GITHUB_ENV
+          else
+            echo "APP_INSTANCE=dev-${{ github.event.inputs.app_name }}-${SANITIZED_BRANCH}" >> $GITHUB_ENV
+            echo "NAMESPACE=dev-${{ github.event.inputs.app_name }}" >> $GITHUB_ENV
+          fi
+
+      - name: Deploy Application
+        if: github.event.inputs.action == 'deploy'
+        run: |
+          echo "🚀 Deploying ${{ github.event.inputs.app_name }} from branch ${{ github.event.inputs.branch_name }}"
+          echo "📦 Application instance: ${APP_INSTANCE}"
+          echo "🏠 Namespace: ${NAMESPACE}"
+          
+          # Create ArgoCD Application
+          cat <<EOF | kubectl apply -f -
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: ${APP_INSTANCE}
+            namespace: argocd
+            labels:
+              app.kubernetes.io/name: ${{ github.event.inputs.app_name }}
+              app.kubernetes.io/instance: dev
+              testing.portkey.io/branch: ${SANITIZED_BRANCH}
+              testing.portkey.io/workflow-run: ${{ github.run_number }}
+            annotations:
+              argocd.argoproj.io/compare-options: IgnoreExtraneous
+              testing.portkey.io/created-by: github-action
+              testing.portkey.io/source-branch: ${{ github.event.inputs.branch_name }}
+              testing.portkey.io/workflow-url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          spec:
+            project: default
+            source:
+              repoURL: ${{ github.server_url }}/${{ github.repository }}
+              targetRevision: ${{ github.event.inputs.branch_name }}
+              path: apps/${{ github.event.inputs.app_name }}
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: ${NAMESPACE}
+            syncPolicy:
+              automated:
+                prune: false
+                selfHeal: false
+              syncOptions:
+                - CreateNamespace=true
+                - ApplyOutOfSyncOnly=true
+              retry:
+                limit: 5
+                backoff:
+                  duration: 30s
+                  factor: 2
+                  maxDuration: 3m
+          EOF
+          
+          echo "✅ Application ${APP_INSTANCE} created successfully!"
+
+      - name: Wait for Application Sync
+        if: github.event.inputs.action == 'deploy'
+        run: |
+          echo "⏳ Waiting for application to sync..."
+          
+          # Wait for the application to be created and start syncing
+          timeout 300 bash -c '
+            while true; do
+              STATUS=$(kubectl get application ${APP_INSTANCE} -n argocd -o jsonpath="{.status.sync.status}" 2>/dev/null || echo "NotFound")
+              HEALTH=$(kubectl get application ${APP_INSTANCE} -n argocd -o jsonpath="{.status.health.status}" 2>/dev/null || echo "Unknown")
+              
+              echo "Sync Status: $STATUS, Health Status: $HEALTH"
+              
+              if [ "$STATUS" = "Synced" ]; then
+                echo "✅ Application synced successfully!"
+                break
+              elif [ "$STATUS" = "OutOfSync" ] || [ "$STATUS" = "Unknown" ]; then
+                echo "🔄 Application is syncing..."
+                sleep 10
+              else
+                echo "⚠️  Application status: $STATUS"
+                sleep 10
+              fi
+            done
+          '
+
+      - name: Get Application Status
+        if: github.event.inputs.action == 'deploy'
+        run: |
+          echo "📊 Application Status:"
+          kubectl get application ${APP_INSTANCE} -n argocd -o yaml
+          
+          echo "📋 Resources in namespace ${NAMESPACE}:"
+          kubectl get all -n ${NAMESPACE} || echo "No resources found or namespace doesn't exist yet"
+
+      - name: Cleanup Application
+        if: github.event.inputs.action == 'cleanup'
+        run: |
+          echo "🧹 Cleaning up application ${APP_INSTANCE}"
+          
+          FORCE_CLEANUP="${{ github.event.inputs.force_cleanup }}"
+          
+          # Delete the ArgoCD application
+          if kubectl get application ${APP_INSTANCE} -n argocd >/dev/null 2>&1; then
+            echo "Deleting ArgoCD application: ${APP_INSTANCE}"
+            
+            if [ "$FORCE_CLEANUP" = "true" ]; then
+              echo "⚠️  Force cleanup enabled - removing finalizers if needed"
+              kubectl patch application ${APP_INSTANCE} -n argocd --type json --patch='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+            fi
+            
+            kubectl delete application ${APP_INSTANCE} -n argocd --timeout=60s
+            echo "✅ Application ${APP_INSTANCE} deleted"
+          else
+            echo "⚠️  Application ${APP_INSTANCE} not found"
+          fi
+          
+          # Delete the namespace with force option if needed
+          if kubectl get namespace ${NAMESPACE} >/dev/null 2>&1; then
+            echo "Deleting namespace: ${NAMESPACE}"
+            
+            if [ "$FORCE_CLEANUP" = "true" ]; then
+              echo "⚠️  Force cleanup enabled - will handle stuck resources"
+              
+              # First, try normal deletion
+              kubectl delete namespace ${NAMESPACE} --timeout=60s &
+              DELETE_PID=$!
+              
+              # Wait up to 60 seconds for normal deletion
+              sleep 60
+              
+              # Check if deletion is still running
+              if kill -0 $DELETE_PID 2>/dev/null; then
+                echo "⚠️  Namespace deletion stuck, applying force cleanup..."
+                
+                # Kill the normal delete process
+                kill $DELETE_PID 2>/dev/null || true
+                
+                # Get all resources in the namespace and remove finalizers
+                echo "Removing finalizers from stuck resources..."
+                
+                # Remove finalizers from persistent volume claims
+                kubectl get pvc -n ${NAMESPACE} -o name 2>/dev/null | while read pvc; do
+                  kubectl patch $pvc -n ${NAMESPACE} --type json --patch='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+                done
+                
+                # Remove finalizers from persistent volumes
+                kubectl get pv -o name 2>/dev/null | while read pv; do
+                  if kubectl get $pv -o jsonpath='{.spec.claimRef.namespace}' 2>/dev/null | grep -q "^${NAMESPACE}$"; then
+                    kubectl patch $pv --type json --patch='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+                  fi
+                done
+                
+                # Remove finalizers from other common resources that might be stuck
+                for resource in secrets configmaps services deployments statefulsets pods; do
+                  kubectl get $resource -n ${NAMESPACE} -o name 2>/dev/null | while read res; do
+                    kubectl patch $res -n ${NAMESPACE} --type json --patch='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+                  done
+                done
+                
+                # Remove finalizer from namespace itself
+                kubectl patch namespace ${NAMESPACE} --type json --patch='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null || true
+                
+                # Force delete any remaining pods
+                kubectl delete pods --all -n ${NAMESPACE} --force --grace-period=0 2>/dev/null || true
+                
+                echo "Force cleanup completed"
+              else
+                wait $DELETE_PID
+              fi
+            else
+              kubectl delete namespace ${NAMESPACE} --timeout=120s
+            fi
+            
+            echo "✅ Namespace ${NAMESPACE} deleted"
+          else
+            echo "⚠️  Namespace ${NAMESPACE} not found"
+          fi
+
+      - name: Create deployment summary
+        if: github.event.inputs.action == 'deploy'
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # 🚀 Feature App Deployment Summary
+          
+          ## Deployment Details
+          - **App**: \`${{ github.event.inputs.app_name }}\`
+          - **Branch**: \`${{ github.event.inputs.branch_name }}\`
+          - **Application Instance**: \`${APP_INSTANCE}\`
+          - **Namespace**: \`${NAMESPACE}\`
+          - **Status**: Deployed ✅
+          
+          ## Next Steps
+          1. **Monitor the deployment**:
+             \`\`\`bash
+             kubectl get application ${APP_INSTANCE} -n argocd
+             kubectl get all -n ${NAMESPACE}
+             \`\`\`
+          
+          2. **Access ArgoCD UI**: Check the application status in your ArgoCD dashboard
+          
+          3. **Clean up when done testing**:
+             - Go to Actions → Deploy Feature App for Testing
+             - Set Action to "cleanup"
+             - Use the same app name and branch
+          
+          ## Useful Commands
+          \`\`\`bash
+          # Check application logs
+          kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/name=${{ github.event.inputs.app_name }}
+          
+          # Port forward to access the app locally (adjust port as needed)
+          kubectl port-forward -n ${NAMESPACE} svc/${{ github.event.inputs.app_name }} 8080:80
+          
+          # Get application details
+          argocd app get ${APP_INSTANCE}
+          \`\`\`
+          EOF
+
+      - name: Create cleanup summary
+        if: github.event.inputs.action == 'cleanup'
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # 🧹 Feature App Cleanup Summary
+          
+          ## Cleanup Details
+          - **App**: \`${{ github.event.inputs.app_name }}\`
+          - **Application Instance**: \`${APP_INSTANCE}\`
+          - **Namespace**: \`${NAMESPACE}\`
+          - **Status**: Cleaned up ✅
+          
+          The test application and its namespace have been removed from the cluster.
+          EOF
