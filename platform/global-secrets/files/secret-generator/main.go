@@ -93,19 +93,41 @@ func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 	}
 	
 	if resp.StatusCode == http.StatusBadRequest {
-		// This might indicate multiple items with the same name - we need to clean this up
+		// This might indicate multiple items with the same name - we can get the IDs directly from the response
 		log.Printf("⚠️  WARNING: GET returned 400 for item '%s' - this usually means multiple items with same name exist", secretName)
-		log.Printf("⚠️  WARNING: Attempting to clean up duplicate items for '%s'", secretName)
 		
-		// Try to get all items and find duplicates
-		err := cleanupDuplicateItems(secretName)
-		if err != nil {
-			log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
-			return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+		// Parse the response to get the IDs
+		var errorResponse struct {
+			Success bool     `json:"success"`
+			Message string   `json:"message"`
+			Data    []string `json:"data"`
 		}
 		
-		// After cleanup, try to get the item again
-		return getVaultwardenItemAfterCleanup(secretName)
+		if err := json.Unmarshal(responseBody[:n], &errorResponse); err == nil && len(errorResponse.Data) > 0 {
+			log.Printf("⚠️  WARNING: Found %d duplicate items with IDs: %v", len(errorResponse.Data), errorResponse.Data)
+			log.Printf("⚠️  WARNING: Attempting to clean up duplicates using IDs from error response")
+			
+			// Clean up duplicates using the IDs we got from the error response
+			err := cleanupDuplicateItemsByIDs(secretName, errorResponse.Data)
+			if err != nil {
+				log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
+				return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+			}
+			
+			// After cleanup, try to get the item again
+			return getVaultwardenItemAfterCleanup(secretName)
+		} else {
+			// Fallback to the old method if we can't parse the IDs
+			log.Printf("⚠️  WARNING: Could not parse IDs from error response, falling back to list method")
+			err := cleanupDuplicateItems(secretName)
+			if err != nil {
+				log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
+				return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+			}
+			
+			// After cleanup, try to get the item again
+			return getVaultwardenItemAfterCleanup(secretName)
+		}
 	}
 	
 	if resp.StatusCode != http.StatusOK {
@@ -151,6 +173,47 @@ func getFieldNames(existingFields []struct {
 	return extraFields
 }
 
+func cleanupDuplicateItemsByIDs(secretName string, itemIDs []string) error {
+	if len(itemIDs) <= 1 {
+		return nil // No duplicates to clean up
+	}
+	
+	client := &http.Client{}
+	
+	// Keep the first item and delete the rest
+	for i := 1; i < len(itemIDs); i++ {
+		deleteURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + itemIDs[i]
+		deleteReq, err := http.NewRequest("DELETE", deleteURL, nil)
+		if err != nil {
+			log.Printf("Error creating delete request for duplicate item %s: %v", itemIDs[i], err)
+			continue
+		}
+		
+		deleteResp, err := client.Do(deleteReq)
+		if err != nil {
+			log.Printf("Error deleting duplicate item %s: %v", itemIDs[i], err)
+			continue
+		}
+		
+		// Read delete response for logging
+		deleteBody := make([]byte, 512)
+		dn, _ := deleteResp.Body.Read(deleteBody)
+		deleteRespStr := string(deleteBody[:dn])
+		deleteResp.Body.Close()
+		
+		log.Printf("Delete duplicate item %s - Status: %d, Response: %s", itemIDs[i], deleteResp.StatusCode, deleteRespStr)
+		
+		if deleteResp.StatusCode == http.StatusOK || deleteResp.StatusCode == http.StatusNoContent {
+			log.Printf("Successfully deleted duplicate item '%s' (ID: %s)", secretName, itemIDs[i])
+		} else {
+			log.Printf("Failed to delete duplicate item %s: status %d", itemIDs[i], deleteResp.StatusCode)
+		}
+	}
+	
+	log.Printf("Cleanup complete for '%s' - kept ID %s, deleted %d duplicates", secretName, itemIDs[0], len(itemIDs)-1)
+	return nil
+}
+
 func cleanupDuplicateItems(secretName string) error {
 	// Get all items to find duplicates
 	listURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/list/object/items"
@@ -167,18 +230,36 @@ func cleanupDuplicateItems(secretName string) error {
 	}
 	defer resp.Body.Close()
 	
+	// Read response body for logging
+	responseBody := make([]byte, 2048) // Read more for list response
+	n, _ := resp.Body.Read(responseBody)
+	responseStr := string(responseBody[:n])
+	
+	log.Printf("List items response - Status: %d, Response: %s", resp.StatusCode, responseStr)
+	
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("list request failed with status %d", resp.StatusCode)
 	}
 	
-	var items []VaultwardenItem
-	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
-		return fmt.Errorf("error decoding list response: %v", err)
+	// Parse the response structure based on what we see in the API
+	var listResponse struct {
+		Success bool                `json:"success"`
+		Message string              `json:"message"`
+		Data    []VaultwardenItem   `json:"data"`
+	}
+	
+	if err := json.Unmarshal(responseBody[:n], &listResponse); err != nil {
+		// If the structured response fails, let's try to see if it's a direct array
+		var items []VaultwardenItem
+		if err2 := json.Unmarshal(responseBody[:n], &items); err2 != nil {
+			return fmt.Errorf("error decoding list response (tried both formats): structured=%v, array=%v", err, err2)
+		}
+		listResponse.Data = items
 	}
 	
 	// Find all items with the same name
 	var duplicates []VaultwardenItem
-	for _, item := range items {
+	for _, item := range listResponse.Data {
 		if item.Name == secretName {
 			duplicates = append(duplicates, item)
 		}
