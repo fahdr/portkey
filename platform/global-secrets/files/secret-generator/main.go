@@ -32,6 +32,7 @@ type RandomSecret struct {
 }
 
 type VaultwardenItem struct {
+	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Notes  string `json:"notes"`
 	Fields []struct {
@@ -80,16 +81,23 @@ func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 	}
 	defer resp.Body.Close()
 	
+	// Read response body for logging
+	responseBody := make([]byte, 1024) // Read first 1KB for logging
+	n, _ := resp.Body.Read(responseBody)
+	responseStr := string(responseBody[:n])
+	
+	log.Printf("GET item '%s' - Status: %d, Response: %s", secretName, resp.StatusCode, responseStr)
+	
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil // Item not found
 	}
 	
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("webhook returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, responseStr)
 	}
 	
 	var item VaultwardenItem
-	if err := json.NewDecoder(resp.Body).Decode(&item); err != nil {
+	if err := json.Unmarshal(responseBody[:n], &item); err != nil {
 		return nil, fmt.Errorf("error decoding webhook response: %v", err)
 	}
 	
@@ -154,11 +162,18 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	var webhookURL string
 	var method string
 	
-	if existingItem != nil {
-		// Item exists, update it using PUT
-		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
+	if existingItem != nil && existingItem.ID != "" {
+		// Item exists, update it using PUT with the item ID
+		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + existingItem.ID
 		method = "PUT"
-		log.Printf("Updating existing Vaultwarden item '%s'", secretName)
+		// Include the ID in the item for updates
+		item["id"] = existingItem.ID
+		// Re-marshal with ID
+		jsonData, err = json.Marshal(item)
+		if err != nil {
+			return fmt.Errorf("error marshaling item with ID to JSON: %v", err)
+		}
+		log.Printf("Updating existing Vaultwarden item '%s' (ID: %s)", secretName, existingItem.ID)
 	} else {
 		// Item doesn't exist, create it using POST
 		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item"
@@ -182,10 +197,80 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	}
 	defer resp.Body.Close()
 	
+	// Read response body for logging
+	responseBody := make([]byte, 1024) // Read first 1KB for logging
+	n, _ := resp.Body.Read(responseBody)
+	responseStr := string(responseBody[:n])
+	
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("API returned status %d", resp.StatusCode)
+		log.Printf("API call failed - Status: %d, Response: %s", resp.StatusCode, responseStr)
+		
+		// If update failed, try to delete and recreate as a fallback
+		if method == "PUT" && existingItem != nil {
+			log.Printf("Update failed with status %d, attempting to delete and recreate item '%s'", resp.StatusCode, secretName)
+			
+			// Delete the existing item
+			deleteURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + existingItem.ID
+			deleteReq, err := http.NewRequest("DELETE", deleteURL, nil)
+			if err != nil {
+				return fmt.Errorf("error creating delete request: %v", err)
+			}
+			
+			deleteResp, err := client.Do(deleteReq)
+			if err != nil {
+				return fmt.Errorf("error deleting existing item: %v", err)
+			}
+			
+			// Read delete response for logging
+			deleteBody := make([]byte, 1024)
+			dn, _ := deleteResp.Body.Read(deleteBody)
+			deleteRespStr := string(deleteBody[:dn])
+			deleteResp.Body.Close()
+			
+			log.Printf("Delete attempt - Status: %d, Response: %s", deleteResp.StatusCode, deleteRespStr)
+			
+			if deleteResp.StatusCode == http.StatusOK || deleteResp.StatusCode == http.StatusNoContent {
+				// Successfully deleted, now create a new one
+				item["id"] = nil // Remove ID for creation
+				jsonData, err = json.Marshal(item)
+				if err != nil {
+					return fmt.Errorf("error marshaling item for recreation: %v", err)
+				}
+				
+				createURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item"
+				createReq, err := http.NewRequest("POST", createURL, bytes.NewBuffer(jsonData))
+				if err != nil {
+					return fmt.Errorf("error creating recreation request: %v", err)
+				}
+				createReq.Header.Set("Content-Type", "application/json")
+				
+				createResp, err := client.Do(createReq)
+				if err != nil {
+					return fmt.Errorf("error recreating item: %v", err)
+				}
+				
+				// Read create response for logging
+				createBody := make([]byte, 1024)
+				cn, _ := createResp.Body.Read(createBody)
+				createRespStr := string(createBody[:cn])
+				createResp.Body.Close()
+				
+				log.Printf("Recreation attempt - Status: %d, Response: %s", createResp.StatusCode, createRespStr)
+				
+				if createResp.StatusCode == http.StatusOK || createResp.StatusCode == http.StatusCreated {
+					log.Printf("Successfully recreated Vaultwarden item '%s'", secretName)
+					return nil
+				} else {
+					return fmt.Errorf("recreation failed with status %d: %s", createResp.StatusCode, createRespStr)
+				}
+			} else {
+				return fmt.Errorf("delete failed with status %d: %s", deleteResp.StatusCode, deleteRespStr)
+			}
+		}
+		return fmt.Errorf("API returned status %d: %s", resp.StatusCode, responseStr)
 	}
 	
+	log.Printf("API call successful - Status: %d, Response: %s", resp.StatusCode, responseStr)
 	log.Printf("Successfully synced secret '%s' to Vaultwarden via Bitwarden CLI API", secretName)
 	return nil
 }
