@@ -262,6 +262,11 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		return fmt.Errorf("error checking for existing item: %v", err)
 	}
 	
+	log.Printf("🔍 DEBUG: existingItem result for '%s': %+v", secretName, existingItem)
+	if existingItem != nil {
+		log.Printf("🔍 DEBUG: existingItem.ID = '%s', existingItem.Name = '%s'", existingItem.ID, existingItem.Name)
+	}
+	
 	// Create Bitwarden item in the format expected by the CLI API
 	// This matches the template from `bw get template item`
 	item := map[string]interface{}{
@@ -333,6 +338,10 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	var webhookURL string
 	var method string
 	
+	log.Printf("🔍 DEBUG: Checking condition - existingItem != nil: %v, existingItem.ID != \"\": %v", 
+		existingItem != nil, 
+		existingItem != nil && existingItem.ID != "")
+	
 	if existingItem != nil && existingItem.ID != "" {
 		// Item exists, update it using PUT with the item ID
 		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + existingItem.ID
@@ -344,12 +353,14 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("error marshaling item with ID to JSON: %v", err)
 		}
-		log.Printf("Updating existing Vaultwarden item '%s' (ID: %s) while preserving %d existing fields", secretName, existingItem.ID, len(existingItem.Fields))
+		log.Printf("🔄 UPDATE: Updating existing Vaultwarden item '%s' (ID: %s) using %s %s", secretName, existingItem.ID, method, webhookURL)
+		log.Printf("🔍 DEBUG: Update payload: %s", string(jsonData))
 	} else {
 		// Item doesn't exist, create it using POST
 		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item"
 		method = "POST"
-		log.Printf("Creating new Vaultwarden item '%s'", secretName)
+		log.Printf("➕ CREATE: Creating new Vaultwarden item '%s' using %s %s", secretName, method, webhookURL)
+		log.Printf("🔍 DEBUG: Create payload: %s", string(jsonData))
 	}
 	
 	// Create HTTP request to Bitwarden CLI API
