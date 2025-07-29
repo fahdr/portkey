@@ -134,12 +134,22 @@ func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 		return nil, fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, responseStr)
 	}
 	
-	var item VaultwardenItem
-	if err := json.Unmarshal(responseBody[:n], &item); err != nil {
+	// Parse the structured response from Bitwarden CLI API
+	var apiResponse struct {
+		Success bool            `json:"success"`
+		Message string          `json:"message"`
+		Data    VaultwardenItem `json:"data"`
+	}
+	
+	if err := json.Unmarshal(responseBody[:n], &apiResponse); err != nil {
 		return nil, fmt.Errorf("error decoding webhook response: %v", err)
 	}
 	
-	return &item, nil
+	if !apiResponse.Success {
+		return nil, fmt.Errorf("API returned success=false: %s", apiResponse.Message)
+	}
+	
+	return &apiResponse.Data, nil
 }
 
 func getVaultwardenSecretData(item *VaultwardenItem) map[string]string {
@@ -328,12 +338,22 @@ func getVaultwardenItemAfterCleanup(secretName string) (*VaultwardenItem, error)
 		return nil, fmt.Errorf("webhook returned status %d after cleanup: %s", resp.StatusCode, responseStr)
 	}
 	
-	var item VaultwardenItem
-	if err := json.Unmarshal(responseBody[:n], &item); err != nil {
+	// Parse the structured response from Bitwarden CLI API
+	var apiResponse struct {
+		Success bool            `json:"success"`
+		Message string          `json:"message"`
+		Data    VaultwardenItem `json:"data"`
+	}
+	
+	if err := json.Unmarshal(responseBody[:n], &apiResponse); err != nil {
 		return nil, fmt.Errorf("error decoding webhook response: %v", err)
 	}
 	
-	return &item, nil
+	if !apiResponse.Success {
+		return nil, fmt.Errorf("API returned success=false after cleanup: %s", apiResponse.Message)
+	}
+	
+	return &apiResponse.Data, nil
 }
 
 func syncToVaultwarden(secretName string, secretData map[string]string) error {
