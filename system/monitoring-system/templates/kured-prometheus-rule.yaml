@@ -17,8 +17,8 @@ spec:
         severity: warning
         component: kured
       annotations:
-        summary: "Node {{ $labels.node }} requires reboot"
-        description: "Node {{ $labels.node }} has been marked for reboot by kured. A reboot will be scheduled soon to apply security updates."
+        summary: "Node {{`{{ $labels.node }}`}} requires reboot"
+        description: "Node {{`{{ $labels.node }}`}} has been marked for reboot by kured. A reboot will be scheduled soon to apply security updates."
         runbook_url: "https://github.com/kubereboot/kured#overview"
 
     - alert: KuredRebootScheduled
@@ -28,8 +28,8 @@ spec:
         severity: critical
         component: kured
       annotations:
-        summary: "Node {{ $labels.node }} reboot scheduled"
-        description: "Node {{ $labels.node }} is being drained and will reboot shortly to apply security updates."
+        summary: "Node {{`{{ $labels.node }}`}} reboot scheduled"
+        description: "Node {{`{{ $labels.node }}`}} is being drained and will reboot shortly to apply security updates."
         runbook_url: "https://github.com/kubereboot/kured#overview"
 
     - alert: KuredDaemonSetRollout
@@ -45,5 +45,5 @@ spec:
         component: kured
       annotations:
         summary: "Kured DaemonSet not fully available"
-        description: "Kured DaemonSet has only {{ $value | humanizePercentage }} of desired pods ready."
+        description: "Kured DaemonSet has only {{`{{ $value | humanizePercentage }}`}} of desired pods ready."
         runbook_url: "https://github.com/kubereboot/kured#overview"
