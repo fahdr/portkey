@@ -92,6 +92,22 @@ func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 		return nil, nil // Item not found
 	}
 	
+	if resp.StatusCode == http.StatusBadRequest {
+		// This might indicate multiple items with the same name - we need to clean this up
+		log.Printf("⚠️  WARNING: GET returned 400 for item '%s' - this usually means multiple items with same name exist", secretName)
+		log.Printf("⚠️  WARNING: Attempting to clean up duplicate items for '%s'", secretName)
+		
+		// Try to get all items and find duplicates
+		err := cleanupDuplicateItems(secretName)
+		if err != nil {
+			log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
+			return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+		}
+		
+		// After cleanup, try to get the item again
+		return getVaultwardenItemAfterCleanup(secretName)
+	}
+	
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, responseStr)
 	}
@@ -135,6 +151,110 @@ func getFieldNames(existingFields []struct {
 	return extraFields
 }
 
+func cleanupDuplicateItems(secretName string) error {
+	// Get all items to find duplicates
+	listURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/list/object/items"
+	
+	req, err := http.NewRequest("GET", listURL, nil)
+	if err != nil {
+		return fmt.Errorf("error creating list request: %v", err)
+	}
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending list request: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("list request failed with status %d", resp.StatusCode)
+	}
+	
+	var items []VaultwardenItem
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return fmt.Errorf("error decoding list response: %v", err)
+	}
+	
+	// Find all items with the same name
+	var duplicates []VaultwardenItem
+	for _, item := range items {
+		if item.Name == secretName {
+			duplicates = append(duplicates, item)
+		}
+	}
+	
+	log.Printf("Found %d items with name '%s'", len(duplicates), secretName)
+	
+	if len(duplicates) <= 1 {
+		return nil // No duplicates to clean up
+	}
+	
+	// Keep the first item and delete the rest
+	for i := 1; i < len(duplicates); i++ {
+		deleteURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + duplicates[i].ID
+		deleteReq, err := http.NewRequest("DELETE", deleteURL, nil)
+		if err != nil {
+			log.Printf("Error creating delete request for duplicate item %s: %v", duplicates[i].ID, err)
+			continue
+		}
+		
+		deleteResp, err := client.Do(deleteReq)
+		if err != nil {
+			log.Printf("Error deleting duplicate item %s: %v", duplicates[i].ID, err)
+			continue
+		}
+		deleteResp.Body.Close()
+		
+		if deleteResp.StatusCode == http.StatusOK || deleteResp.StatusCode == http.StatusNoContent {
+			log.Printf("Successfully deleted duplicate item '%s' (ID: %s)", secretName, duplicates[i].ID)
+		} else {
+			log.Printf("Failed to delete duplicate item %s: status %d", duplicates[i].ID, deleteResp.StatusCode)
+		}
+	}
+	
+	return nil
+}
+
+func getVaultwardenItemAfterCleanup(secretName string) (*VaultwardenItem, error) {
+	// Try to get the item again after cleanup
+	webhookURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
+	
+	req, err := http.NewRequest("GET", webhookURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating webhook request: %v", err)
+	}
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending webhook request: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	// Read response body for logging
+	responseBody := make([]byte, 1024)
+	n, _ := resp.Body.Read(responseBody)
+	responseStr := string(responseBody[:n])
+	
+	log.Printf("GET item '%s' after cleanup - Status: %d, Response: %s", secretName, resp.StatusCode, responseStr)
+	
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil // Item not found after cleanup
+	}
+	
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("webhook returned status %d after cleanup: %s", resp.StatusCode, responseStr)
+	}
+	
+	var item VaultwardenItem
+	if err := json.Unmarshal(responseBody[:n], &item); err != nil {
+		return nil, fmt.Errorf("error decoding webhook response: %v", err)
+	}
+	
+	return &item, nil
+}
+
 func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	// First, check if the item already exists
 	existingItem, err := getVaultwardenItem(secretName)
@@ -163,7 +283,7 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	// If we're updating an existing item, preserve its existing fields and update/add our managed fields
 	if existingItem != nil {
 		// Start with existing fields to preserve any manually added fields
-		existingFields := make(map[string]interface{})
+		existingFields := make(map[string]map[string]interface{})
 		for _, field := range existingItem.Fields {
 			existingFields[field.Name] = map[string]interface{}{
 				"name":  field.Name,
@@ -172,7 +292,7 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 			}
 		}
 		
-		// Update/add our managed secret fields
+		// Update/add our managed secret fields (this will overwrite existing ones with same name)
 		for key, value := range secretData {
 			existingFields[key] = map[string]interface{}{
 				"name":  key,
@@ -184,7 +304,7 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		// Convert back to slice for the API
 		fieldsSlice := make([]map[string]interface{}, 0, len(existingFields))
 		for _, field := range existingFields {
-			fieldsSlice = append(fieldsSlice, field.(map[string]interface{}))
+			fieldsSlice = append(fieldsSlice, field)
 		}
 		item["fields"] = fieldsSlice
 		
