@@ -50,12 +50,12 @@ spec:
               containerPort: 8087
               protocol: TCP
           livenessProbe:
-            exec:
-              command:
-                - wget
-                - -q
-                - http://127.0.0.1:8087/sync?force=true
-                - --post-data=''
+            httpGet:
+              path: /sync?force=true
+              port: 8087
+              httpHeaders:
+              - name: Content-Type
+                value: application/json
             initialDelaySeconds: 20
             failureThreshold: 3
             timeoutSeconds: 10
