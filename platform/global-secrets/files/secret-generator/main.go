@@ -111,8 +111,11 @@ func getVaultwardenSecretData(item *VaultwardenItem) map[string]string {
 }
 
 func syncToVaultwarden(secretName string, secretData map[string]string) error {
-	// Use the correct Bitwarden CLI API endpoint for creating items
-	webhookURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item"
+	// First, check if the item already exists
+	existingItem, err := getVaultwardenItem(secretName)
+	if err != nil {
+		return fmt.Errorf("error checking for existing item: %v", err)
+	}
 	
 	// Create Bitwarden item in the format expected by the CLI API
 	// This matches the template from `bw get template item`
@@ -148,8 +151,23 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		return fmt.Errorf("error marshaling item to JSON: %v", err)
 	}
 	
+	var webhookURL string
+	var method string
+	
+	if existingItem != nil {
+		// Item exists, update it using PUT
+		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
+		method = "PUT"
+		log.Printf("Updating existing Vaultwarden item '%s'", secretName)
+	} else {
+		// Item doesn't exist, create it using POST
+		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item"
+		method = "POST"
+		log.Printf("Creating new Vaultwarden item '%s'", secretName)
+	}
+	
 	// Create HTTP request to Bitwarden CLI API
-	req, err := http.NewRequest("POST", webhookURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(method, webhookURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("error creating API request: %v", err)
 	}
