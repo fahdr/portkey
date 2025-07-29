@@ -118,6 +118,23 @@ func getVaultwardenSecretData(item *VaultwardenItem) map[string]string {
 	return secretData
 }
 
+func getFieldNames(existingFields []struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Type  int    `json:"type"`
+}, managedSecrets map[string]string) []string {
+	var extraFields []string
+	
+	for _, field := range existingFields {
+		// If this field is not in our managed secrets, it's an extra field that will be lost
+		if _, isManaged := managedSecrets[field.Name]; !isManaged {
+			extraFields = append(extraFields, field.Name)
+		}
+	}
+	
+	return extraFields
+}
+
 func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	// First, check if the item already exists
 	existingItem, err := getVaultwardenItem(secretName)
@@ -143,14 +160,48 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		"identity": nil,
 	}
 	
-	// Add each secret as a custom field
-	for key, value := range secretData {
-		field := map[string]interface{}{
-			"name":  key,
-			"value": value,
-			"type":  1, // Hidden field type
+	// If we're updating an existing item, preserve its existing fields and update/add our managed fields
+	if existingItem != nil {
+		// Start with existing fields to preserve any manually added fields
+		existingFields := make(map[string]interface{})
+		for _, field := range existingItem.Fields {
+			existingFields[field.Name] = map[string]interface{}{
+				"name":  field.Name,
+				"value": field.Value,
+				"type":  field.Type,
+			}
 		}
-		item["fields"] = append(item["fields"].([]map[string]interface{}), field)
+		
+		// Update/add our managed secret fields
+		for key, value := range secretData {
+			existingFields[key] = map[string]interface{}{
+				"name":  key,
+				"value": value,
+				"type":  1, // Hidden field type
+			}
+		}
+		
+		// Convert back to slice for the API
+		fieldsSlice := make([]map[string]interface{}, 0, len(existingFields))
+		for _, field := range existingFields {
+			fieldsSlice = append(fieldsSlice, field.(map[string]interface{}))
+		}
+		item["fields"] = fieldsSlice
+		
+		// Preserve other existing item properties if they exist
+		if existingItem.Notes != "" {
+			item["notes"] = existingItem.Notes
+		}
+	} else {
+		// New item, just add our secret fields
+		for key, value := range secretData {
+			field := map[string]interface{}{
+				"name":  key,
+				"value": value,
+				"type":  1, // Hidden field type
+			}
+			item["fields"] = append(item["fields"].([]map[string]interface{}), field)
+		}
 	}
 	
 	// Marshal to JSON
@@ -173,7 +224,7 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		if err != nil {
 			return fmt.Errorf("error marshaling item with ID to JSON: %v", err)
 		}
-		log.Printf("Updating existing Vaultwarden item '%s' (ID: %s)", secretName, existingItem.ID)
+		log.Printf("Updating existing Vaultwarden item '%s' (ID: %s) while preserving %d existing fields", secretName, existingItem.ID, len(existingItem.Fields))
 	} else {
 		// Item doesn't exist, create it using POST
 		webhookURL = "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item"
@@ -205,9 +256,12 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		log.Printf("API call failed - Status: %d, Response: %s", resp.StatusCode, responseStr)
 		
-		// If update failed, try to delete and recreate as a fallback
+		// If update failed, try to delete and recreate as a LAST RESORT
+		// WARNING: This will lose any manually added fields not managed by secret-generator
 		if method == "PUT" && existingItem != nil {
-			log.Printf("Update failed with status %d, attempting to delete and recreate item '%s'", resp.StatusCode, secretName)
+			log.Printf("⚠️  WARNING: Update failed with status %d. As a last resort, attempting to delete and recreate item '%s'", resp.StatusCode, secretName)
+			log.Printf("⚠️  WARNING: This will PERMANENTLY DELETE any manually added fields in Vaultwarden item '%s'", secretName)
+			log.Printf("⚠️  WARNING: Existing fields that will be lost: %v", getFieldNames(existingItem.Fields, secretData))
 			
 			// Delete the existing item
 			deleteURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + existingItem.ID
@@ -230,9 +284,34 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 			log.Printf("Delete attempt - Status: %d, Response: %s", deleteResp.StatusCode, deleteRespStr)
 			
 			if deleteResp.StatusCode == http.StatusOK || deleteResp.StatusCode == http.StatusNoContent {
-				// Successfully deleted, now create a new one
-				item["id"] = nil // Remove ID for creation
-				jsonData, err = json.Marshal(item)
+				// Successfully deleted, now create a new one with ONLY our managed fields
+				newItem := map[string]interface{}{
+					"organizationId": nil,
+					"folderId":       nil,
+					"type":           2, // Secure Note type
+					"name":           secretName,
+					"notes":          fmt.Sprintf("Generated by secret-generator for %s (recreated)", secretName),
+					"favorite":       false,
+					"secureNote": map[string]interface{}{
+						"type": 0, // Generic secure note
+					},
+					"fields": []map[string]interface{}{},
+					"login":    nil,
+					"card":     nil,
+					"identity": nil,
+				}
+				
+				// Add only our managed secret fields
+				for key, value := range secretData {
+					field := map[string]interface{}{
+						"name":  key,
+						"value": value,
+						"type":  1, // Hidden field type
+					}
+					newItem["fields"] = append(newItem["fields"].([]map[string]interface{}), field)
+				}
+				
+				jsonData, err = json.Marshal(newItem)
 				if err != nil {
 					return fmt.Errorf("error marshaling item for recreation: %v", err)
 				}
@@ -258,7 +337,7 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 				log.Printf("Recreation attempt - Status: %d, Response: %s", createResp.StatusCode, createRespStr)
 				
 				if createResp.StatusCode == http.StatusOK || createResp.StatusCode == http.StatusCreated {
-					log.Printf("Successfully recreated Vaultwarden item '%s'", secretName)
+					log.Printf("Successfully recreated Vaultwarden item '%s' (some fields may have been lost)", secretName)
 					return nil
 				} else {
 					return fmt.Errorf("recreation failed with status %d: %s", createResp.StatusCode, createRespStr)
