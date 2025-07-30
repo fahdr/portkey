@@ -224,6 +224,9 @@ func cleanupDuplicateItemsByIDs(secretName string, itemIDs []string) error {
 	return nil
 }
 
+
+// currently using api_token to access vaultwarden-cli API which does not have permissions to delete items
+// Switch to using user and password to enable delete. Until then manually delete duplicates via the CLI/UI
 func cleanupDuplicateItems(secretName string) error {
 	// Get all items to find duplicates
 	listURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/list/object/items"
