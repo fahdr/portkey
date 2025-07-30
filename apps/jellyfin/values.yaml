@@ -186,13 +186,6 @@ app-template:
         - secretName: jellyfin-tls-certificate
           hosts:
             - *jellyfinHost
-            - *transmissionHost
-            - *prowlarrHost
-            - *radarrHost
-            - *sonarrHost
-            - *jellyseerrHost
-            - *lidarrHost
-            - *rdtclientHost
     transmission:
       enabled: true
       className: nginx
@@ -207,7 +200,7 @@ app-template:
         gethomepage.dev/widget.type: "transmission"
         gethomepage.dev/widget.url: "https://transmission.themainfreak.com"
       hosts:
-        - host: *transmissionHost
+        - host: &transmissionHost transmission.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
@@ -232,7 +225,7 @@ app-template:
         gethomepage.dev/widget.type: "prowlarr"
         gethomepage.dev/widget.url: "https://prowlarr.themainfreak.com"
       hosts:
-        - host: *prowlarrHost
+        - host: &prowlarrHost prowlarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
@@ -257,7 +250,7 @@ app-template:
         gethomepage.dev/widget.type: "radarr"
         gethomepage.dev/widget.url: "https://radarr.themainfreak.com"
       hosts:
-        - host: *radarrHost
+        - host: &radarrHost radarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
@@ -282,7 +275,7 @@ app-template:
         gethomepage.dev/widget.type: "sonarr"
         gethomepage.dev/widget.url: "https://sonarr.themainfreak.com"
       hosts:
-        - host: *sonarrHost
+        - host: &sonarrHost sonarr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
@@ -307,7 +300,7 @@ app-template:
         gethomepage.dev/widget.type: "jellyseerr"
         gethomepage.dev/widget.url: "https://jellyseerr.themainfreak.com"
       hosts:
-        - host: *jellyseerrHost
+        - host: &jellyseerrHost jellyseerr.themainfreak.com
           paths:
             - path: /
               pathType: Prefix
