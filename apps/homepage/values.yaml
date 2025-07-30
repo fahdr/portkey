@@ -89,7 +89,7 @@ app-template:
                   type: grafana
                   url: https://grafana.themainfreak.com
                   # Uncomment when API key is available:
-                  # key: "{{HOMEPAGE_VAR_GRAFANA_API_KEY}}"
+                  # key: "{{`{{HOMEPAGE_VAR_GRAFANA_API_KEY}}`}}"
 
           # External Services (No Authentication Needed)
           - External Services:
@@ -111,8 +111,8 @@ app-template:
                 # widget:
                 #   type: nextcloud
                 #   url: https://nextcloud.themainfreak.com
-                #   username: "{{HOMEPAGE_VAR_NEXTCLOUD_USERNAME}}"
-                #   password: "{{HOMEPAGE_VAR_NEXTCLOUD_PASSWORD}}"
+                #   username: "{{`{{HOMEPAGE_VAR_NEXTCLOUD_USERNAME}}`}}"
+                #   password: "{{`{{HOMEPAGE_VAR_NEXTCLOUD_PASSWORD}}`}}"
                 
             - Paperless (Manual):
                 href: https://paperless.themainfreak.com
@@ -121,7 +121,7 @@ app-template:
                 # widget:
                 #   type: paperlessngx
                 #   url: https://paperless.themainfreak.com
-                #   key: "{{HOMEPAGE_VAR_PAPERLESS_API_TOKEN}}"
+                #   key: "{{`{{HOMEPAGE_VAR_PAPERLESS_API_TOKEN}}`}}"
         bookmarks.yaml: |
           - Portkey:
             - Documentation:
