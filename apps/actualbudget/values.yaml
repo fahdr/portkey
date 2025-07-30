@@ -23,7 +23,7 @@ app-template:
         gethomepage.dev/name: "Budget"
         gethomepage.dev/description: "Personal finance management"
         gethomepage.dev/group: "Utilities"
-        gethomepage.dev/icon: "actual.svg"
+        gethomepage.dev/icon: "actualbudget.svg"
       hosts:
         - host: &host budget.themainfreak.com
           paths:
