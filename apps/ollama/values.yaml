@@ -60,7 +60,7 @@ app-template:
         gethomepage.dev/name: "AI Chat"
         gethomepage.dev/description: "AI assistant interface"
         gethomepage.dev/group: "Development"
-        gethomepage.dev/icon: "openwebui.svg"
+        gethomepage.dev/icon: "openai.svg"
       hosts:
         - host: &uiHost ai.themainfreak.com
           paths:
