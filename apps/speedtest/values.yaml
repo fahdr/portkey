@@ -19,6 +19,12 @@ app-template:
       annotations:
         nginx.ingress.kubernetes.io/proxy-body-size: 50m
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Speedtest"
+        gethomepage.dev/description: "Internal network speed test"
+        gethomepage.dev/group: "Utilities"
+        gethomepage.dev/icon: "openspeedtest.png"
       hosts:
         - host: &host speedtest.themainfreak.com
           paths:

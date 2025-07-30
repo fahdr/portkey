@@ -4,6 +4,14 @@ grafana:
     ingressClassName: nginx
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
+      # Homepage auto-discovery annotations
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: "Grafana"
+      gethomepage.dev/description: "Observability dashboards"
+      gethomepage.dev/group: "Development"
+      gethomepage.dev/icon: "grafana.svg"
+      gethomepage.dev/widget.type: "grafana"
+      gethomepage.dev/widget.url: "https://grafana.themainfreak.com"
     hosts:
       - &host grafana.themainfreak.com
     tls:

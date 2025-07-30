@@ -18,6 +18,14 @@ nextcloud:
       nginx.ingress.kubernetes.io/affinity: cookie
       nginx.ingress.kubernetes.io/enable-cors: "true"
       nginx.ingress.kubernetes.io/cors-allow-headers: "X-Forwarded-For"
+      # Homepage auto-discovery annotations
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: "Nextcloud"
+      gethomepage.dev/description: "File sharing and collaboration"
+      gethomepage.dev/group: "Utilities"
+      gethomepage.dev/icon: "nextcloud.svg"
+      gethomepage.dev/widget.type: "nextcloud"
+      gethomepage.dev/widget.url: "https://nextcloud.themainfreak.com"
       # Disabled because of the error " denied the request: nginx.ingress.kubernetes.io/server-snippet annotation cannot be used. Snippet directives are disabled by the Ingress administrator
       # nginx.ingress.kubernetes.io/server-snippet: |-
       #   server_tokens off;

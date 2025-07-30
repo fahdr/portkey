@@ -32,6 +32,12 @@ app-template:
       className: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations for Ollama
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Ollama"
+        gethomepage.dev/description: "Local AI language models"
+        gethomepage.dev/group: "Development"
+        gethomepage.dev/icon: "ollama.svg"
       hosts:
         - host: &ollamaHost ollama.themainfreak.com
           paths:
@@ -40,6 +46,22 @@ app-template:
               service:
                 name: main
                 port: http
+      tls:
+        - secretName: ollama-tls-certificate
+          hosts:
+            - *ollamaHost
+    ui:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations for Ollama UI
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "AI Chat"
+        gethomepage.dev/description: "AI assistant interface"
+        gethomepage.dev/group: "Development"
+        gethomepage.dev/icon: "openwebui.svg"
+      hosts:
         - host: &uiHost ai.themainfreak.com
           paths:
             - path: /
@@ -48,10 +70,9 @@ app-template:
                 name: ui
                 port: http
       tls:
-        - hosts:
-            - *ollamaHost
+        - secretName: ai-tls-certificate
+          hosts:
             - *uiHost
-          secretName: ollama-tls-certificate
   persistence:
     data:
       accessMode: ReadWriteOnce

@@ -32,6 +32,14 @@ app-template:
       className: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Grocy"
+        gethomepage.dev/description: "Grocery & household management"
+        gethomepage.dev/group: "Utilities"
+        gethomepage.dev/icon: "grocy.svg"
+        gethomepage.dev/widget.type: "grocy"
+        gethomepage.dev/widget.url: "https://grocy.themainfreak.com"
       hosts:
         - host: &host grocy.themainfreak.com
           paths:

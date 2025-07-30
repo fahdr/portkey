@@ -4,6 +4,12 @@ zot:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
       nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      # Homepage auto-discovery annotations
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: "Registry"
+      gethomepage.dev/description: "Container registry"
+      gethomepage.dev/group: "Development"
+      gethomepage.dev/icon: "docker.svg"
     className: nginx
     hosts:
       - host: &host registry.themainfreak.com

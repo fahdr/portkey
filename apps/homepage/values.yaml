@@ -6,6 +6,8 @@ app-template:
           image:
             repository: ghcr.io/gethomepage/homepage
             tag: v0.8.8
+  defaultPodOptions:
+    serviceAccountName: homepage
   service:
     main:
       ports:
@@ -44,6 +46,13 @@ app-template:
           subPath: services.yaml
         - path: /app/config/bookmarks.yaml
           subPath: bookmarks.yaml
+    kubernetes-config:
+      enabled: true
+      type: configMap
+      name: homepage-kubernetes-config
+      globalMounts:
+        - path: /app/config/kubernetes.yaml
+          subPath: kubernetes.yaml
   configMaps:
     config:
       enabled: true
@@ -59,66 +68,19 @@ app-template:
               provider: google
               target: _blank
         services.yaml: |
-          - Popular:
-            - Matrix:
-                href: https://chat.themainfreak.com
-                description: Chat client
-                icon: element.svg
-            - Jellyfin:
-                href: https://jellyfin.themainfreak.com
-                description: Media system (movies, music, etc.)
-                icon: jellyfin.svg
-            - Jellyseerr:
-                href: https://jellyseerr.themainfreak.com
-                description: Request media
-                icon: jellyseerr.svg
-            - Paperless:
-                href: https://paperless.themainfreak.com
-                description: Document management system
-                icon: paperless.svg
-          - Management:
-            - Transmission:
-                href: https://transmission.themainfreak.com
-                description: Bittorrent client
-                icon: transmission.svg
-            - Prowlarr:
-                href: https://prowlarr.themainfreak.com
-                description: Indexer manager
-                icon: prowlarr.svg
-            - Radarr:
-                href: https://radarr.themainfreak.com
-                description: Movie manager
-                icon: radarr.svg
-            - Sonarr:
-                href: https://sonarr.themainfreak.com
-                description: TV show manager
-                icon: sonarr.svg
-            - Kanidm:
-                href: https://auth.themainfreak.com
-                description: Identity management
-                icon: https://auth.themainfreak.com/pkg/img/logo-square.svg
-          - Development:
-            - ArgoCD:
-                href: https://argocd.themainfreak.com
-                description: Continuous deployment
-                icon: argocd.svg
-            - Registry:
-                href: https://registry.themainfreak.com
-                description: Container registry
-                icon: docker.svg
-            - Grafana:
-                href: https://grafana.themainfreak.com
-                description: Observability dashboards
-                icon: grafana.svg
-          - Utilities:
-            - Excalidraw:
-                href: https://draw.themainfreak.com
-                description: Virtual whiteboard
-                icon: excalidraw.svg
-            - Speedtest:
-                href: https://speedtest.themainfreak.com
-                description: Internal network speed test
-                icon: openspeedtest.png
+          # Note: The following services are now auto-discovered via Kubernetes ingress annotations
+          # Services with gethomepage.dev/enabled: "true" annotations will appear automatically
+          
+          # You can still manually add services that don't have ingress or for external services
+          - External Services:
+            - Router:
+                href: https://192.168.0.1
+                description: Network router management
+                icon: router.svg
+            - Proxmox:
+                href: https://proxmox:8006
+                description: Virtualization platform
+                icon: proxmox.svg
         bookmarks.yaml: |
           - Portkey:
             - Documentation:

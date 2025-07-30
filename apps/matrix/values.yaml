@@ -6,6 +6,12 @@ elementweb:
       cert-manager.io/cluster-issuer: letsencrypt-prod
       external-dns.alpha.kubernetes.io/target: "portkey-tunnel.themainfreak.com"
       external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+      # Homepage auto-discovery annotations
+      gethomepage.dev/enabled: "true"
+      gethomepage.dev/name: "Matrix"
+      gethomepage.dev/description: "Chat client"
+      gethomepage.dev/group: "Popular"
+      gethomepage.dev/icon: "element.svg"
     hosts:
       - host: &frontend_host chat.themainfreak.com
         paths:
