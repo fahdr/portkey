@@ -50,6 +50,12 @@ app-template:
         className: nginx
         annotations:
           cert-manager.io/cluster-issuer: letsencrypt-prod
+          # Homepage auto-discovery annotations
+          gethomepage.dev/enabled: "true"
+          gethomepage.dev/name: "Vaultwarden"
+          gethomepage.dev/description: "Password manager"
+          gethomepage.dev/group: "Utilities"
+          gethomepage.dev/icon: "vaultwarden.svg"
 
         hosts:
           - host: &host vaultwarden.themainfreak.com

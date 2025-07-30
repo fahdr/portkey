@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-kubernetes-config
+  labels:
+    {{- include "app-template.labels" . | nindent 4 }}
+data:
+  kubernetes.yaml: |
+    mode: cluster
+    ingress: true

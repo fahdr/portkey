@@ -16,6 +16,14 @@ argo-cd:
       ingressClassName: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "ArgoCD"
+        gethomepage.dev/description: "Continuous deployment"
+        gethomepage.dev/group: "Development"
+        gethomepage.dev/icon: "argocd.svg"
+        gethomepage.dev/widget.type: "argocd"
+        gethomepage.dev/widget.url: "https://argocd.themainfreak.com"
       tls:
         - hosts:
             - argocd.themainfreak.com

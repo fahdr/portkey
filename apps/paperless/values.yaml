@@ -28,6 +28,14 @@ app-template:
       className: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Paperless"
+        gethomepage.dev/description: "Document management system"
+        gethomepage.dev/group: "Popular"
+        gethomepage.dev/icon: "paperless.svg"
+        gethomepage.dev/widget.type: "paperlessngx"
+        gethomepage.dev/widget.url: "https://paperless.themainfreak.com"
       hosts:
         - host: &host paperless.themainfreak.com
           paths:

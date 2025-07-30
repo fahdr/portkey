@@ -18,6 +18,12 @@ app-template:
       className: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Budget"
+        gethomepage.dev/description: "Personal finance management"
+        gethomepage.dev/group: "Utilities"
+        gethomepage.dev/icon: "actual.svg"
       hosts:
         - host: &host budget.themainfreak.com
           paths:

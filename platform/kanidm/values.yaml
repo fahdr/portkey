@@ -45,6 +45,12 @@ app-template:
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
         nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Kanidm"
+        gethomepage.dev/description: "Identity management"
+        gethomepage.dev/group: "Management"
+        gethomepage.dev/icon: "https://auth.themainfreak.com/pkg/img/logo-square.svg"
       hosts:
         - host: &host auth.themainfreak.com
           paths:

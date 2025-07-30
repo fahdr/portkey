@@ -20,6 +20,12 @@ app-template:
         cert-manager.io/cluster-issuer: letsencrypt-prod
         external-dns.alpha.kubernetes.io/target: portkey-tunnel.themainfreak.com
         external-dns.alpha.kubernetes.io/cloudflare-proxied: 'true'
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Excalidraw"
+        gethomepage.dev/description: "Virtual whiteboard"
+        gethomepage.dev/group: "Utilities"
+        gethomepage.dev/icon: "excalidraw.svg"
       hosts:
         - host: &host draw.themainfreak.com
           paths:

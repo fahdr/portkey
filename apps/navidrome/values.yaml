@@ -48,6 +48,14 @@ app-template:
       className: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
+        # Homepage auto-discovery annotations
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Navidrome"
+        gethomepage.dev/description: "Music streaming server"
+        gethomepage.dev/group: "Popular"
+        gethomepage.dev/icon: "navidrome.svg"
+        gethomepage.dev/widget.type: "navidrome"
+        gethomepage.dev/widget.url: "https://navidrome.themainfreak.com"
       hosts:
         - host: &host navidrome.themainfreak.com
           paths:
