@@ -1,4 +1,6 @@
 kube-prometheus-stack:
+  kubeControllerManager:
+    enabled: false
   grafana:
     enabled: false
     forceDeployDatasources: true
