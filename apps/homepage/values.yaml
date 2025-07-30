@@ -6,6 +6,10 @@ app-template:
           image:
             repository: ghcr.io/gethomepage/homepage
             tag: v0.8.8
+          envFrom:
+            - secretRef:
+                name: homepage-secrets
+                optional: true
   defaultPodOptions:
     serviceAccountName: homepage
   serviceAccount:
@@ -71,10 +75,23 @@ app-template:
               provider: google
               target: _blank
         services.yaml: |
-          # Note: The following services are now auto-discovered via Kubernetes ingress annotations
-          # Services with gethomepage.dev/enabled: "true" annotations will appear automatically
-          
-          # You can still manually add services that don't have ingress or for external services
+          # Auto-Discovery Services
+          # Services with gethomepage.dev/enabled: "true" annotations appear automatically from Kubernetes ingresses
+          # Widget authentication can be configured here for auto-discovered services
+
+          # Manual Services with Authentication
+          - Development:
+            - Grafana (Authenticated):
+                href: https://grafana.themainfreak.com
+                description: Observability dashboards with metrics
+                icon: grafana.svg
+                widget:
+                  type: grafana
+                  url: https://grafana.themainfreak.com
+                  # Uncomment when API key is available:
+                  # key: "{{HOMEPAGE_VAR_GRAFANA_API_KEY}}"
+
+          # External Services (No Authentication Needed)
           - External Services:
             - Router:
                 href: https://192.168.0.1
@@ -84,6 +101,27 @@ app-template:
                 href: https://proxmox:8006
                 description: Virtualization platform
                 icon: proxmox.svg
+                
+          # Services that need API tokens (currently disabled in auto-discovery)
+          - Media & Documents:
+            - Nextcloud (Manual):
+                href: https://nextcloud.themainfreak.com
+                description: Cloud storage and collaboration
+                icon: nextcloud.svg
+                # widget:
+                #   type: nextcloud
+                #   url: https://nextcloud.themainfreak.com
+                #   username: "{{HOMEPAGE_VAR_NEXTCLOUD_USERNAME}}"
+                #   password: "{{HOMEPAGE_VAR_NEXTCLOUD_PASSWORD}}"
+                
+            - Paperless (Manual):
+                href: https://paperless.themainfreak.com
+                description: Document management system
+                icon: paperless.svg
+                # widget:
+                #   type: paperlessngx
+                #   url: https://paperless.themainfreak.com
+                #   key: "{{HOMEPAGE_VAR_PAPERLESS_API_TOKEN}}"
         bookmarks.yaml: |
           - Portkey:
             - Documentation:

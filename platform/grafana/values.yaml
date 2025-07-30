@@ -10,8 +10,9 @@ grafana:
       gethomepage.dev/description: "Observability dashboards"
       gethomepage.dev/group: "Development"
       gethomepage.dev/icon: "grafana.svg"
-      gethomepage.dev/widget.type: "grafana"
-      gethomepage.dev/widget.url: "https://grafana.themainfreak.com"
+      # Disabled auto-discovery widget - configured manually in Homepage services.yaml
+      # gethomepage.dev/widget.type: "grafana"
+      # gethomepage.dev/widget.url: "https://grafana.themainfreak.com"
     hosts:
       - &host grafana.themainfreak.com
     tls:
