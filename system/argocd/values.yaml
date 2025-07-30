@@ -21,7 +21,7 @@ argo-cd:
         gethomepage.dev/name: "ArgoCD"
         gethomepage.dev/description: "Continuous deployment"
         gethomepage.dev/group: "Development"
-        gethomepage.dev/icon: "argo.svg"
+        gethomepage.dev/icon: "https://cdn.jsdelivr.net/gh/loganmarchione/homelab-svg-assets@latest/assets/argocd.svg"
         gethomepage.dev/widget.type: "argocd"
         gethomepage.dev/widget.url: "https://argocd.themainfreak.com"
       tls:
