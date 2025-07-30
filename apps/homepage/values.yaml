@@ -8,6 +8,9 @@ app-template:
             tag: v0.8.8
   defaultPodOptions:
     serviceAccountName: homepage
+  serviceAccount:
+    create: false
+    name: homepage
   service:
     main:
       ports:
