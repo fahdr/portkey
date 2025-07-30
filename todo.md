@@ -1,6 +1,6 @@
 # Roadmap
 1. ✅ Add auto service discovery for Homepage
-2. Add proxmox nodes, opnsense, proxmox-ceph, Adguard ZFS and others to prometheus and grafana instance running in the kubernetes cluster
+2. 🔄 Add proxmox nodes, opnsense, proxmox-ceph, Adguard ZFS and others to prometheus and grafana instance running in the kubernetes cluster
 3. Fix zerotier to access ips outside of kubernetes ips (192.168.0.0)
 4. Try to make the secret-generator an operator so that the applications can directly request for a secret to be generated from within the application definition and/or helm configuration
 5. ??

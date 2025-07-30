@@ -24,8 +24,9 @@ nextcloud:
       gethomepage.dev/description: "File sharing and collaboration"
       gethomepage.dev/group: "Utilities"
       gethomepage.dev/icon: "nextcloud.svg"
-      gethomepage.dev/widget.type: "nextcloud"
-      gethomepage.dev/widget.url: "https://nextcloud.themainfreak.com"
+# Temporarily disabled until we configure API authentication
+      # gethomepage.dev/widget.type: "nextcloud"
+      # gethomepage.dev/widget.url: "https://nextcloud.themainfreak.com"
       # Disabled because of the error " denied the request: nginx.ingress.kubernetes.io/server-snippet annotation cannot be used. Snippet directives are disabled by the Ingress administrator
       # nginx.ingress.kubernetes.io/server-snippet: |-
       #   server_tokens off;
