@@ -51,11 +51,8 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /sync?force=true
+              path: /status
               port: 8087
-              httpHeaders:
-              - name: Content-Type
-                value: application/json
             initialDelaySeconds: 20
             failureThreshold: 3
             timeoutSeconds: 10
