@@ -37,7 +37,7 @@ app-template:
         gethomepage.dev/name: "Grocy"
         gethomepage.dev/description: "Grocery & household management"
         gethomepage.dev/group: "Utilities"
-        gethomepage.dev/icon: "grocy.svg"
+        gethomepage.dev/icon: "https://cdn.jsdelivr.net/gh/loganmarchione/homelab-svg-assets@latest/assets/grocy.svg"
         gethomepage.dev/widget.type: "grocy"
         gethomepage.dev/widget.url: "https://grocy.themainfreak.com"
       hosts:
