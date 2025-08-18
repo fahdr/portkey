@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-lxc-external
+  namespace: monitoring-system
+  labels:
+    app: nfs-lxc-external
+spec:
+  type: ExternalName
+  externalName: 192.168.0.41
+  ports:
+  - name: node-exporter
+    port: 9100
+    protocol: TCP
+  - name: snmp
+    port: 161
+    protocol: UDP
+  - name: nfs-exporter
+    port: 9172
+    protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: nfs-lxc-node-exporter
+  namespace: monitoring-system
+  labels:
+    app: nfs-lxc-external
+spec:
+  selector:
+    matchLabels:
+      app: nfs-lxc-external
+  endpoints:
+  - port: node-exporter
+    scheme: http
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s
+  # NFS-specific metrics (if nfs_exporter is installed)
+  - port: nfs-exporter
+    scheme: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# ZFS monitoring service (on the Proxmox node hosting ZFS)
+apiVersion: v1
+kind: Service
+metadata:
+  name: zfs-host-external
+  namespace: monitoring-system
+  labels:
+    app: zfs-host-external
+spec:
+  type: ExternalName
+  externalName: proxmox-06  # Update with actual ZFS host node
+  ports:
+  - name: node-exporter
+    port: 9100
+    protocol: TCP
+  - name: zfs-exporter
+    port: 9134
+    protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: zfs-host-monitoring
+  namespace: monitoring-system
+  labels:
+    app: zfs-host-external
+spec:
+  selector:
+    matchLabels:
+      app: zfs-host-external
+  endpoints:
+  - port: node-exporter
+    scheme: http
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s
+  # ZFS-specific metrics (if zfs_exporter is installed)  
+  - port: zfs-exporter
+    scheme: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+---
+# SNMP Exporter configuration for detailed NFS and ZFS metrics
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: snmp-config
+  namespace: monitoring-system
+data:
+  snmp.yml: |
+    # SNMP configuration for various network devices
+    default:
+      version: 2
+      auth:
+        community: public
+      walk:
+        - 1.3.6.1.2.1.1.3.0      # sysUpTime
+        - 1.3.6.1.2.1.1.5.0      # sysName  
+        - 1.3.6.1.2.1.2.2.1.10   # ifInOctets
+        - 1.3.6.1.2.1.2.2.1.16   # ifOutOctets
+        - 1.3.6.1.2.1.25.2.3.1.6 # hrStorageUsed
+      metrics:
+        - name: sysUpTime
+          oid: 1.3.6.1.2.1.1.3.0
+          type: gauge
+        - name: ifInOctets
+          oid: 1.3.6.1.2.1.2.2.1.10
+          type: counter
+        - name: ifOutOctets
+          oid: 1.3.6.1.2.1.2.2.1.16
+          type: counter

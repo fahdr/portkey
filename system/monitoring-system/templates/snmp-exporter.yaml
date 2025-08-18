@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snmp-exporter
+  namespace: monitoring-system
+  labels:
+    app: snmp-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: snmp-exporter
+  template:
+    metadata:
+      labels:
+        app: snmp-exporter
+    spec:
+      containers:
+      - name: snmp-exporter
+        image: prom/snmp-exporter:v0.24.1
+        ports:
+        - containerPort: 9116
+          name: http
+        args:
+          - --config.file=/etc/snmp_exporter/snmp.yml
+        volumeMounts:
+        - name: config
+          mountPath: /etc/snmp_exporter
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: config
+        configMap:
+          name: snmp-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snmp-exporter
+  namespace: monitoring-system
+  labels:
+    app: snmp-exporter
+spec:
+  selector:
+    app: snmp-exporter
+  ports:
+  - name: http
+    port: 9116
+    targetPort: 9116
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: snmp-exporter
+  namespace: monitoring-system
+  labels:
+    app: snmp-exporter
+spec:
+  selector:
+    matchLabels:
+      app: snmp-exporter
+  endpoints:
+  - port: http
+    path: /snmp
+    params:
+      target:
+        - 192.168.0.1     # OpnSense router
+        - 192.168.0.41    # NFS LXC container (ZFS exports)
+        - proxmox-01      # Proxmox node 1
+        - proxmox-02      # Proxmox node 2
+        - proxmox-03      # Proxmox node 3
+        - proxmox-04      # Proxmox node 4
+        - proxmox-05      # Proxmox node 5
+        - proxmox-06      # Proxmox node 6 (ZFS host)
+    interval: 30s
+    scrapeTimeout: 10s

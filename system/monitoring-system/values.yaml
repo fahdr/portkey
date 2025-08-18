@@ -15,6 +15,65 @@ kube-prometheus-stack:
       serviceMonitorSelectorNilUsesHelmValues: false
       podMonitorSelectorNilUsesHelmValues: false
       probeSelectorNilUsesHelmValues: false
+      # Enable external monitoring
+      additionalScrapeConfigs:
+        - job_name: 'proxmox-cluster'
+          static_configs:
+            - targets: 
+                - 'proxmox-01:8006'
+                - 'proxmox-02:8006'
+                - 'proxmox-03:8006'
+                - 'proxmox-04:8006'
+                - 'proxmox-05:8006'
+                - 'proxmox-06:8006'  # ZFS host node
+          scheme: https
+          tls_config:
+            insecure_skip_verify: true
+          scrape_interval: 30s
+          metrics_path: '/api2/prometheus'
+          basic_auth:
+            username: 'monitoring@pve'
+            password_file: '/etc/prometheus/secrets/proxmox-credentials/password'
+        - job_name: 'proxmox-node-exporters'
+          static_configs:
+            - targets: 
+                - 'proxmox-01:9100'
+                - 'proxmox-02:9100'
+                - 'proxmox-03:9100'
+                - 'proxmox-04:9100'
+                - 'proxmox-05:9100'
+                - 'proxmox-06:9100'  # ZFS host node
+          scrape_interval: 15s
+        - job_name: 'nfs-lxc-container'
+          static_configs:
+            - targets: 
+                - '192.168.0.41:9100'  # NFS LXC container node exporter
+                - '192.168.0.41:9172'  # NFS exporter (if installed)
+          scrape_interval: 15s
+        - job_name: 'zfs-monitoring'
+          static_configs:
+            - targets:
+                - 'proxmox-06:9134'  # ZFS exporter on host node
+          scrape_interval: 30s
+        - job_name: 'snmp-devices'
+          static_configs:
+            - targets:
+                - 192.168.0.1     # OpnSense router
+                - 192.168.0.41    # NFS LXC container
+                - proxmox-01      # Proxmox nodes via SNMP
+                - proxmox-02
+                - proxmox-03
+                - proxmox-04
+                - proxmox-05
+                - proxmox-06
+          metrics_path: /snmp
+          relabel_configs:
+            - source_labels: [__address__]
+              target_label: __param_target
+            - source_labels: [__param_target]
+              target_label: instance
+            - target_label: __address__
+              replacement: snmp-exporter:9116
   alertmanager:
     alertmanagerSpec:
       containers:

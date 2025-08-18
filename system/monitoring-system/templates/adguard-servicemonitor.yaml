@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguard-external
+  namespace: monitoring-system
+  labels:
+    app: adguard-external
+spec:
+  type: ExternalName
+  externalName: adguard.local  # Update this with actual AdGuard hostname/IP
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: adguard-home
+  namespace: monitoring-system
+  labels:
+    app: adguard-external
+spec:
+  selector:
+    matchLabels:
+      app: adguard-external
+  endpoints:
+  - port: http
+    scheme: http
+    path: /control/stats
+    interval: 30s
+    scrapeTimeout: 10s
+    basicAuth:
+      username:
+        name: adguard-credentials
+        key: username
+      password:
+        name: adguard-credentials
+        key: password
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: adguard-credentials
+  namespace: monitoring-system
+type: Opaque
+stringData:
+  username: "admin"
+  password: "CHANGE_ME_ADGUARD_PASSWORD"

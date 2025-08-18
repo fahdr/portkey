@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-cluster-external
+  namespace: monitoring-system
+  labels:
+    app: proxmox-cluster-external
+spec:
+  type: ExternalName
+  externalName: proxmox-01  # Primary node for cluster-wide metrics
+  ports:
+  - name: https
+    port: 8006
+    protocol: TCP
+---
+# Individual Proxmox node services for node-specific metrics
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: proxmox-nodes
+  namespace: monitoring-system
+subsets:
+  - addresses:
+      - ip: 192.168.0.10  # Update with actual IPs
+        targetRef:
+          kind: Node
+          name: proxmox-01
+      - ip: 192.168.0.11
+        targetRef:
+          kind: Node  
+          name: proxmox-02
+      - ip: 192.168.0.12
+        targetRef:
+          kind: Node
+          name: proxmox-03
+      - ip: 192.168.0.13
+        targetRef:
+          kind: Node
+          name: proxmox-04
+      - ip: 192.168.0.14
+        targetRef:
+          kind: Node
+          name: proxmox-05
+      - ip: 192.168.0.15  # ZFS host node
+        targetRef:
+          kind: Node
+          name: proxmox-06
+    ports:
+    - name: https
+      port: 8006
+      protocol: TCP
+    - name: node-exporter
+      port: 9100
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-nodes
+  namespace: monitoring-system
+  labels:
+    app: proxmox-nodes
+spec:
+  ports:
+  - name: https
+    port: 8006
+    protocol: TCP
+  - name: node-exporter
+    port: 9100
+    protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: proxmox-cluster
+  namespace: monitoring-system
+  labels:
+    app: proxmox-cluster-external
+spec:
+  selector:
+    matchLabels:
+      app: proxmox-cluster-external
+  endpoints:
+  - port: https
+    scheme: https
+    path: /api2/prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+    tlsConfig:
+      insecureSkipVerify: true
+    basicAuth:
+      username:
+        name: proxmox-credentials
+        key: username
+      password:
+        name: proxmox-credentials
+        key: password
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: proxmox-nodes
+  namespace: monitoring-system
+  labels:
+    app: proxmox-nodes
+spec:
+  selector:
+    matchLabels:
+      app: proxmox-nodes
+  endpoints:
+  # Proxmox API metrics from each node
+  - port: https
+    scheme: https
+    path: /api2/prometheus
+    interval: 30s
+    scrapeTimeout: 10s
+    tlsConfig:
+      insecureSkipVerify: true
+    basicAuth:
+      username:
+        name: proxmox-credentials
+        key: username
+      password:
+        name: proxmox-credentials
+        key: password
+  # Node exporter metrics from each node (if installed)
+  - port: node-exporter
+    scheme: http
+    path: /metrics
+    interval: 15s
+    scrapeTimeout: 10s
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: proxmox-credentials
+  namespace: monitoring-system
+type: Opaque
+stringData:
+  username: "monitoring@pve"
+  password: "CHANGE_ME_PROXMOX_PASSWORD"

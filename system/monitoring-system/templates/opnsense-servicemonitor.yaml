@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: opnsense-external
+  namespace: monitoring-system
+  labels:
+    app: opnsense-external
+spec:
+  type: ExternalName
+  externalName: 192.168.0.1
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+  - name: snmp
+    port: 161
+    protocol: UDP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opnsense-router
+  namespace: monitoring-system
+  labels:
+    app: opnsense-external
+spec:
+  selector:
+    matchLabels:
+      app: opnsense-external
+  endpoints:
+  - port: https
+    scheme: https
+    path: /api/diagnostics/interface/getInterfaceStatistics
+    interval: 30s
+    scrapeTimeout: 10s
+    tlsConfig:
+      insecureSkipVerify: true
+    basicAuth:
+      username:
+        name: opnsense-credentials
+        key: username
+      password:
+        name: opnsense-credentials
+        key: password
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opnsense-credentials
+  namespace: monitoring-system
+type: Opaque
+stringData:
+  username: "monitoring"
+  password: "CHANGE_ME_OPNSENSE_PASSWORD"
