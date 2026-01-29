@@ -12,10 +12,22 @@ app-template:
             PAPERLESS_URL: https://paperless.themainfreak.com
           envFrom:
             - secret: "{{ .Release.Name }}-secret"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
         redis:
           image:
             repository: docker.io/library/redis
             tag: 7.2.4
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
   service:
     main:
       ports:

@@ -7,7 +7,12 @@ app-template:
             repository: docker.io/ollama/ollama
             tag: 0.10.0
           resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+              gpu.intel.com/i915: 1
             limits:
+              memory: 8Gi
               gpu.intel.com/i915: 1
 
     ui:
@@ -18,6 +23,12 @@ app-template:
             tag: latest
           env:
             OLLAMA_BASE_URL: http://ollama:11434
+          resources:
+            requests:
+              cpu: 15m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
   service:
     main:
       ports:

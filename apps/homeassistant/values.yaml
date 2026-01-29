@@ -31,11 +31,12 @@ app-template:
           envFrom:
             - secretRef:
                 name: "{{ .Release.Name }}-secret"
-          # resources:
-          #   limits:
-          #     akri.sh/akri-bluetooth: "1"
-          #   requests:
-          #     akri.sh/akri-bluetooth: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
           securityContext:
           #   allowPrivilegeEscalation: false
           #   readOnlyRootFilesystem: true
@@ -63,6 +64,12 @@ app-template:
             - --port
             - "8081"
             - "/config"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
           securityContext:
               allowPrivilegeEscalation: false
               # fixuid: open /var/run/fixuid.ran: read-only file system
@@ -147,3 +154,31 @@ app-template:
       enabled: true
       type: hostPath
       hostPath: /run/dbus
+    eink-dashboard:
+      type: configMap
+      name: homeassistant-eink-dashboard
+      globalMounts:
+        - path: /config/dashboards/eink-homescreen
+          subPath: eink-homescreen
+          readOnly: true
+    eink-config:
+      type: configMap
+      name: homeassistant-eink-config
+      globalMounts:
+        - path: /config/packages/eink.yaml
+          subPath: eink-configuration.yaml
+          readOnly: true
+    eink-theme:
+      type: configMap
+      name: homeassistant-eink-theme
+      globalMounts:
+        - path: /config/themes/eink-theme.yaml
+          subPath: eink-theme.yaml
+          readOnly: true
+    eink-styles:
+      type: configMap
+      name: homeassistant-eink-styles
+      globalMounts:
+        - path: /config/www/eink-styles.css
+          subPath: eink-styles.css
+          readOnly: true

@@ -11,6 +11,12 @@ app-template:
             - --config
             - /etc/cloudflared/config.yaml
             - run
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
   configMaps:
     config:
       enabled: true

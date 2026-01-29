@@ -33,9 +33,9 @@ app-template:
             resources:
               requests:
                 cpu: 15m
-                memory: 110Mi
+                memory: 128Mi
               limits:
-                memory: 136Mi
+                memory: 256Mi
             securityContext:
               privileged: true
             probes:
@@ -68,6 +68,12 @@ app-template:
               - --port
               - "8081"
               - "/config"
+            resources:
+              requests:
+                cpu: 10m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
             securityContext:
                 allowPrivilegeEscalation: false
                 # fixuid: open /var/run/fixuid.ran: read-only file system
