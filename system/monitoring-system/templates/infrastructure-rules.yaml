@@ -1,0 +1,363 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: infrastructure-monitoring
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: infrastructure-monitoring
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  groups:
+    # Proxmox Alerts
+    {{- if .Values.infrastructure.proxmox.enabled }}
+    - name: proxmox.rules
+      rules:
+        - alert: ProxmoxExporterDown
+          expr: up{job="proxmox-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: proxmox
+          annotations:
+            summary: "Proxmox exporter is down"
+            description: "Proxmox exporter has been unreachable for more than 5 minutes. Infrastructure monitoring is degraded."
+
+        - alert: ProxmoxNodeHighCPU
+          expr: pve_cpu_usage_ratio * 100 > 90
+          for: 15m
+          labels:
+            severity: warning
+            component: proxmox
+          annotations:
+            summary: "Proxmox node high CPU usage"
+            description: "Proxmox node {{`{{ $labels.id }}`}} CPU usage is {{`{{ $value | printf \"%.1f\" }}`}}% for more than 15 minutes."
+
+        - alert: ProxmoxNodeHighMemory
+          expr: (pve_memory_usage_bytes / pve_memory_size_bytes) * 100 > 90
+          for: 15m
+          labels:
+            severity: warning
+            component: proxmox
+          annotations:
+            summary: "Proxmox node high memory usage"
+            description: "Proxmox node {{`{{ $labels.id }}`}} memory usage is {{`{{ $value | printf \"%.1f\" }}`}}% for more than 15 minutes."
+
+        - alert: ProxmoxStorageLow
+          expr: (pve_disk_usage_bytes / pve_disk_size_bytes) * 100 > 85
+          for: 30m
+          labels:
+            severity: warning
+            component: proxmox
+          annotations:
+            summary: "Proxmox storage running low"
+            description: "Proxmox storage {{`{{ $labels.id }}`}} is {{`{{ $value | printf \"%.1f\" }}`}}% full."
+
+        - alert: ProxmoxStorageCritical
+          expr: (pve_disk_usage_bytes / pve_disk_size_bytes) * 100 > 95
+          for: 15m
+          labels:
+            severity: critical
+            component: proxmox
+          annotations:
+            summary: "Proxmox storage critically low"
+            description: "Proxmox storage {{`{{ $labels.id }}`}} is {{`{{ $value | printf \"%.1f\" }}`}}% full. Immediate action required."
+
+        - alert: ProxmoxVMDown
+          expr: pve_up{type="qemu"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: proxmox
+          annotations:
+            summary: "Proxmox VM is down"
+            description: "VM {{`{{ $labels.name }}`}} on node {{`{{ $labels.node }}`}} is not running."
+
+        - alert: ProxmoxContainerDown
+          expr: pve_up{type="lxc"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: proxmox
+          annotations:
+            summary: "Proxmox LXC container is down"
+            description: "Container {{`{{ $labels.name }}`}} on node {{`{{ $labels.node }}`}} is not running."
+    {{- end }}
+
+    # OPNsense Firewall Alerts
+    {{- if .Values.infrastructure.opnsense.enabled }}
+    - name: opnsense.rules
+      rules:
+        - alert: OPNsenseDown
+          expr: up{job="opnsense-exporter"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: opnsense
+          annotations:
+            summary: "OPNsense firewall unreachable"
+            description: "OPNsense firewall has been unreachable for more than 2 minutes. Network connectivity may be affected."
+
+        - alert: OPNsenseHighCPU
+          expr: opnsense_system_cpu_usage > 80
+          for: 10m
+          labels:
+            severity: warning
+            component: opnsense
+          annotations:
+            summary: "OPNsense high CPU usage"
+            description: "OPNsense CPU usage is {{`{{ $value | printf \"%.1f\" }}`}}% for more than 10 minutes."
+
+        - alert: OPNsenseHighMemory
+          expr: opnsense_system_memory_usage_percent > 85
+          for: 15m
+          labels:
+            severity: warning
+            component: opnsense
+          annotations:
+            summary: "OPNsense high memory usage"
+            description: "OPNsense memory usage is {{`{{ $value | printf \"%.1f\" }}`}}%."
+
+        - alert: OPNsenseInterfaceDown
+          expr: opnsense_interface_status == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: opnsense
+          annotations:
+            summary: "OPNsense interface down"
+            description: "OPNsense interface {{`{{ $labels.interface }}`}} is down."
+    {{- end }}
+
+    # AdGuard DNS Alerts
+    {{- if .Values.infrastructure.adguard.enabled }}
+    - name: adguard.rules
+      rules:
+        - alert: AdGuardDown
+          expr: up{job="adguard-exporter"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: adguard
+          annotations:
+            summary: "AdGuard DNS unreachable"
+            description: "AdGuard DNS has been unreachable for more than 5 minutes. DNS resolution may be affected."
+
+        - alert: AdGuardHighQueryLoad
+          expr: rate(adguard_dns_queries_total[5m]) > 1000
+          for: 10m
+          labels:
+            severity: warning
+            component: adguard
+          annotations:
+            summary: "AdGuard high DNS query rate"
+            description: "AdGuard is processing {{`{{ $value | printf \"%.0f\" }}`}} queries per second."
+
+        - alert: AdGuardHighBlockRate
+          expr: (rate(adguard_dns_blocked_total[1h]) / rate(adguard_dns_queries_total[1h])) * 100 > 50
+          for: 30m
+          labels:
+            severity: info
+            component: adguard
+          annotations:
+            summary: "AdGuard blocking rate unusually high"
+            description: "AdGuard is blocking {{`{{ $value | printf \"%.1f\" }}`}}% of DNS queries, which may indicate malware activity."
+
+        - alert: AdGuardProtectionDisabled
+          expr: adguard_protection_enabled == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: adguard
+          annotations:
+            summary: "AdGuard protection disabled"
+            description: "AdGuard DNS protection has been disabled for more than 5 minutes."
+    {{- end }}
+
+    # Ceph Storage Alerts
+    - name: ceph.rules
+      rules:
+        - alert: CephClusterWarning
+          expr: ceph_health_status == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: ceph
+          annotations:
+            summary: "Ceph cluster health warning"
+            description: "Ceph cluster is in HEALTH_WARN state. Check ceph status for details."
+
+        - alert: CephClusterError
+          expr: ceph_health_status == 2
+          for: 2m
+          labels:
+            severity: critical
+            component: ceph
+          annotations:
+            summary: "Ceph cluster is unhealthy"
+            description: "Ceph cluster is in HEALTH_ERR state. Immediate attention required."
+
+        - alert: CephOSDDown
+          expr: ceph_osd_up == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: ceph
+          annotations:
+            summary: "Ceph OSD is down"
+            description: "Ceph OSD {{`{{ $labels.ceph_daemon }}`}} is down."
+
+        - alert: CephStorageAlmostFull
+          expr: (ceph_cluster_total_used_bytes / ceph_cluster_total_bytes) * 100 > 80
+          for: 30m
+          labels:
+            severity: warning
+            component: ceph
+          annotations:
+            summary: "Ceph storage almost full"
+            description: "Ceph cluster storage usage is {{`{{ $value | printf \"%.1f\" }}`}}%."
+
+        - alert: CephStorageCritical
+          expr: (ceph_cluster_total_used_bytes / ceph_cluster_total_bytes) * 100 > 90
+          for: 15m
+          labels:
+            severity: critical
+            component: ceph
+          annotations:
+            summary: "Ceph storage critically full"
+            description: "Ceph cluster storage usage is {{`{{ $value | printf \"%.1f\" }}`}}%. Immediate action required."
+
+        - alert: CephPGsNotActive
+          expr: ceph_pg_total - ceph_pg_active > 0
+          for: 5m
+          labels:
+            severity: warning
+            component: ceph
+          annotations:
+            summary: "Ceph has inactive placement groups"
+            description: "{{`{{ $value }}`}} Ceph placement groups are not active."
+
+    # Kubernetes Infrastructure Alerts
+    - name: kubernetes-custom.rules
+      rules:
+        - alert: KubernetesNodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            component: kubernetes
+          annotations:
+            summary: "Kubernetes node not ready"
+            description: "Node {{`{{ $labels.node }}`}} has been NotReady for more than 5 minutes."
+
+        - alert: KubernetesNodeMemoryPressure
+          expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: kubernetes
+          annotations:
+            summary: "Kubernetes node memory pressure"
+            description: "Node {{`{{ $labels.node }}`}} is under memory pressure."
+
+        - alert: KubernetesNodeDiskPressure
+          expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            component: kubernetes
+          annotations:
+            summary: "Kubernetes node disk pressure"
+            description: "Node {{`{{ $labels.node }}`}} is under disk pressure."
+
+        - alert: KubernetesHighPodRestarts
+          expr: increase(kube_pod_container_status_restarts_total[1h]) > 5
+          for: 0m
+          labels:
+            severity: warning
+            component: kubernetes
+          annotations:
+            summary: "Pod experiencing frequent restarts"
+            description: "Pod {{`{{ $labels.namespace }}`}}/{{`{{ $labels.pod }}`}} has restarted {{`{{ $value }}`}} times in the last hour."
+
+        - alert: KubernetesPVCAlmostFull
+          expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > 85
+          for: 15m
+          labels:
+            severity: warning
+            component: kubernetes
+          annotations:
+            summary: "PVC almost full"
+            description: "PVC {{`{{ $labels.namespace }}`}}/{{`{{ $labels.persistentvolumeclaim }}`}} is {{`{{ $value | printf \"%.1f\" }}`}}% full."
+
+        - alert: KubernetesPVCCritical
+          expr: (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > 95
+          for: 5m
+          labels:
+            severity: critical
+            component: kubernetes
+          annotations:
+            summary: "PVC critically full"
+            description: "PVC {{`{{ $labels.namespace }}`}}/{{`{{ $labels.persistentvolumeclaim }}`}} is {{`{{ $value | printf \"%.1f\" }}`}}% full. Immediate action required."
+
+    # Application Health Alerts
+    - name: applications.rules
+      rules:
+        - alert: VaultwardenDown
+          expr: kube_deployment_status_replicas_available{deployment=~".*vaultwarden.*"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            component: vaultwarden
+          annotations:
+            summary: "Vaultwarden is down"
+            description: "Vaultwarden password manager has no available replicas. Password management is unavailable."
+
+        - alert: HomeAssistantDown
+          expr: kube_deployment_status_replicas_available{deployment=~".*homeassistant.*"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: homeassistant
+          annotations:
+            summary: "Home Assistant is down"
+            description: "Home Assistant has no available replicas. Home automation is unavailable."
+
+        - alert: JellyfinDown
+          expr: kube_deployment_status_replicas_available{deployment=~".*jellyfin.*"} == 0
+          for: 10m
+          labels:
+            severity: warning
+            component: jellyfin
+          annotations:
+            summary: "Jellyfin is down"
+            description: "Jellyfin media server has no available replicas."
+
+        - alert: NextcloudDown
+          expr: kube_deployment_status_replicas_available{deployment=~".*nextcloud.*"} == 0
+          for: 10m
+          labels:
+            severity: warning
+            component: nextcloud
+          annotations:
+            summary: "Nextcloud is down"
+            description: "Nextcloud has no available replicas."
+
+        - alert: MatrixDown
+          expr: kube_deployment_status_replicas_available{deployment=~".*matrix.*|.*dendrite.*"} == 0
+          for: 10m
+          labels:
+            severity: warning
+            component: matrix
+          annotations:
+            summary: "Matrix homeserver is down"
+            description: "Matrix/Dendrite homeserver has no available replicas."
+
+        - alert: ArgocdUnhealthy
+          expr: argocd_app_info{health_status!="Healthy"} == 1
+          for: 15m
+          labels:
+            severity: warning
+            component: argocd
+          annotations:
+            summary: "ArgoCD application unhealthy"
+            description: "ArgoCD application {{`{{ $labels.name }}`}} is in {{`{{ $labels.health_status }}`}} state."

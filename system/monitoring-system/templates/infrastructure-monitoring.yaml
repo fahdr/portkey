@@ -1,0 +1,268 @@
+{{- if .Values.infrastructure.proxmox.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxmox-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: proxmox-exporter
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: exporter
+    spec:
+      containers:
+        - name: proxmox-exporter
+          image: prompve/prometheus-pve-exporter:{{ .Values.infrastructure.proxmox.imageTag | default "3.4.5" }}
+          ports:
+            - name: metrics
+              containerPort: 9221
+              protocol: TCP
+          env:
+            # API Token auth: PVE_USER contains full token ID (user@realm!tokenid)
+            - name: PVE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_USER
+            # API Token value (use this instead of PVE_PASSWORD for token auth)
+            - name: PVE_TOKEN_VALUE
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_TOKEN_VALUE
+            - name: PVE_VERIFY_SSL
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_VERIFY_SSL
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9221
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: proxmox-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- if .Values.infrastructure.opnsense.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opnsense-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: opnsense-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opnsense-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opnsense-exporter
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: exporter
+    spec:
+      containers:
+        - name: opnsense-exporter
+          image: ghcr.io/atoy3731/opnsense-exporter:{{ .Values.infrastructure.opnsense.imageTag | default "v1.0.0" }}
+          ports:
+            - name: metrics
+              containerPort: 9101
+              protocol: TCP
+          env:
+            - name: OPNSENSE_URL
+              value: {{ .Values.infrastructure.opnsense.url | quote }}
+            - name: OPNSENSE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-secret
+                  key: OPNSENSE_API_KEY
+            - name: OPNSENSE_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-exporter-secret
+                  key: OPNSENSE_API_SECRET
+            - name: OPNSENSE_INSECURE
+              value: {{ .Values.infrastructure.opnsense.insecure | default "true" | quote }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opnsense-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: opnsense-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9101
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: opnsense-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{- if .Values.infrastructure.adguard.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: adguard-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: adguard-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: adguard-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: adguard-exporter
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: exporter
+    spec:
+      containers:
+        - name: adguard-exporter
+          image: ebrianne/adguard-exporter:{{ .Values.infrastructure.adguard.imageTag | default "v1.21.0" }}
+          ports:
+            - name: metrics
+              containerPort: 9617
+              protocol: TCP
+          env:
+            - name: adguard_protocol
+              value: {{ .Values.infrastructure.adguard.protocol | default "http" | quote }}
+            - name: adguard_hostname
+              value: {{ .Values.infrastructure.adguard.hostname | quote }}
+            - name: adguard_port
+              value: {{ .Values.infrastructure.adguard.port | default "3000" | quote }}
+            - name: adguard_username
+              valueFrom:
+                secretKeyRef:
+                  name: adguard-exporter-secret
+                  key: ADGUARD_USERNAME
+            - name: adguard_password
+              valueFrom:
+                secretKeyRef:
+                  name: adguard-exporter-secret
+                  key: ADGUARD_PASSWORD
+            - name: server_port
+              value: "9617"
+            - name: interval
+              value: {{ .Values.infrastructure.adguard.interval | default "10s" | quote }}
+            - name: log_limit
+              value: {{ .Values.infrastructure.adguard.logLimit | default "1000" | quote }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguard-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: adguard-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9617
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: adguard-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

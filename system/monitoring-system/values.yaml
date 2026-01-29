@@ -51,3 +51,39 @@ kube-prometheus-stack:
           webhook_configs:
             - url: http://localhost:8081
               send_resolved: true
+
+# Infrastructure Monitoring Configuration
+infrastructure:
+  # Proxmox VE Exporter
+  proxmox:
+    enabled: true
+    imageTag: "3.4.5"
+    # List of Proxmox node IPs to scrape
+    targets:
+      - "192.168.0.2"    # shire
+      - "192.168.0.202"  # rivendell
+      - "192.168.0.102"  # isengard
+      - "192.168.0.8"    # mirkwood
+      - "192.168.0.7"    # rohan
+      - "192.168.0.6"    # gondor
+
+  # OPNsense Firewall Exporter
+  opnsense:
+    enabled: true
+    imageTag: "v1.0.0"
+    url: "https://192.168.0.1"
+    insecure: "true"  # Set to false if using valid SSL cert
+
+  # AdGuard Home Exporter (running on OPNsense)
+  adguard:
+    enabled: true
+    imageTag: "v1.21.0"
+    protocol: "http"
+    hostname: "192.168.0.1"
+    port: "3000"
+    interval: "10s"
+    logLimit: "1000"
+
+# Grafana Dashboards
+dashboards:
+  enabled: true
