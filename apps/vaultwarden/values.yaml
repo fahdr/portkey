@@ -74,3 +74,8 @@ app-template:
         existingClaim: vaultwarden
         globalMounts:
           - path: /data
+
+# Volsync backup configuration - every 6 hours for password manager
+volsync-backups:
+  replicationSource:
+    schedule: "0 */6 * * *"

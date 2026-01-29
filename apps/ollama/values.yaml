@@ -20,15 +20,15 @@ app-template:
         main:
           image:
             repository: ghcr.io/open-webui/open-webui
-            tag: latest
+            tag: v0.7.2
           env:
             OLLAMA_BASE_URL: http://ollama:11434
           resources:
             requests:
               cpu: 15m
-              memory: 128Mi
+              memory: 256Mi
             limits:
-              memory: 512Mi
+              memory: 1Gi
   service:
     main:
       ports:
@@ -96,3 +96,10 @@ app-template:
         main:
           main:
             - path: /root/.ollama
+    ui-data:
+      accessMode: ReadWriteOnce
+      size: 2Gi
+      advancedMounts:
+        ui:
+          main:
+            - path: /app/backend/data
