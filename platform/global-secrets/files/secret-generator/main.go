@@ -610,7 +610,14 @@ func createOrUpdateSecret(client *kubernetes.Clientset, name string, randomSecre
 	if syncDirection == "" {
 		syncDirection = "kubernetes-to-vaultwarden" // Default behavior
 	}
-	
+
+	// Validate configuration: warn if syncDirection expects Vaultwarden but syncTo doesn't include it
+	if (syncDirection == "vaultwarden-to-kubernetes" || syncDirection == "bidirectional") &&
+		!contains(randomSecret.SyncTo, "vaultwarden") {
+		log.Printf("⚠️  WARNING: Secret '%s' has syncDirection='%s' but 'vaultwarden' is not in syncTo. "+
+			"This may cause unexpected behavior. Add 'vaultwarden' to syncTo for proper operation.", name, syncDirection)
+	}
+
 	// Get existing data from both sources
 	var k8sSecretData map[string]string
 	var vaultwardenSecretData map[string]string
@@ -642,6 +649,9 @@ func createOrUpdateSecret(client *kubernetes.Clientset, name string, randomSecre
 	case "vaultwarden-to-kubernetes":
 		// Vaultwarden is source of truth
 		finalSecretData = vaultwardenSecretData
+		if finalSecretData == nil {
+			finalSecretData = make(map[string]string)
+		}
 		// Generate missing keys
 		for _, randomPassword := range randomSecret.Data {
 			if _, exists := finalSecretData[randomPassword.Key]; !exists {

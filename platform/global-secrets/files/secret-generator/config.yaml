@@ -1,5 +1,7 @@
 # Dex
 - name: dex.grafana
+  syncTo: ["kubernetes", "vaultwarden"]
+  syncDirection: "vaultwarden-to-kubernetes"
   data:
     - key: client_secret
       length: 32
@@ -7,6 +9,8 @@
 
 # Registry
 - name: registry.admin
+  syncTo: ["kubernetes", "vaultwarden"]
+  syncDirection: "vaultwarden-to-kubernetes"
   data:
     - key: password
       length: 32
@@ -14,6 +18,8 @@
 
 # Paperless
 - name: paperless.admin
+  syncTo: ["kubernetes", "vaultwarden"]
+  syncDirection: "vaultwarden-to-kubernetes"
   data:
     - key: PAPERLESS_ADMIN_PASSWORD
       length: 32
@@ -21,12 +27,18 @@
 
 # homeassistant
 - name: home-assistant
+  syncTo: ["kubernetes", "vaultwarden"]
+  syncDirection: "vaultwarden-to-kubernetes"
   data:
     - key: home-assistant
       length: 32
       special: true
 
+# Vaultwarden itself - uses kubernetes-to-vaultwarden to avoid circular dependency
+# These secrets bootstrap vaultwarden, so they can't come FROM vaultwarden
 - name: vaultwarden
+  syncTo: ["kubernetes"]
+  syncDirection: "kubernetes-to-vaultwarden"
   data:
     - key: POSTGRES_USER
       length: 8
@@ -41,10 +53,10 @@
       length: 32
       special: true
 
-# Case10 MariaDB passwords - sync to Vaultwarden using correct Bitwarden CLI API
+# Case10 MariaDB passwords - Vaultwarden is source of truth
 - name: case10-mariadb
   syncTo: ["kubernetes", "vaultwarden"]
-  syncDirection: "kubernetes-to-vaultwarden"
+  syncDirection: "vaultwarden-to-kubernetes"
   data:
     - key: user_password
       length: 24
@@ -56,10 +68,10 @@
       length: 24
       special: true
 
-# Case10 MinIO credentials - sync to Vaultwarden using correct Bitwarden CLI API
+# Case10 MinIO credentials - Vaultwarden is source of truth
 - name: case10-minio
   syncTo: ["kubernetes", "vaultwarden"]
-  syncDirection: "kubernetes-to-vaultwarden"
+  syncDirection: "vaultwarden-to-kubernetes"
   data:
     - key: access_key
       length: 16
