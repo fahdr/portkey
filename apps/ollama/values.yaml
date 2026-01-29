@@ -25,10 +25,10 @@ app-template:
             OLLAMA_BASE_URL: http://ollama:11434
           resources:
             requests:
-              cpu: 15m
-              memory: 256Mi
+              cpu: 25m
+              memory: 512Mi
             limits:
-              memory: 1Gi
+              memory: 2Gi
   service:
     main:
       ports:
