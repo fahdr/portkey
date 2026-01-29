@@ -67,17 +67,18 @@ infrastructure:
       - "192.168.0.7"    # rohan
       - "192.168.0.6"    # gondor
 
-  # OPNsense Firewall Exporter
+  # OPNsense Firewall Exporter (AthennaMind)
   opnsense:
     enabled: true
-    imageTag: "v1.0.0"
-    url: "https://192.168.0.1"
+    imageTag: "latest"
+    protocol: "https"
+    address: "192.168.0.1"
     insecure: "true"  # Set to false if using valid SSL cert
 
   # AdGuard Home Exporter (running on OPNsense)
   adguard:
     enabled: true
-    imageTag: "v1.21.0"
+    imageTag: "latest"
     protocol: "http"
     hostname: "192.168.0.1"
     port: "3000"

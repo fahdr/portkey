@@ -113,14 +113,12 @@ spec:
     spec:
       containers:
         - name: opnsense-exporter
-          image: ghcr.io/atoy3731/opnsense-exporter:{{ .Values.infrastructure.opnsense.imageTag | default "v1.0.0" }}
+          image: ghcr.io/athennamind/opnsense-exporter:{{ .Values.infrastructure.opnsense.imageTag | default "latest" }}
           ports:
             - name: metrics
-              containerPort: 9101
+              containerPort: 8080
               protocol: TCP
           env:
-            - name: OPNSENSE_URL
-              value: {{ .Values.infrastructure.opnsense.url | quote }}
             - name: OPNSENSE_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -131,8 +129,15 @@ spec:
                 secretKeyRef:
                   name: opnsense-exporter-secret
                   key: OPNSENSE_API_SECRET
-            - name: OPNSENSE_INSECURE
-              value: {{ .Values.infrastructure.opnsense.insecure | default "true" | quote }}
+          args:
+            - --opnsense.protocol={{ .Values.infrastructure.opnsense.protocol | default "https" }}
+            - --opnsense.address={{ .Values.infrastructure.opnsense.address | default "192.168.0.1" }}
+            - --opnsense.api-key=$(OPNSENSE_API_KEY)
+            - --opnsense.api-secret=$(OPNSENSE_API_SECRET)
+            {{- if eq (.Values.infrastructure.opnsense.insecure | default "true") "true" }}
+            - --opnsense.insecure
+            {{- end }}
+            - --web.listen-address=:8080
           resources:
             requests:
               cpu: 10m
@@ -165,7 +170,7 @@ spec:
   type: ClusterIP
   ports:
     - name: metrics
-      port: 9101
+      port: 8080
       targetPort: metrics
       protocol: TCP
   selector:
