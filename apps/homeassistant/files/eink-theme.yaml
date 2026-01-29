@@ -1,0 +1,103 @@
+# Eink Theme for Home Assistant
+# Place this file in your themes folder and add to configuration.yaml:
+# frontend:
+#   themes: !include_dir_named themes
+
+eink-theme:
+  # Main colors - High contrast for eink displays
+  primary-color: "#000000"                    # Black
+  light-primary-color: "#333333"              # Dark gray
+  dark-primary-color: "#000000"               # Black
+  text-primary-color: "#000000"               # Black text
+  primary-background-color: "#FFFFFF"         # White background
+  sidebar-background-color: "#F5F5F5"         # Light gray
+  
+  # Card colors
+  card-background-color: "#FFFFFF"            # White cards
+  paper-card-header-color: "#000000"          # Black headers
+  paper-card-background-color: "#FFFFFF"      # White card background
+  
+  # Text colors
+  primary-text-color: "#000000"               # Black text
+  secondary-text-color: "#333333"             # Dark gray text
+  disabled-text-color: "#999999"              # Light gray for disabled
+  
+  # State colors - Simplified for eink
+  state-icon-color: "#000000"                 # Black icons
+  state-icon-active-color: "#000000"          # Black active icons
+  state-icon-unavailable-color: "#CCCCCC"     # Light gray unavailable
+  
+  # Button colors
+  paper-toggle-button-checked-button-color: "#000000"
+  paper-toggle-button-checked-bar-color: "#666666"
+  paper-toggle-button-unchecked-button-color: "#CCCCCC"
+  paper-toggle-button-unchecked-bar-color: "#F5F5F5"
+  
+  # Slider colors
+  paper-slider-knob-color: "#000000"
+  paper-slider-knob-start-color: "#000000"
+  paper-slider-pin-color: "#000000"
+  paper-slider-active-color: "#000000"
+  paper-slider-container-color: "#E0E0E0"
+  
+  # Input colors
+  paper-input-container-color: "#333333"
+  paper-input-container-focus-color: "#000000"
+  paper-input-container-invalid-color: "#000000"
+  
+  # Accent colors - Keep minimal
+  accent-color: "#000000"
+  
+  # Border colors
+  divider-color: "#E0E0E0"
+  
+  # Table colors
+  table-row-background-color: "#FFFFFF"
+  table-row-alternative-background-color: "#F9F9F9"
+  
+  # Notification colors - High contrast
+  error-color: "#000000"
+  warning-color: "#333333"
+  success-color: "#000000"
+  info-color: "#000000"
+  
+  # Additional eink optimizations
+  ha-card-border-radius: "0px"                # Sharp edges for better eink rendering
+  ha-card-box-shadow: "0 1px 1px 0 rgba(0,0,0,0.3)" # Subtle shadow
+  
+  # Sidebar customization
+  sidebar-icon-color: "#000000"
+  sidebar-text-color: "#000000"
+  sidebar-selected-background-color: "#E0E0E0"
+  sidebar-selected-icon-color: "#000000"
+  sidebar-selected-text-color: "#000000"
+  
+  # Header customization
+  app-header-background-color: "#FFFFFF"
+  app-header-text-color: "#000000"
+  
+  # Energy dashboard (if used)
+  energy-grid-consumption-color: "#000000"
+  energy-grid-return-color: "#666666"
+  energy-solar-color: "#333333"
+  energy-non-fossil-color: "#000000"
+  energy-battery-out-color: "#000000"
+  energy-battery-in-color: "#666666"
+  energy-gas-color: "#333333"
+  energy-water-color: "#000000"
+  
+  # Custom CSS variables for eink optimization
+  eink-border: "1px solid #000000"
+  eink-button-background: "#FFFFFF"
+  eink-button-border: "2px solid #000000"
+  eink-button-text: "#000000"
+  eink-button-hover: "#F0F0F0"
+  
+  # Remove gradients and animations that don't work well on eink
+  mdc-theme-primary: "#000000"
+  mdc-theme-secondary: "#333333"
+  mdc-theme-background: "#FFFFFF"
+  mdc-theme-surface: "#FFFFFF"
+  mdc-theme-on-primary: "#FFFFFF"
+  mdc-theme-on-secondary: "#FFFFFF"
+  mdc-theme-on-surface: "#000000"

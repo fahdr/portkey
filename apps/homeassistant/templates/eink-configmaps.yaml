@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homeassistant-eink-dashboard
+  namespace: {{ .Release.Namespace }}
+data:
+  eink-homescreen: |
+{{ .Files.Get "files/eink-homescreen" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homeassistant-eink-config
+  namespace: {{ .Release.Namespace }}
+data:
+  eink-configuration.yaml: |
+{{ .Files.Get "files/eink-configuration.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homeassistant-eink-theme
+  namespace: {{ .Release.Namespace }}
+data:
+  eink-theme.yaml: |
+{{ .Files.Get "files/eink-theme.yaml" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homeassistant-eink-styles
+  namespace: {{ .Release.Namespace }}
+data:
+  eink-styles.css: |
+{{ .Files.Get "files/eink-styles.css" | indent 4 }}
