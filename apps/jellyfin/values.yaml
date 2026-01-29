@@ -13,6 +13,7 @@ app-template:
             requests:
               cpu: 25m
               memory: 1Gi
+              gpu.intel.com/i915: 1
             limits:
               memory: 4Gi
               gpu.intel.com/i915: 1
@@ -24,10 +25,10 @@ app-template:
               tag: 4.0.5
             resources:
               requests:
-                cpu: 25m
-                memory: 256Mi
+                cpu: 15m
+                memory: 128Mi
               limits:
-                memory: 1Gi
+                memory: 512Mi
     prowlarr:
       containers:
         main:
@@ -36,10 +37,10 @@ app-template:
               tag: 1.13.3
             resources:
               requests:
-                cpu: 25m
-                memory: 256Mi
+                cpu: 15m
+                memory: 128Mi
               limits:
-                memory: 1Gi
+                memory: 512Mi
     radarr:
       containers:
         main:
@@ -48,10 +49,10 @@ app-template:
               tag: 5.3.6
             resources:
               requests:
-                cpu: 25m
+                cpu: 20m
                 memory: 256Mi
               limits:
-                memory: 1Gi
+                memory: 768Mi
     sonarr:
       containers:
         main:
@@ -60,10 +61,10 @@ app-template:
             tag: 4.0.2
           resources:
             requests:
-              cpu: 25m
+              cpu: 20m
               memory: 256Mi
             limits:
-              memory: 1Gi
+              memory: 768Mi
     jellyseerr:
       containers:
         main:
@@ -72,10 +73,10 @@ app-template:
             tag: 1.7.0
           resources:
             requests:
-              cpu: 25m
-              memory: 256Mi
+              cpu: 15m
+              memory: 128Mi
             limits:
-              memory: 1Gi
+              memory: 512Mi
     lidarr:
       containers:
         main:
@@ -87,7 +88,7 @@ app-template:
               cpu: 15m
               memory: 256Mi
             limits:
-              memory: 1Gi
+              memory: 768Mi
       initContainers:
         steroids:
           image:
@@ -106,10 +107,10 @@ app-template:
             tag: latest
           resources:
             requests:
-              cpu: 15m
-              memory: 256Mi
+              cpu: 10m
+              memory: 128Mi
             limits:
-              memory: 1Gi
+              memory: 512Mi
   
   service:
     main:

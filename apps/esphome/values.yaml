@@ -15,10 +15,10 @@ app-template:
               enabled: false
           resources:
             requests:
-              cpu: 5m
+              cpu: 25m
               memory: 256Mi
             limits:
-              memory: 512Mi
+              memory: 1Gi
   service:
     app:
       controller: esphome
