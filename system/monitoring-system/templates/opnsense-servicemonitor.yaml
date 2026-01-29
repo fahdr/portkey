@@ -1,0 +1,21 @@
+{{- if .Values.infrastructure.opnsense.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: opnsense-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: opnsense-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: servicemonitor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opnsense-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 15s
+      path: /metrics
+{{- end }}

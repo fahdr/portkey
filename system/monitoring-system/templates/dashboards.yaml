@@ -1,0 +1,86 @@
+{{- if .Values.dashboards.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-infrastructure-overview
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  infrastructure-overview.json: |-
+{{ .Files.Get "files/dashboards/infrastructure-overview.json" | indent 4 }}
+{{- if .Values.infrastructure.proxmox.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-proxmox
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  proxmox-cluster.json: |-
+{{ .Files.Get "files/dashboards/proxmox-cluster.json" | indent 4 }}
+{{- end }}
+{{- if .Values.infrastructure.opnsense.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-opnsense
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  opnsense-firewall.json: |-
+{{ .Files.Get "files/dashboards/opnsense-firewall.json" | indent 4 }}
+{{- end }}
+{{- if .Values.infrastructure.adguard.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-adguard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  adguard-dns.json: |-
+{{ .Files.Get "files/dashboards/adguard-dns.json" | indent 4 }}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ceph
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  ceph-cluster.json: |-
+{{ .Files.Get "files/dashboards/ceph-cluster.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-homelab-apps
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  homelab-applications.json: |-
+{{ .Files.Get "files/dashboards/homelab-applications.json" | indent 4 }}
+{{- end }}

@@ -1,0 +1,37 @@
+{{- if .Values.infrastructure.proxmox.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: proxmox-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: servicemonitor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    {{- range .Values.infrastructure.proxmox.targets }}
+    - port: metrics
+      interval: 60s
+      scrapeTimeout: 30s
+      path: /pve
+      params:
+        target:
+          - {{ . | quote }}
+        cluster:
+          - "1"
+        node:
+          - "1"
+      relabelings:
+        - sourceLabels: [__param_target]
+          targetLabel: instance
+        - sourceLabels: [__param_target]
+          targetLabel: target
+        - replacement: {{ . | quote }}
+          targetLabel: proxmox_node
+    {{- end }}
+{{- end }}
