@@ -1,0 +1,195 @@
+# Eink Dashboard Configuration for Home Assistant
+# This dashboard is optimized for eink displays with:
+# - High contrast black/white interface
+# - Minimal refresh requirements
+# - Large, readable buttons
+# - Simple layout for better visibility
+
+# Dashboard Configuration
+title: Eink Control Panel
+icon: mdi:home
+theme: eink-theme
+path: eink-dashboard
+
+# Custom CSS for eink optimization
+panel: true
+badges: []
+cards:
+  # Header with current time and status
+  - type: horizontal-stack
+    cards:
+      - type: entity
+        entity: sensor.time
+        name: Current Time
+        icon: mdi:clock
+      - type: entity
+        entity: sensor.date
+        name: Date
+        icon: mdi:calendar
+
+  # Curtains Section
+  - type: entities
+    title: "🪟 Curtains Control"
+    show_header_toggle: true
+    entities:
+      # Pair 1 - Living Room Curtains
+      - type: section
+        label: "Living Room Curtains"
+      - entity: cover.living_room_curtain_left
+        name: "Left Curtain"
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+      - entity: cover.living_room_curtain_right
+        name: "Right Curtain"
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+      - entity: script.living_room_curtains_sync
+        name: "Sync Both"
+        icon: mdi:arrow-expand-horizontal
+      
+      # Pair 2 - Bedroom Curtains
+      - type: section
+        label: "Bedroom Curtains"
+      - entity: cover.bedroom_curtain_left
+        name: "Left Curtain"
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+      - entity: cover.bedroom_curtain_right
+        name: "Right Curtain"
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+      - entity: script.bedroom_curtains_sync
+        name: "Sync Both"
+        icon: mdi:arrow-expand-horizontal
+
+  # Lights Section
+  - type: entities
+    title: "💡 Lighting Control"
+    show_header_toggle: true
+    entities:
+      # Light Set 1
+      - type: section
+        label: "Light Set 1"
+      - entity: light.light_set_1_bulb_1
+        name: "Bulb 1"
+        tap_action:
+          action: toggle
+      - entity: light.light_set_1_bulb_2
+        name: "Bulb 2"
+        tap_action:
+          action: toggle
+      - entity: light.light_set_1_bulb_3
+        name: "Bulb 3"
+        tap_action:
+          action: toggle
+      - entity: light.light_set_1_all
+        name: "All Set 1"
+        icon: mdi:lightbulb-group
+        tap_action:
+          action: toggle
+      
+      # Light Set 2
+      - type: section
+        label: "Light Set 2"
+      - entity: light.light_set_2_bulb_1
+        name: "Bulb 1"
+        tap_action:
+          action: toggle
+      - entity: light.light_set_2_bulb_2
+        name: "Bulb 2"
+        tap_action:
+          action: toggle
+      - entity: light.light_set_2_bulb_3
+        name: "Bulb 3"
+        tap_action:
+          action: toggle
+      - entity: light.light_set_2_all
+        name: "All Set 2"
+        icon: mdi:lightbulb-group
+        tap_action:
+          action: toggle
+      
+      # Individual Room Lights
+      - type: section
+        label: "Room Lights"
+      - entity: light.dining_room
+        name: "Dining Room"
+        tap_action:
+          action: toggle
+      - entity: light.hallway
+        name: "Hallway"
+        tap_action:
+          action: toggle
+
+  # Climate Control Section
+  - type: entities
+    title: "🌡️ Climate Control"
+    entities:
+      - entity: sensor.external_temperature
+        name: "External Temperature"
+        icon: mdi:thermometer
+      - entity: sensor.internal_temperature
+        name: "Internal Temperature"
+        icon: mdi:home-thermometer
+      - entity: switch.switchbot_ac_controller
+        name: "AC Control"
+        icon: mdi:air-conditioner
+        tap_action:
+          action: toggle
+      - entity: automation.ac_temperature_control
+        name: "Auto AC Control"
+        icon: mdi:thermostat-auto
+        tap_action:
+          action: toggle
+
+  # Quick Actions
+  - type: horizontal-stack
+    cards:
+      - type: button
+        entity: script.all_lights_off
+        name: "All Lights Off"
+        icon: mdi:lightbulb-off
+        tap_action:
+          action: call-service
+          service: script.turn_on
+          service_data:
+            entity_id: script.all_lights_off
+      - type: button
+        entity: script.all_curtains_close
+        name: "Close All Curtains"
+        icon: mdi:window-shutter
+        tap_action:
+          action: call-service
+          service: script.turn_on
+          service_data:
+            entity_id: script.all_curtains_close
+      - type: button
+        entity: script.goodnight_mode
+        name: "Good Night"
+        icon: mdi:weather-night
+        tap_action:
+          action: call-service
+          service: script.turn_on
+          service_data:
+            entity_id: script.goodnight_mode
+
+  # Status Overview
+  - type: glance
+    title: "System Status"
+    show_name: true
+    show_state: true
+    entities:
+      - entity: binary_sensor.connectivity_status
+        name: "Network"
+      - entity: sensor.home_assistant_uptime
+        name: "Uptime"
+      - entity: sensor.temperature_average
+        name: "Avg Temp"

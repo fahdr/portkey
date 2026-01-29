@@ -1,0 +1,221 @@
+# Home Assistant Configuration for Eink Dashboard
+# Add this to your configuration.yaml or include it as a package
+
+# Groups for easier management
+group:
+  living_room_curtains:
+    name: "Living Room Curtains"
+    entities:
+      - cover.living_room_curtain_left
+      - cover.living_room_curtain_right
+  
+  bedroom_curtains:
+    name: "Bedroom Curtains"
+    entities:
+      - cover.bedroom_curtain_left
+      - cover.bedroom_curtain_right
+  
+  light_set_1:
+    name: "Light Set 1"
+    entities:
+      - light.light_set_1_bulb_1
+      - light.light_set_1_bulb_2
+      - light.light_set_1_bulb_3
+  
+  light_set_2:
+    name: "Light Set 2"
+    entities:
+      - light.light_set_2_bulb_1
+      - light.light_set_2_bulb_2
+      - light.light_set_2_bulb_3
+
+# Template sensors for better eink display
+sensor:
+  - platform: template
+    sensors:
+      temperature_average:
+        friendly_name: "Average Temperature"
+        unit_of_measurement: "°C"
+        value_template: >
+          {% set internal = states('sensor.internal_temperature') | float(0) %}
+          {% set external = states('sensor.external_temperature') | float(0) %}
+          {{ ((internal + external) / 2) | round(1) }}
+      
+      home_assistant_uptime:
+        friendly_name: "Home Assistant Uptime"
+        value_template: >
+          {% set uptime = as_timestamp(now()) - as_timestamp(states('sensor.uptime')) %}
+          {% set days = (uptime / 86400) | int %}
+          {% set hours = ((uptime % 86400) / 3600) | int %}
+          {% if days > 0 %}
+            {{ days }}d {{ hours }}h
+          {% else %}
+            {{ hours }}h
+          {% endif %}
+
+# Binary sensors for status
+binary_sensor:
+  - platform: template
+    sensors:
+      connectivity_status:
+        friendly_name: "Network Status"
+        value_template: "{{ is_state('device_tracker.router', 'home') }}"
+        device_class: connectivity
+
+# Scripts for coordinated actions
+script:
+  living_room_curtains_sync:
+    alias: "Sync Living Room Curtains"
+    sequence:
+      - service: cover.open_cover
+        target:
+          entity_id:
+            - cover.living_room_curtain_left
+            - cover.living_room_curtain_right
+        condition:
+          - condition: state
+            entity_id: cover.living_room_curtain_left
+            state: 'closed'
+      - service: cover.close_cover
+        target:
+          entity_id:
+            - cover.living_room_curtain_left
+            - cover.living_room_curtain_right
+        condition:
+          - condition: state
+            entity_id: cover.living_room_curtain_left
+            state: 'open'
+
+  bedroom_curtains_sync:
+    alias: "Sync Bedroom Curtains"
+    sequence:
+      - service: cover.open_cover
+        target:
+          entity_id:
+            - cover.bedroom_curtain_left
+            - cover.bedroom_curtain_right
+        condition:
+          - condition: state
+            entity_id: cover.bedroom_curtain_left
+            state: 'closed'
+      - service: cover.close_cover
+        target:
+          entity_id:
+            - cover.bedroom_curtain_left
+            - cover.bedroom_curtain_right
+        condition:
+          - condition: state
+            entity_id: cover.bedroom_curtain_left
+            state: 'open'
+
+  all_lights_off:
+    alias: "Turn Off All Lights"
+    sequence:
+      - service: light.turn_off
+        target:
+          entity_id:
+            - light.light_set_1_bulb_1
+            - light.light_set_1_bulb_2
+            - light.light_set_1_bulb_3
+            - light.light_set_2_bulb_1
+            - light.light_set_2_bulb_2
+            - light.light_set_2_bulb_3
+            - light.dining_room
+            - light.hallway
+
+  all_curtains_close:
+    alias: "Close All Curtains"
+    sequence:
+      - service: cover.close_cover
+        target:
+          entity_id:
+            - cover.living_room_curtain_left
+            - cover.living_room_curtain_right
+            - cover.bedroom_curtain_left
+            - cover.bedroom_curtain_right
+
+  goodnight_mode:
+    alias: "Good Night Mode"
+    sequence:
+      - service: script.turn_on
+        target:
+          entity_id: script.all_lights_off
+      - service: script.turn_on
+        target:
+          entity_id: script.all_curtains_close
+      - service: switch.turn_on
+        target:
+          entity_id: switch.switchbot_ac_controller
+        condition:
+          - condition: numeric_state
+            entity_id: sensor.external_temperature
+            above: 25
+
+# Light groups for easier control
+light:
+  - platform: group
+    name: "Light Set 1 All"
+    entities:
+      - light.light_set_1_bulb_1
+      - light.light_set_1_bulb_2
+      - light.light_set_1_bulb_3
+  
+  - platform: group
+    name: "Light Set 2 All"
+    entities:
+      - light.light_set_2_bulb_1
+      - light.light_set_2_bulb_2
+      - light.light_set_2_bulb_3
+
+# Automations for AC control based on external temperature
+automation:
+  - alias: "AC Temperature Control"
+    id: ac_temperature_control
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.external_temperature
+        above: 28
+        for:
+          minutes: 5
+      - platform: numeric_state
+        entity_id: sensor.external_temperature
+        below: 24
+        for:
+          minutes: 5
+    condition:
+      - condition: state
+        entity_id: automation.ac_temperature_control
+        state: 'on'
+    action:
+      - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: sensor.external_temperature
+                above: 28
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: switch.switchbot_ac_controller
+          - conditions:
+              - condition: numeric_state
+                entity_id: sensor.external_temperature
+                below: 24
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: switch.switchbot_ac_controller
+
+# Input helpers for dashboard customization
+input_boolean:
+  eink_mode:
+    name: "Eink Display Mode"
+    icon: mdi:monitor
+
+input_number:
+  ac_target_temperature:
+    name: "AC Target Temperature"
+    min: 18
+    max: 30
+    step: 1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer

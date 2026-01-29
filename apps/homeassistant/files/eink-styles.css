@@ -1,0 +1,222 @@
+/* Custom CSS for Eink Display Optimization */
+/* Add this to your Home Assistant www folder and reference in configuration.yaml */
+
+/* General eink optimizations */
+.eink-dashboard {
+  /* Remove all animations and transitions */
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+  
+  /* High contrast borders */
+  ha-card {
+    border: 2px solid #000000 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+  }
+  
+  /* Large, readable text */
+  .card-header {
+    font-size: 1.5em !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+    padding: 16px !important;
+    border-bottom: 1px solid #000000 !important;
+  }
+  
+  /* Enhanced button styling */
+  mwc-button, ha-button, paper-button {
+    border: 2px solid #000000 !important;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    border-radius: 0 !important;
+    min-height: 48px !important;
+    margin: 4px !important;
+  }
+  
+  /* Toggle switches optimization */
+  ha-switch {
+    --switch-checked-color: #000000 !important;
+    --switch-unchecked-color: #CCCCCC !important;
+    --switch-checked-track-color: #666666 !important;
+    --switch-unchecked-track-color: #E0E0E0 !important;
+  }
+  
+  /* Entity rows styling */
+  .entity-row {
+    border-bottom: 1px solid #E0E0E0 !important;
+    padding: 12px 16px !important;
+    min-height: 56px !important;
+  }
+  
+  .entity-row:hover {
+    background-color: #F5F5F5 !important;
+  }
+  
+  /* Icon optimization */
+  ha-icon {
+    color: #000000 !important;
+    --mdc-icon-size: 24px !important;
+  }
+  
+  /* State badge styling */
+  .state-badge {
+    border: 1px solid #000000 !important;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Section headers */
+  .hui-section-header {
+    background: #F0F0F0 !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    border: 1px solid #000000 !important;
+    border-radius: 0 !important;
+    padding: 8px 16px !important;
+    margin: 8px 0 !important;
+  }
+  
+  /* Remove gradients and shadows */
+  .card-background,
+  .primary,
+  .secondary {
+    background: #FFFFFF !important;
+    box-shadow: none !important;
+    background-image: none !important;
+  }
+  
+  /* Glance card optimization */
+  .glance .entity {
+    border: 1px solid #E0E0E0 !important;
+    margin: 2px !important;
+    padding: 8px !important;
+    background: #FFFFFF !important;
+  }
+  
+  /* Button card specific styling */
+  .type-button {
+    border: 2px solid #000000 !important;
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  
+  /* Horizontal stack spacing */
+  .horizontal-stack > * {
+    margin: 0 4px !important;
+  }
+  
+  /* Custom entity styling for better readability */
+  .entity-name {
+    font-weight: bold !important;
+    color: #000000 !important;
+    font-size: 1.1em !important;
+  }
+  
+  .entity-state {
+    color: #333333 !important;
+    font-size: 1em !important;
+  }
+  
+  /* Temperature and sensor value styling */
+  .sensor-value {
+    font-size: 1.2em !important;
+    font-weight: bold !important;
+    color: #000000 !important;
+  }
+  
+  /* Navigation optimization */
+  .header {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border-bottom: 2px solid #000000 !important;
+  }
+  
+  /* Minimize visual noise */
+  .toolbar {
+    display: none !important;
+  }
+  
+  /* Status indicators */
+  .status-on {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+  }
+  
+  .status-off {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+  }
+  
+  /* Grid layout optimization */
+  .grid {
+    gap: 8px !important;
+  }
+  
+  /* Responsive design for different eink screen sizes */
+  @media (max-width: 600px) {
+    .card-header {
+      font-size: 1.2em !important;
+    }
+    
+    .entity-row {
+      padding: 8px 12px !important;
+    }
+    
+    mwc-button, ha-button, paper-button {
+      min-height: 44px !important;
+      font-size: 0.9em !important;
+    }
+  }
+}
+
+/* Specific optimizations for common eink screen sizes */
+
+/* 7.5" eink displays (800x480) */
+@media (width: 800px) and (height: 480px) {
+  .eink-dashboard {
+    font-size: 14px !important;
+  }
+  
+  .card-header {
+    font-size: 1.3em !important;
+  }
+}
+
+/* 4.2" eink displays (400x300) */
+@media (width: 400px) and (height: 300px) {
+  .eink-dashboard {
+    font-size: 12px !important;
+  }
+  
+  .card-header {
+    font-size: 1.1em !important;
+    padding: 8px !important;
+  }
+  
+  .entity-row {
+    padding: 6px 8px !important;
+    min-height: 40px !important;
+  }
+}
+
+/* 13.3" eink displays (1600x1200) */
+@media (width: 1600px) and (height: 1200px) {
+  .eink-dashboard {
+    font-size: 18px !important;
+  }
+  
+  .card-header {
+    font-size: 1.8em !important;
+  }
+  
+  mwc-button, ha-button, paper-button {
+    min-height: 56px !important;
+    font-size: 1.1em !important;
+  }
+}

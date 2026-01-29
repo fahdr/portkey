@@ -1,0 +1,65 @@
+# Entity Mapping Guide for Eink Dashboard
+# 
+# Replace the placeholder entity IDs below with your actual Home Assistant entity IDs
+# This file is for reference only - you'll need to update the actual configuration files
+
+# CURTAINS MAPPING
+# Current Placeholder -> Your Entity ID
+cover.living_room_curtain_left: "cover.your_living_room_left_curtain"
+cover.living_room_curtain_right: "cover.your_living_room_right_curtain"
+cover.bedroom_curtain_left: "cover.your_bedroom_left_curtain"
+cover.bedroom_curtain_right: "cover.your_bedroom_right_curtain"
+
+# LIGHTS MAPPING - Set 1 (3 bulbs)
+light.light_set_1_bulb_1: "light.your_first_set_bulb_1"
+light.light_set_1_bulb_2: "light.your_first_set_bulb_2"
+light.light_set_1_bulb_3: "light.your_first_set_bulb_3"
+
+# LIGHTS MAPPING - Set 2 (3 bulbs)
+light.light_set_2_bulb_1: "light.your_second_set_bulb_1"
+light.light_set_2_bulb_2: "light.your_second_set_bulb_2"
+light.light_set_2_bulb_3: "light.your_second_set_bulb_3"
+
+# INDIVIDUAL ROOM LIGHTS
+light.dining_room: "light.your_dining_room_light"
+light.hallway: "light.your_hallway_light"
+
+# TEMPERATURE SENSORS
+sensor.external_temperature: "sensor.your_external_temp_sensor"
+sensor.internal_temperature: "sensor.your_internal_temp_sensor"
+
+# SWITCHBOT AC CONTROLLER
+switch.switchbot_ac_controller: "switch.your_switchbot_device"
+
+# ADDITIONAL SENSORS (you may need to create these)
+sensor.time: "sensor.time"  # Usually available by default
+sensor.date: "sensor.date"  # Usually available by default
+sensor.uptime: "sensor.uptime"  # May need to be configured
+device_tracker.router: "device_tracker.your_router"  # For connectivity status
+
+# AUTOMATION ENTITIES
+automation.ac_temperature_control: "automation.your_ac_automation"
+
+# EXAMPLES OF REAL ENTITY IDs (for reference):
+# Curtains:
+# - cover.sonoff_dw2_curtain_left
+# - cover.aqara_curtain_motor_e1_right
+# - cover.tuya_smart_curtain_left
+
+# Lights:
+# - light.philips_hue_bulb_1
+# - light.tp_link_kasa_bulb_living_room
+# - light.xiaomi_yeelight_bedroom
+
+# Temperature:
+# - sensor.aqara_temperature_sensor_outdoor
+# - sensor.xiaomi_mijia_temperature_indoor
+
+# SwitchBot:
+# - switch.switchbot_hub_mini_ac_control
+
+# NOTES:
+# 1. Use the Home Assistant Developer Tools -> States to find your exact entity IDs
+# 2. Entity IDs are case-sensitive and use underscores, not spaces
+# 3. All entity IDs must exist in your Home Assistant before using the dashboard
+# 4. You can group multiple devices using Home Assistant groups if needed
