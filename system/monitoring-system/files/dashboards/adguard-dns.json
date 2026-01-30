@@ -78,7 +78,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Total Queries (24h)",
       "type": "stat",
-      "targets": [{ "expr": "increase(adguard_dns_queries_total[24h])", "refId": "A" }]
+      "targets": [{ "expr": "adguard_num_dns_queries", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -94,7 +94,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Blocked (24h)",
       "type": "stat",
-      "targets": [{ "expr": "increase(adguard_dns_blocked_total[24h])", "refId": "A" }]
+      "targets": [{ "expr": "adguard_num_blocked_filtering", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -112,7 +112,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Block Rate",
       "type": "stat",
-      "targets": [{ "expr": "(adguard_dns_blocked_total / adguard_dns_queries_total) * 100", "refId": "A" }]
+      "targets": [{ "expr": "(adguard_num_blocked_filtering / adguard_num_dns_queries) * 100", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -154,8 +154,8 @@
       "title": "DNS Queries Over Time",
       "type": "timeseries",
       "targets": [
-        { "expr": "rate(adguard_dns_queries_total[5m]) * 60", "legendFormat": "Total Queries/min", "refId": "A" },
-        { "expr": "rate(adguard_dns_blocked_total[5m]) * 60", "legendFormat": "Blocked/min", "refId": "B" }
+        { "expr": "adguard_num_dns_queries", "legendFormat": "Total Queries", "refId": "A" },
+        { "expr": "adguard_num_blocked_filtering", "legendFormat": "Blocked", "refId": "B" }
       ]
     },
     {
@@ -174,7 +174,7 @@
       "options": { "legend": { "calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "title": "Block Rate Over Time",
       "type": "timeseries",
-      "targets": [{ "expr": "(rate(adguard_dns_blocked_total[5m]) / rate(adguard_dns_queries_total[5m])) * 100", "legendFormat": "Block %", "refId": "A" }]
+      "targets": [{ "expr": "(adguard_num_blocked_filtering / adguard_num_dns_queries) * 100", "legendFormat": "Block %", "refId": "A" }]
     },
     {
       "collapsed": false,
@@ -213,7 +213,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Safe Browsing Blocked",
       "type": "stat",
-      "targets": [{ "expr": "adguard_dns_safebrowsing_blocked_total", "refId": "A" }]
+      "targets": [{ "expr": "adguard_num_replaced_safebrowsing", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -229,7 +229,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Parental Control Blocked",
       "type": "stat",
-      "targets": [{ "expr": "adguard_dns_parental_blocked_total", "refId": "A" }]
+      "targets": [{ "expr": "adguard_num_replaced_parental", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -245,7 +245,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Safe Search Enforced",
       "type": "stat",
-      "targets": [{ "expr": "adguard_dns_safesearch_enforced_total", "refId": "A" }]
+      "targets": [{ "expr": "adguard_num_replaced_safesearch", "refId": "A" }]
     },
     {
       "collapsed": false,
