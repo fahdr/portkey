@@ -85,6 +85,17 @@ infrastructure:
     interval: "10s"
     logLimit: "1000"
 
+  # External Ceph Cluster (running on Proxmox)
+  # Requires: ceph mgr module enable prometheus (run on any Proxmox node)
+  ceph:
+    enabled: true
+    mgrPort: 9283
+    # Ceph mgr nodes - typically runs on 2-3 nodes, add all potential mgr hosts
+    mgrTargets:
+      - "192.168.0.2"    # shire
+      - "192.168.0.202"  # rivendell
+      - "192.168.0.102"  # isengard
+
 # Grafana Dashboards
 dashboards:
   enabled: true
