@@ -22,21 +22,31 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: exporter
     spec:
-      containers:
-        - name: proxmox-exporter
-          image: prompve/prometheus-pve-exporter:{{ .Values.infrastructure.proxmox.imageTag | default "3.4.5" }}
-          ports:
-            - name: metrics
-              containerPort: 9221
-              protocol: TCP
+      initContainers:
+        - name: create-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              cat > /config/pve.yml << EOF
+              default:
+                user: ${PVE_USER}
+                token_name: ${PVE_TOKEN_NAME}
+                token_value: ${PVE_TOKEN_VALUE}
+                verify_ssl: ${PVE_VERIFY_SSL}
+              EOF
           env:
-            # API Token auth: PVE_USER contains full token ID (user@realm!tokenid)
             - name: PVE_USER
               valueFrom:
                 secretKeyRef:
                   name: proxmox-exporter-secret
                   key: PVE_USER
-            # API Token value (use this instead of PVE_PASSWORD for token auth)
+            - name: PVE_TOKEN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_TOKEN_NAME
             - name: PVE_TOKEN_VALUE
               valueFrom:
                 secretKeyRef:
@@ -47,6 +57,22 @@ spec:
                 secretKeyRef:
                   name: proxmox-exporter-secret
                   key: PVE_VERIFY_SSL
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      containers:
+        - name: proxmox-exporter
+          image: prompve/prometheus-pve-exporter:{{ .Values.infrastructure.proxmox.imageTag | default "3.4.5" }}
+          args:
+            - --config.file=/etc/pve/pve.yml
+          ports:
+            - name: metrics
+              containerPort: 9221
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/pve
+              readOnly: true
           resources:
             requests:
               cpu: 10m
@@ -65,6 +91,9 @@ spec:
               port: metrics
             initialDelaySeconds: 5
             periodSeconds: 10
+      volumes:
+        - name: config
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
