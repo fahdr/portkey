@@ -1,4 +1,9 @@
 grafana:
+  # Use admin credentials from Vaultwarden ExternalSecret
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
   ingress:
     enabled: true
     ingressClassName: nginx
