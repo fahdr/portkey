@@ -134,6 +134,7 @@ spec:
             - --opnsense.address={{ .Values.infrastructure.opnsense.address | default "192.168.0.1" }}
             - --opnsense.api-key=$(OPNSENSE_API_KEY)
             - --opnsense.api-secret=$(OPNSENSE_API_SECRET)
+            - --exporter.instance-label={{ .Values.infrastructure.opnsense.instanceLabel | default "opnsense" }}
             {{- if eq (.Values.infrastructure.opnsense.insecure | default "true") "true" }}
             - --opnsense.insecure
             {{- end }}
