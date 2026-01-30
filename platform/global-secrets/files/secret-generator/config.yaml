@@ -79,3 +79,12 @@
     - key: secret_key
       length: 32
       special: true
+
+# Grafana admin credentials - Vaultwarden is source of truth
+- name: grafana-admin
+  syncTo: ["kubernetes", "vaultwarden"]
+  syncDirection: "vaultwarden-to-kubernetes"
+  data:
+    - key: password
+      length: 40
+      special: true
