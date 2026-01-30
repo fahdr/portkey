@@ -1,0 +1,62 @@
+{{- if .Values.infrastructure.ceph.enabled }}
+# External Ceph ServiceMonitor for Proxmox Ceph cluster
+# Requires: ceph mgr module enable prometheus (run on any Proxmox node)
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ceph-mgr-external
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: ceph-mgr-external
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+subsets:
+  - addresses:
+      {{- range .Values.infrastructure.ceph.mgrTargets }}
+      - ip: {{ . | quote }}
+      {{- end }}
+    ports:
+      - name: metrics
+        port: {{ .Values.infrastructure.ceph.mgrPort | default 9283 }}
+        protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ceph-mgr-external
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: ceph-mgr-external
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ .Values.infrastructure.ceph.mgrPort | default 9283 }}
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ceph-mgr-external
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: ceph-mgr-external
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: servicemonitor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ceph-mgr-external
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 15s
+      path: /metrics
+      honorLabels: true
+{{- end }}
