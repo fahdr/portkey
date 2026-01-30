@@ -4,6 +4,13 @@ grafana:
     existingSecret: grafana-admin-secret
     userKey: admin-user
     passwordKey: admin-password
+  # Mount admin password as env var for password reset on restart
+  extraSecretMounts:
+    - name: admin-secret
+      secretName: grafana-admin-secret
+      defaultMode: 0440
+      mountPath: /etc/secrets/admin
+      readOnly: true
   ingress:
     enabled: true
     ingressClassName: nginx
@@ -35,6 +42,11 @@ grafana:
   grafana.ini:
     server:
       root_url: https://grafana.themainfreak.com
+    security:
+      # Reset admin password from secret on every restart
+      admin_user: admin
+      admin_password: $__file{/etc/secrets/admin/admin-password}
+      disable_initial_admin_creation: false
     auth.generic_oauth:
       enabled: true
       allow_sign_up: true
