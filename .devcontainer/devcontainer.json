@@ -25,7 +25,7 @@
             "port": 13337,
             "host": "0.0.0.0"
         },
-    "ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2.14.0": {
       "version": "latest"
     },
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
