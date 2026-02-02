@@ -229,13 +229,14 @@
       "title": "Virtual Machines",
       "type": "table",
       "targets": [
+        { "expr": "pve_guest_info{type=\"qemu\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "info" },
         { "expr": "pve_up{id=~\"qemu/.*\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "status" },
         { "expr": "pve_cpu_usage_ratio{id=~\"qemu/.*\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "cpu" },
         { "expr": "pve_memory_usage_bytes{id=~\"qemu/.*\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "memory" }
       ],
       "transformations": [
-        { "id": "seriesToColumns", "options": { "byField": "name" } },
-        { "id": "organize", "options": { "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "id": true, "id 1": true, "id 2": true, "id 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "type": true, "type 1": true, "type 2": true, "type 3": true }, "indexByName": {}, "renameByName": { "Value #status": "Status", "Value #cpu": "CPU", "Value #memory": "Memory", "name": "Name", "node": "Node" } } }
+        { "id": "seriesToColumns", "options": { "byField": "id" } },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "__name__ 4": true, "id": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "instance 4": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "job 4": true, "type": true, "type 1": true, "type 2": true, "type 3": true, "type 4": true, "container": true, "container 1": true, "container 2": true, "container 3": true, "container 4": true, "endpoint": true, "endpoint 1": true, "endpoint 2": true, "endpoint 3": true, "endpoint 4": true, "namespace": true, "namespace 1": true, "namespace 2": true, "namespace 3": true, "namespace 4": true, "pod": true, "pod 1": true, "pod 2": true, "pod 3": true, "pod 4": true, "proxmox_node": true, "proxmox_node 1": true, "proxmox_node 2": true, "proxmox_node 3": true, "proxmox_node 4": true, "service": true, "service 1": true, "service 2": true, "service 3": true, "service 4": true, "target": true, "target 1": true, "target 2": true, "target 3": true, "target 4": true, "template": true, "tags": true, "Value #info": true }, "indexByName": { "name": 0, "node": 1, "Value #status": 2, "Value #cpu": 3, "Value #memory": 4 }, "renameByName": { "Value #status": "Status", "Value #cpu": "CPU", "Value #memory": "Memory", "name": "Name", "node": "Node" } } }
       ]
     },
     {
@@ -269,13 +270,14 @@
       "title": "Containers",
       "type": "table",
       "targets": [
+        { "expr": "pve_guest_info{type=\"lxc\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "info" },
         { "expr": "pve_up{id=~\"lxc/.*\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "status" },
         { "expr": "pve_cpu_usage_ratio{id=~\"lxc/.*\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "cpu" },
         { "expr": "pve_memory_usage_bytes{id=~\"lxc/.*\"}", "format": "table", "instant": true, "legendFormat": "", "refId": "memory" }
       ],
       "transformations": [
-        { "id": "seriesToColumns", "options": { "byField": "name" } },
-        { "id": "organize", "options": { "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "id": true, "id 1": true, "id 2": true, "id 3": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "type": true, "type 1": true, "type 2": true, "type 3": true }, "indexByName": {}, "renameByName": { "Value #status": "Status", "Value #cpu": "CPU", "Value #memory": "Memory", "name": "Name", "node": "Node" } } }
+        { "id": "seriesToColumns", "options": { "byField": "id" } },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "__name__ 4": true, "id": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "instance 4": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "job 4": true, "type": true, "type 1": true, "type 2": true, "type 3": true, "type 4": true, "container": true, "container 1": true, "container 2": true, "container 3": true, "container 4": true, "endpoint": true, "endpoint 1": true, "endpoint 2": true, "endpoint 3": true, "endpoint 4": true, "namespace": true, "namespace 1": true, "namespace 2": true, "namespace 3": true, "namespace 4": true, "pod": true, "pod 1": true, "pod 2": true, "pod 3": true, "pod 4": true, "proxmox_node": true, "proxmox_node 1": true, "proxmox_node 2": true, "proxmox_node 3": true, "proxmox_node 4": true, "service": true, "service 1": true, "service 2": true, "service 3": true, "service 4": true, "target": true, "target 1": true, "target 2": true, "target 3": true, "target 4": true, "template": true, "tags": true, "Value #info": true }, "indexByName": { "name": 0, "node": 1, "Value #status": 2, "Value #cpu": 3, "Value #memory": 4 }, "renameByName": { "Value #status": "Status", "Value #cpu": "CPU", "Value #memory": "Memory", "name": "Name", "node": "Node" } } }
       ]
     }
   ],
