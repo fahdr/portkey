@@ -268,25 +268,40 @@ func cleanupDuplicateItems(secretName string) error {
 		return fmt.Errorf("list request failed with status %d", resp.StatusCode)
 	}
 
-	// Parse the response structure based on what we see in the API
-	var listResponse struct {
-		Success bool              `json:"success"`
-		Message string            `json:"message"`
-		Data    []VaultwardenItem `json:"data"`
+	// Parse the response structure - API returns nested structure:
+	// {"success":true,"data":{"object":"list","data":[...]}}
+	var nestedResponse struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+		Data    struct {
+			Object string            `json:"object"`
+			Data   []VaultwardenItem `json:"data"`
+		} `json:"data"`
 	}
 
-	if err := json.Unmarshal(responseBody, &listResponse); err != nil {
-		// If the structured response fails, let's try to see if it's a direct array
-		var items []VaultwardenItem
-		if err2 := json.Unmarshal(responseBody, &items); err2 != nil {
-			return fmt.Errorf("error decoding list response (tried both formats): structured=%v, array=%v", err, err2)
+	var items []VaultwardenItem
+	if err := json.Unmarshal(responseBody, &nestedResponse); err == nil && nestedResponse.Data.Object == "list" {
+		items = nestedResponse.Data.Data
+	} else {
+		// Try flat structure: {"success":true,"data":[...]}
+		var flatResponse struct {
+			Success bool              `json:"success"`
+			Message string            `json:"message"`
+			Data    []VaultwardenItem `json:"data"`
 		}
-		listResponse.Data = items
+		if err := json.Unmarshal(responseBody, &flatResponse); err != nil {
+			// Last resort: try direct array
+			if err2 := json.Unmarshal(responseBody, &items); err2 != nil {
+				return fmt.Errorf("error decoding list response: nested=%v, flat=%v, array=%v", err, err, err2)
+			}
+		} else {
+			items = flatResponse.Data
+		}
 	}
 	
 	// Find all items with the same name
 	var duplicates []VaultwardenItem
-	for _, item := range listResponse.Data {
+	for _, item := range items {
 		if item.Name == secretName {
 			duplicates = append(duplicates, item)
 		}
