@@ -1,0 +1,65 @@
+#!/bin/bash
+# Create Ceph MGR Endpoints for external Prometheus scraping
+#
+# ArgoCD excludes Endpoints and EndpointSlice resources globally,
+# so this script must be run manually to enable Ceph monitoring.
+#
+# Usage: ./scripts/create-ceph-endpoints
+
+set -euo pipefail
+
+NAMESPACE="monitoring-system"
+ENDPOINTS_NAME="ceph-mgr-external"
+
+# Ceph MGR targets (Proxmox nodes running Ceph)
+CEPH_MGR_TARGETS=(
+  "192.168.0.2"    # shire
+  "192.168.0.202"  # rivendell
+  "192.168.0.102"  # isengard
+)
+CEPH_MGR_PORT=9283
+
+echo "Creating Ceph MGR Endpoints for external monitoring..."
+echo "  Namespace: ${NAMESPACE}"
+echo "  Targets: ${CEPH_MGR_TARGETS[*]}"
+echo "  Port: ${CEPH_MGR_PORT}"
+
+# Build addresses YAML
+ADDRESSES_YAML=""
+for ip in "${CEPH_MGR_TARGETS[@]}"; do
+  ADDRESSES_YAML="${ADDRESSES_YAML}      - ip: \"${ip}\"
+"
+done
+
+# Apply the Endpoints resource
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ${ENDPOINTS_NAME}
+  namespace: ${NAMESPACE}
+  labels:
+    app.kubernetes.io/name: ceph-mgr-external
+    app.kubernetes.io/instance: monitoring-system
+    app.kubernetes.io/component: exporter
+subsets:
+  - addresses:
+${ADDRESSES_YAML}    ports:
+      - name: metrics
+        port: ${CEPH_MGR_PORT}
+        protocol: TCP
+EOF
+
+echo ""
+echo "Endpoints created successfully!"
+echo ""
+echo "Verifying Prometheus targets..."
+sleep 2
+
+# Check if endpoints exist
+kubectl get endpoints ${ENDPOINTS_NAME} -n ${NAMESPACE} -o wide
+
+echo ""
+echo "To verify Prometheus is scraping, check targets in Grafana or run:"
+echo "  kubectl exec -n monitoring-system prometheus-monitoring-system-kube-pro-prometheus-0 -c prometheus -- \\"
+echo "    wget -qO- 'http://localhost:9090/api/v1/targets' | jq '.data.activeTargets[] | select(.labels.job == \"ceph-mgr-external\") | {health, scrapeUrl}'"
