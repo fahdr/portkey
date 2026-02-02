@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -68,42 +69,49 @@ func generateRandomPassword(length int, special bool) (string, error) {
 func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 	// Use the correct Bitwarden CLI API endpoint
 	webhookURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
-	
+
 	req, err := http.NewRequest("GET", webhookURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating webhook request: %v", err)
 	}
-	
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error sending webhook request: %v", err)
 	}
 	defer resp.Body.Close()
-	
-	// Read response body for logging
-	responseBody := make([]byte, 1024) // Read first 1KB for logging
-	n, _ := resp.Body.Read(responseBody)
-	responseStr := string(responseBody[:n])
-	
-	log.Printf("GET item '%s' - Status: %d, Response: %s", secretName, resp.StatusCode, responseStr)
+
+	// Read full response body
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %v", err)
+	}
+	responseStr := string(responseBody)
+
+	// Truncate log output if too long
+	logStr := responseStr
+	if len(logStr) > 500 {
+		logStr = logStr[:500] + "... (truncated)"
+	}
+	log.Printf("GET item '%s' - Status: %d, Response: %s", secretName, resp.StatusCode, logStr)
 	
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil // Item not found
 	}
-	
+
 	if resp.StatusCode == http.StatusBadRequest {
 		// This might indicate multiple items with the same name - we can get the IDs directly from the response
 		log.Printf("⚠️  WARNING: GET returned 400 for item '%s' - this usually means multiple items with same name exist", secretName)
-		
+
 		// Parse the response to get the IDs
 		var errorResponse struct {
 			Success bool     `json:"success"`
 			Message string   `json:"message"`
 			Data    []string `json:"data"`
 		}
-		
-		if err := json.Unmarshal(responseBody[:n], &errorResponse); err == nil && len(errorResponse.Data) > 0 {
+
+		if err := json.Unmarshal(responseBody, &errorResponse); err == nil && len(errorResponse.Data) > 0 {
 			log.Printf("⚠️  WARNING: Found %d duplicate items with IDs: %v", len(errorResponse.Data), errorResponse.Data)
 			log.Printf("⚠️  WARNING: Attempting to clean up duplicates using IDs from error response")
 			
@@ -133,22 +141,22 @@ func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("webhook returned status %d: %s", resp.StatusCode, responseStr)
 	}
-	
+
 	// Parse the structured response from Bitwarden CLI API
 	var apiResponse struct {
 		Success bool            `json:"success"`
 		Message string          `json:"message"`
 		Data    VaultwardenItem `json:"data"`
 	}
-	
-	if err := json.Unmarshal(responseBody[:n], &apiResponse); err != nil {
+
+	if err := json.Unmarshal(responseBody, &apiResponse); err != nil {
 		return nil, fmt.Errorf("error decoding webhook response: %v", err)
 	}
-	
+
 	if !apiResponse.Success {
 		return nil, fmt.Errorf("API returned success=false: %s", apiResponse.Message)
 	}
-	
+
 	return &apiResponse.Data, nil
 }
 
@@ -187,9 +195,9 @@ func cleanupDuplicateItemsByIDs(secretName string, itemIDs []string) error {
 	if len(itemIDs) <= 1 {
 		return nil // No duplicates to clean up
 	}
-	
+
 	client := &http.Client{}
-	
+
 	// Keep the first item and delete the rest
 	for i := 1; i < len(itemIDs); i++ {
 		deleteURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + itemIDs[i]
@@ -198,28 +206,27 @@ func cleanupDuplicateItemsByIDs(secretName string, itemIDs []string) error {
 			log.Printf("Error creating delete request for duplicate item %s: %v", itemIDs[i], err)
 			continue
 		}
-		
+
 		deleteResp, err := client.Do(deleteReq)
 		if err != nil {
 			log.Printf("Error deleting duplicate item %s: %v", itemIDs[i], err)
 			continue
 		}
-		
+
 		// Read delete response for logging
-		deleteBody := make([]byte, 512)
-		dn, _ := deleteResp.Body.Read(deleteBody)
-		deleteRespStr := string(deleteBody[:dn])
+		deleteBody, _ := io.ReadAll(deleteResp.Body)
+		deleteRespStr := string(deleteBody)
 		deleteResp.Body.Close()
-		
+
 		log.Printf("Delete duplicate item %s - Status: %d, Response: %s", itemIDs[i], deleteResp.StatusCode, deleteRespStr)
-		
+
 		if deleteResp.StatusCode == http.StatusOK || deleteResp.StatusCode == http.StatusNoContent {
 			log.Printf("Successfully deleted duplicate item '%s' (ID: %s)", secretName, itemIDs[i])
 		} else {
 			log.Printf("Failed to delete duplicate item %s: status %d", itemIDs[i], deleteResp.StatusCode)
 		}
 	}
-	
+
 	log.Printf("Cleanup complete for '%s' - kept ID %s, deleted %d duplicates", secretName, itemIDs[0], len(itemIDs)-1)
 	return nil
 }
@@ -230,41 +237,48 @@ func cleanupDuplicateItemsByIDs(secretName string, itemIDs []string) error {
 func cleanupDuplicateItems(secretName string) error {
 	// Get all items to find duplicates
 	listURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/list/object/items"
-	
+
 	req, err := http.NewRequest("GET", listURL, nil)
 	if err != nil {
 		return fmt.Errorf("error creating list request: %v", err)
 	}
-	
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending list request: %v", err)
 	}
 	defer resp.Body.Close()
-	
-	// Read response body for logging
-	responseBody := make([]byte, 2048) // Read more for list response
-	n, _ := resp.Body.Read(responseBody)
-	responseStr := string(responseBody[:n])
-	
-	log.Printf("List items response - Status: %d, Response: %s", resp.StatusCode, responseStr)
-	
+
+	// Read full response body
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading list response body: %v", err)
+	}
+	responseStr := string(responseBody)
+
+	// Truncate log output if too long
+	logStr := responseStr
+	if len(logStr) > 500 {
+		logStr = logStr[:500] + "... (truncated)"
+	}
+	log.Printf("List items response - Status: %d, Response: %s", resp.StatusCode, logStr)
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("list request failed with status %d", resp.StatusCode)
 	}
-	
+
 	// Parse the response structure based on what we see in the API
 	var listResponse struct {
-		Success bool                `json:"success"`
-		Message string              `json:"message"`
-		Data    []VaultwardenItem   `json:"data"`
+		Success bool              `json:"success"`
+		Message string            `json:"message"`
+		Data    []VaultwardenItem `json:"data"`
 	}
-	
-	if err := json.Unmarshal(responseBody[:n], &listResponse); err != nil {
+
+	if err := json.Unmarshal(responseBody, &listResponse); err != nil {
 		// If the structured response fails, let's try to see if it's a direct array
 		var items []VaultwardenItem
-		if err2 := json.Unmarshal(responseBody[:n], &items); err2 != nil {
+		if err2 := json.Unmarshal(responseBody, &items); err2 != nil {
 			return fmt.Errorf("error decoding list response (tried both formats): structured=%v, array=%v", err, err2)
 		}
 		listResponse.Data = items
@@ -313,49 +327,56 @@ func cleanupDuplicateItems(secretName string) error {
 func getVaultwardenItemAfterCleanup(secretName string) (*VaultwardenItem, error) {
 	// Try to get the item again after cleanup
 	webhookURL := "http://vaultwarden-cli.global-secrets.svc.cluster.local:8087/object/item/" + secretName
-	
+
 	req, err := http.NewRequest("GET", webhookURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating webhook request: %v", err)
 	}
-	
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error sending webhook request: %v", err)
 	}
 	defer resp.Body.Close()
-	
-	// Read response body for logging
-	responseBody := make([]byte, 1024)
-	n, _ := resp.Body.Read(responseBody)
-	responseStr := string(responseBody[:n])
-	
-	log.Printf("GET item '%s' after cleanup - Status: %d, Response: %s", secretName, resp.StatusCode, responseStr)
-	
+
+	// Read full response body
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %v", err)
+	}
+	responseStr := string(responseBody)
+
+	// Truncate log output if too long
+	logStr := responseStr
+	if len(logStr) > 500 {
+		logStr = logStr[:500] + "... (truncated)"
+	}
+	log.Printf("GET item '%s' after cleanup - Status: %d, Response: %s", secretName, resp.StatusCode, logStr)
+
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil // Item not found after cleanup
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("webhook returned status %d after cleanup: %s", resp.StatusCode, responseStr)
 	}
-	
+
 	// Parse the structured response from Bitwarden CLI API
 	var apiResponse struct {
 		Success bool            `json:"success"`
 		Message string          `json:"message"`
 		Data    VaultwardenItem `json:"data"`
 	}
-	
-	if err := json.Unmarshal(responseBody[:n], &apiResponse); err != nil {
+
+	if err := json.Unmarshal(responseBody, &apiResponse); err != nil {
 		return nil, fmt.Errorf("error decoding webhook response: %v", err)
 	}
-	
+
 	if !apiResponse.Success {
 		return nil, fmt.Errorf("API returned success=false after cleanup: %s", apiResponse.Message)
 	}
-	
+
 	return &apiResponse.Data, nil
 }
 
@@ -472,9 +493,9 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 	if err != nil {
 		return fmt.Errorf("error creating API request: %v", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	// Send request
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -482,11 +503,13 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 		return fmt.Errorf("error sending API request: %v", err)
 	}
 	defer resp.Body.Close()
-	
-	// Read response body for logging
-	responseBody := make([]byte, 1024) // Read first 1KB for logging
-	n, _ := resp.Body.Read(responseBody)
-	responseStr := string(responseBody[:n])
+
+	// Read full response body
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %v", err)
+	}
+	responseStr := string(responseBody)
 	
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		log.Printf("API call failed - Status: %d, Response: %s", resp.StatusCode, responseStr)
@@ -509,13 +532,12 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 			if err != nil {
 				return fmt.Errorf("error deleting existing item: %v", err)
 			}
-			
+
 			// Read delete response for logging
-			deleteBody := make([]byte, 1024)
-			dn, _ := deleteResp.Body.Read(deleteBody)
-			deleteRespStr := string(deleteBody[:dn])
+			deleteBody, _ := io.ReadAll(deleteResp.Body)
+			deleteRespStr := string(deleteBody)
 			deleteResp.Body.Close()
-			
+
 			log.Printf("Delete attempt - Status: %d, Response: %s", deleteResp.StatusCode, deleteRespStr)
 			
 			if deleteResp.StatusCode == http.StatusOK || deleteResp.StatusCode == http.StatusNoContent {
@@ -562,13 +584,12 @@ func syncToVaultwarden(secretName string, secretData map[string]string) error {
 				if err != nil {
 					return fmt.Errorf("error recreating item: %v", err)
 				}
-				
+
 				// Read create response for logging
-				createBody := make([]byte, 1024)
-				cn, _ := createResp.Body.Read(createBody)
-				createRespStr := string(createBody[:cn])
+				createBody, _ := io.ReadAll(createResp.Body)
+				createRespStr := string(createBody)
 				createResp.Body.Close()
-				
+
 				log.Printf("Recreation attempt - Status: %d, Response: %s", createResp.StatusCode, createRespStr)
 				
 				if createResp.StatusCode == http.StatusOK || createResp.StatusCode == http.StatusCreated {
