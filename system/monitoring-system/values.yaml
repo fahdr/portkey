@@ -58,14 +58,11 @@ infrastructure:
   proxmox:
     enabled: true
     imageTag: "3.4.5"
-    # List of Proxmox node IPs to scrape
+    # Only scrape ONE node - the Proxmox API is cluster-aware and returns
+    # metrics for ALL nodes/VMs/containers from any single node.
+    # Scraping multiple nodes results in duplicate metrics (6 nodes x 6 = 36).
     targets:
-      - "192.168.0.2"    # shire
-      - "192.168.0.202"  # rivendell
-      - "192.168.0.102"  # isengard
-      - "192.168.0.8"    # mirkwood
-      - "192.168.0.7"    # rohan
-      - "192.168.0.6"    # gondor
+      - "192.168.0.2"    # shire (any node works, they all return cluster data)
 
   # OPNsense Firewall Exporter (AthennaMind)
   opnsense:
