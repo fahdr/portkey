@@ -1,6 +1,25 @@
 {{- if .Values.infrastructure.ceph.enabled }}
 # External Ceph ServiceMonitor for Proxmox Ceph cluster
 # Requires: ceph mgr module enable prometheus (run on any Proxmox node)
+#
+# NOTE: ArgoCD excludes Endpoints and EndpointSlice resources globally.
+# The Endpoints resource below is rendered but not synced by ArgoCD.
+# It must be created manually:
+#   kubectl apply -f - <<EOF
+#   apiVersion: v1
+#   kind: Endpoints
+#   metadata:
+#     name: ceph-mgr-external
+#     namespace: monitoring-system
+#   subsets:
+#     - addresses:
+#         - ip: "192.168.0.2"
+#         - ip: "192.168.0.202"
+#         - ip: "192.168.0.102"
+#       ports:
+#         - name: metrics
+#           port: 9283
+#   EOF
 ---
 # Using EndpointSlice instead of Endpoints (Endpoints are excluded by ArgoCD)
 apiVersion: discovery.k8s.io/v1
