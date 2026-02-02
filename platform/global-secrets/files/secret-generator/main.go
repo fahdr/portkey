@@ -101,41 +101,40 @@ func getVaultwardenItem(secretName string) (*VaultwardenItem, error) {
 	}
 
 	if resp.StatusCode == http.StatusBadRequest {
-		// This might indicate multiple items with the same name - we can get the IDs directly from the response
-		log.Printf("⚠️  WARNING: GET returned 400 for item '%s' - this usually means multiple items with same name exist", secretName)
-
-		// Parse the response to get the IDs
+		// Parse the response to check if it's "Not found" or duplicate items
 		var errorResponse struct {
 			Success bool     `json:"success"`
 			Message string   `json:"message"`
 			Data    []string `json:"data"`
 		}
 
-		if err := json.Unmarshal(responseBody, &errorResponse); err == nil && len(errorResponse.Data) > 0 {
-			log.Printf("⚠️  WARNING: Found %d duplicate items with IDs: %v", len(errorResponse.Data), errorResponse.Data)
-			log.Printf("⚠️  WARNING: Attempting to clean up duplicates using IDs from error response")
-			
-			// Clean up duplicates using the IDs we got from the error response
-			err := cleanupDuplicateItemsByIDs(secretName, errorResponse.Data)
-			if err != nil {
-				log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
-				return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+		if err := json.Unmarshal(responseBody, &errorResponse); err == nil {
+			// Check if this is a "Not found" response (item doesn't exist)
+			if errorResponse.Message == "Not found." || errorResponse.Message == "Not found" {
+				log.Printf("Item '%s' not found in Vaultwarden (400 with 'Not found' message)", secretName)
+				return nil, nil // Item not found, same as 404
 			}
-			
-			// After cleanup, try to get the item again
-			return getVaultwardenItemAfterCleanup(secretName)
-		} else {
-			// Fallback to the old method if we can't parse the IDs
-			log.Printf("⚠️  WARNING: Could not parse IDs from error response, falling back to list method")
-			err := cleanupDuplicateItems(secretName)
-			if err != nil {
-				log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
-				return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+
+			// If we have IDs in the data, it means multiple items with same name
+			if len(errorResponse.Data) > 0 {
+				log.Printf("⚠️  WARNING: Found %d duplicate items with IDs: %v", len(errorResponse.Data), errorResponse.Data)
+				log.Printf("⚠️  WARNING: Attempting to clean up duplicates using IDs from error response")
+
+				// Clean up duplicates using the IDs we got from the error response
+				err := cleanupDuplicateItemsByIDs(secretName, errorResponse.Data)
+				if err != nil {
+					log.Printf("⚠️  ERROR: Failed to cleanup duplicates for '%s': %v", secretName, err)
+					return nil, fmt.Errorf("multiple items found and cleanup failed: %v", err)
+				}
+
+				// After cleanup, try to get the item again
+				return getVaultwardenItemAfterCleanup(secretName)
 			}
-			
-			// After cleanup, try to get the item again
-			return getVaultwardenItemAfterCleanup(secretName)
 		}
+
+		// Unknown 400 error
+		log.Printf("⚠️  WARNING: GET returned 400 for item '%s' with unexpected response: %s", secretName, responseStr)
+		return nil, fmt.Errorf("unexpected 400 response: %s", responseStr)
 	}
 	
 	if resp.StatusCode != http.StatusOK {
