@@ -2,8 +2,9 @@
 # External Ceph ServiceMonitor for Proxmox Ceph cluster
 # Requires: ceph mgr module enable prometheus (run on any Proxmox node)
 ---
-apiVersion: v1
-kind: Endpoints
+# Using EndpointSlice instead of Endpoints (Endpoints are excluded by ArgoCD)
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
 metadata:
   name: ceph-mgr-external
   namespace: {{ .Release.Namespace }}
@@ -11,15 +12,19 @@ metadata:
     app.kubernetes.io/name: ceph-mgr-external
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: exporter
-subsets:
+    kubernetes.io/service-name: ceph-mgr-external
+addressType: IPv4
+ports:
+  - name: metrics
+    port: {{ .Values.infrastructure.ceph.mgrPort | default 9283 }}
+    protocol: TCP
+endpoints:
+  {{- range .Values.infrastructure.ceph.mgrTargets }}
   - addresses:
-      {{- range .Values.infrastructure.ceph.mgrTargets }}
-      - ip: {{ . | quote }}
-      {{- end }}
-    ports:
-      - name: metrics
-        port: {{ .Values.infrastructure.ceph.mgrPort | default 9283 }}
-        protocol: TCP
+      - {{ . | quote }}
+    conditions:
+      ready: true
+  {{- end }}
 ---
 apiVersion: v1
 kind: Service
