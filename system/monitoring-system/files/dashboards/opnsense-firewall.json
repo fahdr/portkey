@@ -309,6 +309,82 @@
         { "expr": "rate(opnsense_protocol_udp_received_datagrams_total[5m])", "legendFormat": "Received", "refId": "A" },
         { "expr": "rate(opnsense_protocol_udp_output_packets_total[5m])", "legendFormat": "Sent", "refId": "B" }
       ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
+      "id": 50,
+      "title": "Services",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "cellOptions": { "type": "color-background" }, "filterable": false, "inspect": false },
+          "mappings": [
+            { "options": { "0": { "color": "red", "index": 0, "text": "Stopped" } }, "type": "value" },
+            { "options": { "1": { "color": "green", "index": 1, "text": "Running" } }, "type": "value" }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Service" }, "properties": [{ "id": "custom.width", "value": 200 }] },
+          { "matcher": { "id": "byName", "options": "Description" }, "properties": [{ "id": "custom.width", "value": 300 }] }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 42 },
+      "id": 51,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{ "desc": false, "displayName": "Service" }] },
+      "title": "Service Status",
+      "type": "table",
+      "targets": [{ "expr": "opnsense_services_status", "format": "table", "instant": true, "refId": "A" }],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["name", "description", "Value"] } } },
+        { "id": "organize", "options": { "excludeByName": {}, "indexByName": {}, "renameByName": { "name": "Service", "description": "Description", "Value": "Status" } } }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
+      "id": 60,
+      "title": "Network Devices (ARP Table)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "filterable": true, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "IP Address" }, "properties": [{ "id": "custom.width", "value": 140 }] },
+          { "matcher": { "id": "byName", "options": "MAC Address" }, "properties": [{ "id": "custom.width", "value": 170 }] },
+          { "matcher": { "id": "byName", "options": "Interface" }, "properties": [{ "id": "custom.width", "value": 120 }] },
+          { "matcher": { "id": "byName", "options": "Type" }, "properties": [{ "id": "custom.width", "value": 100 }] },
+          { "matcher": { "id": "byName", "options": "Permanent" }, "properties": [
+            { "id": "custom.width", "value": 100 },
+            { "id": "mappings", "value": [
+              { "options": { "false": { "color": "blue", "index": 0, "text": "Dynamic" } }, "type": "value" },
+              { "options": { "true": { "color": "orange", "index": 1, "text": "Static" } }, "type": "value" }
+            ]}
+          ]}
+        ]
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 51 },
+      "id": 61,
+      "options": { "cellHeight": "sm", "footer": { "countRows": true, "fields": "", "reducer": ["count"], "show": true }, "showHeader": true, "sortBy": [{ "desc": false, "displayName": "IP Address" }] },
+      "title": "Network Devices",
+      "type": "table",
+      "targets": [{ "expr": "opnsense_arp_table_entries", "format": "table", "instant": true, "refId": "A" }],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["ip", "mac", "interface_description", "type", "permanent"] } } },
+        { "id": "organize", "options": { "excludeByName": {}, "indexByName": { "ip": 0, "mac": 1, "interface_description": 2, "type": 3, "permanent": 4 }, "renameByName": { "ip": "IP Address", "mac": "MAC Address", "interface_description": "Interface", "type": "Type", "permanent": "Permanent" } } }
+      ]
     }
   ],
   "refresh": "30s",
