@@ -93,6 +93,15 @@ infrastructure:
       - "192.168.0.202"  # rivendell
       - "192.168.0.102"  # isengard
 
+# SNMP Exporter for additional OPNsense metrics (CPU, memory, disk, etc.)
+  snmp:
+    enabled: true
+    imageTag: "v0.26.0"
+    targets:
+      - name: "opnsense"
+        address: "192.168.0.1"
+        module: "if_mib"  # Standard interface MIB, works with FreeBSD/OPNsense
+
 # Grafana Dashboards
 dashboards:
   enabled: true
