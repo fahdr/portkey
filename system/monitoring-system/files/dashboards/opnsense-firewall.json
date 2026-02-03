@@ -50,19 +50,16 @@
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
-          "mappings": [
-            { "options": { "0": { "color": "red", "index": 0, "text": "Disabled" } }, "type": "value" },
-            { "options": { "1": { "color": "green", "index": 1, "text": "Enabled" } }, "type": "value" }
-          ],
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "pps"
         }
       },
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
       "id": 3,
-      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "title": "Firewall Status",
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Packets/sec (In)",
       "type": "stat",
-      "targets": [{ "expr": "opnsense_firewall_status", "refId": "A" }]
+      "targets": [{ "expr": "sum(rate(opnsense_firewall_in_ipv4_pass_packets[5m]) + rate(opnsense_firewall_in_ipv4_block_packets[5m]))", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
