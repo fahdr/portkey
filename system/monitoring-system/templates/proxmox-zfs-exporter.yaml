@@ -14,7 +14,6 @@ data:
     """Proxmox ZFS Exporter - exposes ZFS pool and disk metrics from Proxmox API"""
 
     import os
-    import time
     import json
     import urllib.request
     import ssl
@@ -36,8 +35,8 @@ data:
 
     def pve_api_get(endpoint):
         """Make GET request to Proxmox API"""
-        url = f"https://{PVE_HOST}:{PVE_PORT}/api2/json{endpoint}"
-        auth = f"PVEAPIToken={PVE_USER}!{PVE_TOKEN_NAME}={PVE_TOKEN_VALUE}"
+        url = "https://{}:{}/api2/json{}".format(PVE_HOST, PVE_PORT, endpoint)
+        auth = "PVEAPIToken={}!{}={}".format(PVE_USER, PVE_TOKEN_NAME, PVE_TOKEN_VALUE)
 
         req = urllib.request.Request(url)
         req.add_header('Authorization', auth)
@@ -46,19 +45,19 @@ data:
             with urllib.request.urlopen(req, context=ssl_ctx, timeout=10) as response:
                 return json.loads(response.read().decode())
         except Exception as e:
-            print(f"Error fetching {endpoint}: {e}")
+            print("Error fetching {}: {}".format(endpoint, e))
             return None
 
     def get_zfs_metrics():
         """Fetch ZFS pool metrics"""
-        data = pve_api_get(f"/nodes/{PVE_NODE}/disks/zfs")
+        data = pve_api_get("/nodes/{}/disks/zfs".format(PVE_NODE))
         if data and 'data' in data:
             return data['data']
         return []
 
     def get_disk_metrics():
         """Fetch disk metrics"""
-        data = pve_api_get(f"/nodes/{PVE_NODE}/disks/list")
+        data = pve_api_get("/nodes/{}/disks/list".format(PVE_NODE))
         if data and 'data' in data:
             return data['data']
         return []
@@ -75,6 +74,10 @@ data:
             'REMOVED': 5,
         }
         return health_map.get(health.upper(), -1)
+
+    def metric_line(name, labels, value):
+        """Format a Prometheus metric line"""
+        return "{}{{{}}} {}".format(name, labels, value)
 
     def generate_metrics():
         """Generate Prometheus metrics"""
@@ -100,16 +103,16 @@ data:
         for pool in pools:
             name = pool.get('name', 'unknown')
             health = pool.get('health', 'UNKNOWN')
-            labels = f'node="{PVE_NODE}",pool="{name}"'
-            info_labels = f'node="{PVE_NODE}",pool="{name}",health="{health}"'
+            labels = 'node="{}",pool="{}"'.format(PVE_NODE, name)
+            info_labels = 'node="{}",pool="{}",health="{}"'.format(PVE_NODE, name, health)
 
-            lines.append(f'proxmox_zfs_pool_health{{{labels}}} {health_to_num(health)}')
-            lines.append(f'proxmox_zfs_pool_size_bytes{{{labels}}} {pool.get("size", 0)}')
-            lines.append(f'proxmox_zfs_pool_allocated_bytes{{{labels}}} {pool.get("alloc", 0)}')
-            lines.append(f'proxmox_zfs_pool_free_bytes{{{labels}}} {pool.get("free", 0)}')
-            lines.append(f'proxmox_zfs_pool_fragmentation{{{labels}}} {pool.get("frag", 0)}')
-            lines.append(f'proxmox_zfs_pool_dedup_ratio{{{labels}}} {pool.get("dedup", 1)}')
-            lines.append(f'proxmox_zfs_pool_info{{{info_labels}}} 1')
+            lines.append(metric_line('proxmox_zfs_pool_health', labels, health_to_num(health)))
+            lines.append(metric_line('proxmox_zfs_pool_size_bytes', labels, pool.get('size', 0)))
+            lines.append(metric_line('proxmox_zfs_pool_allocated_bytes', labels, pool.get('alloc', 0)))
+            lines.append(metric_line('proxmox_zfs_pool_free_bytes', labels, pool.get('free', 0)))
+            lines.append(metric_line('proxmox_zfs_pool_fragmentation', labels, pool.get('frag', 0)))
+            lines.append(metric_line('proxmox_zfs_pool_dedup_ratio', labels, pool.get('dedup', 1)))
+            lines.append(metric_line('proxmox_zfs_pool_info', info_labels, 1))
 
         # Disk metrics
         lines.append('# HELP proxmox_disk_health Disk health status (0=passed, 1=warning, 2=failed)')
@@ -137,17 +140,18 @@ data:
             disk_type = disk.get('type', 'unknown')
             serial = disk.get('serial', 'unknown')
 
-            labels = f'node="{PVE_NODE}",device="{devpath}",used="{used}"'
-            info_labels = f'node="{PVE_NODE}",device="{devpath}",model="{model}",serial="{serial}",type="{disk_type}",used="{used}",health="{health}"'
+            labels = 'node="{}",device="{}",used="{}"'.format(PVE_NODE, devpath, used)
+            info_labels = 'node="{}",device="{}",model="{}",serial="{}",type="{}",used="{}",health="{}"'.format(
+                PVE_NODE, devpath, model, serial, disk_type, used, health)
 
-            lines.append(f'proxmox_disk_health{{{labels}}} {health_to_num(health)}')
-            lines.append(f'proxmox_disk_size_bytes{{{labels}}} {disk.get("size", 0)}')
+            lines.append(metric_line('proxmox_disk_health', labels, health_to_num(health)))
+            lines.append(metric_line('proxmox_disk_size_bytes', labels, disk.get('size', 0)))
 
             wearout = disk.get('wearout', 'N/A')
             if wearout != 'N/A':
-                lines.append(f'proxmox_disk_wearout{{{labels}}} {wearout}')
+                lines.append(metric_line('proxmox_disk_wearout', labels, wearout))
 
-            lines.append(f'proxmox_disk_info{{{info_labels}}} 1')
+            lines.append(metric_line('proxmox_disk_info', info_labels, 1))
 
             # Count ZFS disks
             if used == 'ZFS':
@@ -155,13 +159,13 @@ data:
                 if health == 'PASSED':
                     zfs_healthy += 1
 
-        lines.append(f'proxmox_zfs_disks_total{{node="{PVE_NODE}"}} {zfs_total}')
-        lines.append(f'proxmox_zfs_disks_healthy{{node="{PVE_NODE}"}} {zfs_healthy}')
+        lines.append(metric_line('proxmox_zfs_disks_total', 'node="{}"'.format(PVE_NODE), zfs_total))
+        lines.append(metric_line('proxmox_zfs_disks_healthy', 'node="{}"'.format(PVE_NODE), zfs_healthy))
 
         # Exporter metadata
         lines.append('# HELP proxmox_zfs_exporter_up Exporter is running')
         lines.append('# TYPE proxmox_zfs_exporter_up gauge')
-        lines.append(f'proxmox_zfs_exporter_up{{node="{PVE_NODE}"}} 1')
+        lines.append(metric_line('proxmox_zfs_exporter_up', 'node="{}"'.format(PVE_NODE), 1))
 
         return '\n'.join(lines) + '\n'
 
@@ -186,8 +190,8 @@ data:
             pass  # Suppress access logs
 
     if __name__ == '__main__':
-        print(f"Starting Proxmox ZFS Exporter on port {EXPORTER_PORT}")
-        print(f"Target: {PVE_HOST}:{PVE_PORT} node={PVE_NODE}")
+        print("Starting Proxmox ZFS Exporter on port {}".format(EXPORTER_PORT))
+        print("Target: {}:{} node={}".format(PVE_HOST, PVE_PORT, PVE_NODE))
         server = HTTPServer(('', EXPORTER_PORT), MetricsHandler)
         server.serve_forever()
 ---
