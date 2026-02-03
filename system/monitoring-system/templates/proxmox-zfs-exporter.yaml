@@ -1,0 +1,308 @@
+{{- if .Values.infrastructure.proxmox.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: proxmox-zfs-exporter-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-zfs-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  exporter.py: |
+    #!/usr/bin/env python3
+    """Proxmox ZFS Exporter - exposes ZFS pool and disk metrics from Proxmox API"""
+
+    import os
+    import time
+    import json
+    import urllib.request
+    import ssl
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    # Configuration from environment
+    PVE_HOST = os.getenv('PVE_HOST', '192.168.0.2')
+    PVE_PORT = os.getenv('PVE_PORT', '8006')
+    PVE_USER = os.getenv('PVE_USER', 'prometheus@pve')
+    PVE_TOKEN_NAME = os.getenv('PVE_TOKEN_NAME', 'monitoring')
+    PVE_TOKEN_VALUE = os.getenv('PVE_TOKEN_VALUE', '')
+    PVE_NODE = os.getenv('PVE_NODE', 'shire')
+    EXPORTER_PORT = int(os.getenv('EXPORTER_PORT', '9102'))
+
+    # SSL context that ignores certificate verification
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    def pve_api_get(endpoint):
+        """Make GET request to Proxmox API"""
+        url = f"https://{PVE_HOST}:{PVE_PORT}/api2/json{endpoint}"
+        auth = f"PVEAPIToken={PVE_USER}!{PVE_TOKEN_NAME}={PVE_TOKEN_VALUE}"
+
+        req = urllib.request.Request(url)
+        req.add_header('Authorization', auth)
+
+        try:
+            with urllib.request.urlopen(req, context=ssl_ctx, timeout=10) as response:
+                return json.loads(response.read().decode())
+        except Exception as e:
+            print(f"Error fetching {endpoint}: {e}")
+            return None
+
+    def get_zfs_metrics():
+        """Fetch ZFS pool metrics"""
+        data = pve_api_get(f"/nodes/{PVE_NODE}/disks/zfs")
+        if data and 'data' in data:
+            return data['data']
+        return []
+
+    def get_disk_metrics():
+        """Fetch disk metrics"""
+        data = pve_api_get(f"/nodes/{PVE_NODE}/disks/list")
+        if data and 'data' in data:
+            return data['data']
+        return []
+
+    def health_to_num(health):
+        """Convert health string to numeric value"""
+        health_map = {
+            'ONLINE': 0,
+            'PASSED': 0,
+            'DEGRADED': 1,
+            'FAULTED': 2,
+            'OFFLINE': 3,
+            'UNAVAIL': 4,
+            'REMOVED': 5,
+        }
+        return health_map.get(health.upper(), -1)
+
+    def generate_metrics():
+        """Generate Prometheus metrics"""
+        lines = []
+
+        # ZFS Pool metrics
+        lines.append('# HELP proxmox_zfs_pool_health ZFS pool health status (0=online, 1=degraded, 2=faulted)')
+        lines.append('# TYPE proxmox_zfs_pool_health gauge')
+        lines.append('# HELP proxmox_zfs_pool_size_bytes Total size of ZFS pool in bytes')
+        lines.append('# TYPE proxmox_zfs_pool_size_bytes gauge')
+        lines.append('# HELP proxmox_zfs_pool_allocated_bytes Allocated space in ZFS pool in bytes')
+        lines.append('# TYPE proxmox_zfs_pool_allocated_bytes gauge')
+        lines.append('# HELP proxmox_zfs_pool_free_bytes Free space in ZFS pool in bytes')
+        lines.append('# TYPE proxmox_zfs_pool_free_bytes gauge')
+        lines.append('# HELP proxmox_zfs_pool_fragmentation ZFS pool fragmentation percentage')
+        lines.append('# TYPE proxmox_zfs_pool_fragmentation gauge')
+        lines.append('# HELP proxmox_zfs_pool_dedup_ratio ZFS pool deduplication ratio')
+        lines.append('# TYPE proxmox_zfs_pool_dedup_ratio gauge')
+        lines.append('# HELP proxmox_zfs_pool_info ZFS pool information')
+        lines.append('# TYPE proxmox_zfs_pool_info gauge')
+
+        pools = get_zfs_metrics()
+        for pool in pools:
+            name = pool.get('name', 'unknown')
+            health = pool.get('health', 'UNKNOWN')
+            labels = f'node="{PVE_NODE}",pool="{name}"'
+            info_labels = f'node="{PVE_NODE}",pool="{name}",health="{health}"'
+
+            lines.append(f'proxmox_zfs_pool_health{{{labels}}} {health_to_num(health)}')
+            lines.append(f'proxmox_zfs_pool_size_bytes{{{labels}}} {pool.get("size", 0)}')
+            lines.append(f'proxmox_zfs_pool_allocated_bytes{{{labels}}} {pool.get("alloc", 0)}')
+            lines.append(f'proxmox_zfs_pool_free_bytes{{{labels}}} {pool.get("free", 0)}')
+            lines.append(f'proxmox_zfs_pool_fragmentation{{{labels}}} {pool.get("frag", 0)}')
+            lines.append(f'proxmox_zfs_pool_dedup_ratio{{{labels}}} {pool.get("dedup", 1)}')
+            lines.append(f'proxmox_zfs_pool_info{{{info_labels}}} 1')
+
+        # Disk metrics
+        lines.append('# HELP proxmox_disk_health Disk health status (0=passed, 1=warning, 2=failed)')
+        lines.append('# TYPE proxmox_disk_health gauge')
+        lines.append('# HELP proxmox_disk_size_bytes Disk size in bytes')
+        lines.append('# TYPE proxmox_disk_size_bytes gauge')
+        lines.append('# HELP proxmox_disk_wearout Disk wearout percentage (SSD only)')
+        lines.append('# TYPE proxmox_disk_wearout gauge')
+        lines.append('# HELP proxmox_disk_info Disk information')
+        lines.append('# TYPE proxmox_disk_info gauge')
+        lines.append('# HELP proxmox_zfs_disks_total Total number of disks in ZFS pools')
+        lines.append('# TYPE proxmox_zfs_disks_total gauge')
+        lines.append('# HELP proxmox_zfs_disks_healthy Number of healthy disks in ZFS pools')
+        lines.append('# TYPE proxmox_zfs_disks_healthy gauge')
+
+        disks = get_disk_metrics()
+        zfs_total = 0
+        zfs_healthy = 0
+
+        for disk in disks:
+            devpath = disk.get('devpath', 'unknown')
+            health = disk.get('health', 'UNKNOWN')
+            model = disk.get('model', 'unknown')
+            used = disk.get('used', 'unused')
+            disk_type = disk.get('type', 'unknown')
+            serial = disk.get('serial', 'unknown')
+
+            labels = f'node="{PVE_NODE}",device="{devpath}",used="{used}"'
+            info_labels = f'node="{PVE_NODE}",device="{devpath}",model="{model}",serial="{serial}",type="{disk_type}",used="{used}",health="{health}"'
+
+            lines.append(f'proxmox_disk_health{{{labels}}} {health_to_num(health)}')
+            lines.append(f'proxmox_disk_size_bytes{{{labels}}} {disk.get("size", 0)}')
+
+            wearout = disk.get('wearout', 'N/A')
+            if wearout != 'N/A':
+                lines.append(f'proxmox_disk_wearout{{{labels}}} {wearout}')
+
+            lines.append(f'proxmox_disk_info{{{info_labels}}} 1')
+
+            # Count ZFS disks
+            if used == 'ZFS':
+                zfs_total += 1
+                if health == 'PASSED':
+                    zfs_healthy += 1
+
+        lines.append(f'proxmox_zfs_disks_total{{node="{PVE_NODE}"}} {zfs_total}')
+        lines.append(f'proxmox_zfs_disks_healthy{{node="{PVE_NODE}"}} {zfs_healthy}')
+
+        # Exporter metadata
+        lines.append('# HELP proxmox_zfs_exporter_up Exporter is running')
+        lines.append('# TYPE proxmox_zfs_exporter_up gauge')
+        lines.append(f'proxmox_zfs_exporter_up{{node="{PVE_NODE}"}} 1')
+
+        return '\n'.join(lines) + '\n'
+
+    class MetricsHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/metrics':
+                metrics = generate_metrics()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(metrics.encode())
+            elif self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'OK')
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            pass  # Suppress access logs
+
+    if __name__ == '__main__':
+        print(f"Starting Proxmox ZFS Exporter on port {EXPORTER_PORT}")
+        print(f"Target: {PVE_HOST}:{PVE_PORT} node={PVE_NODE}")
+        server = HTTPServer(('', EXPORTER_PORT), MetricsHandler)
+        server.serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxmox-zfs-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-zfs-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-zfs-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: proxmox-zfs-exporter
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: exporter
+          image: python:3.11-alpine
+          command: ["python", "/app/exporter.py"]
+          ports:
+            - name: metrics
+              containerPort: 9102
+              protocol: TCP
+          env:
+            - name: PVE_HOST
+              value: "{{ (index .Values.infrastructure.proxmox.targets 0).address }}"
+            - name: PVE_NODE
+              value: "shire"
+            - name: PVE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_USER
+            - name: PVE_TOKEN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_TOKEN_NAME
+            - name: PVE_TOKEN_VALUE
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_TOKEN_VALUE
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: script
+          configMap:
+            name: proxmox-zfs-exporter-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-zfs-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-zfs-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9102
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: proxmox-zfs-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: proxmox-zfs-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-zfs-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-zfs-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: 60s
+      scrapeTimeout: 30s
+{{- end }}
