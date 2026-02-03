@@ -152,7 +152,7 @@
       "options": { "legend": { "calcs": ["mean", "lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "title": "Interface Traffic - Inbound",
       "type": "timeseries",
-      "targets": [{ "expr": "rate(opnsense_interface_bytes_received_total[5m]) * 8", "legendFormat": "{{ interface }}", "refId": "A" }]
+      "targets": [{ "expr": "rate(opnsense_interfaces_received_bytes_total[5m]) * 8", "legendFormat": "{{ interface }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -170,7 +170,7 @@
       "options": { "legend": { "calcs": ["mean", "lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
       "title": "Interface Traffic - Outbound",
       "type": "timeseries",
-      "targets": [{ "expr": "rate(opnsense_interface_bytes_transmitted_total[5m]) * 8", "legendFormat": "{{ interface }}", "refId": "A" }]
+      "targets": [{ "expr": "rate(opnsense_interfaces_transmitted_bytes_total[5m]) * 8", "legendFormat": "{{ interface }}", "refId": "A" }]
     },
     {
       "collapsed": false,
