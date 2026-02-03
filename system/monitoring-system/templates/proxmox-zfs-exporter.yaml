@@ -77,7 +77,7 @@ data:
 
     def metric_line(name, labels, value):
         """Format a Prometheus metric line"""
-        return "{}{{{}}} {}".format(name, labels, value)
+        return name + "{" + labels + "} " + str(value)
 
     def generate_metrics():
         """Generate Prometheus metrics"""
@@ -226,7 +226,7 @@ spec:
               protocol: TCP
           env:
             - name: PVE_HOST
-              value: "{{ (index .Values.infrastructure.proxmox.targets 0).address }}"
+              value: "{{ index .Values.infrastructure.proxmox.targets 0 }}"
             - name: PVE_NODE
               value: "shire"
             - name: PVE_USER
