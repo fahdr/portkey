@@ -107,7 +107,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "ARP Entries",
       "type": "stat",
-      "targets": [{ "expr": "opnsense_arp_table_entries", "refId": "A" }]
+      "targets": [{ "expr": "count(opnsense_arp_table_entries)", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
