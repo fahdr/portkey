@@ -1,0 +1,389 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Storage Overview",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Total Storage",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*\"})", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Total Used",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*\"})", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Total Free",
+      "type": "stat",
+      "targets": [{ "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*\"}) - sum(pve_disk_usage_bytes{id=~\"storage/.*\"})", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 5,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Storage Pools",
+      "type": "stat",
+      "targets": [{ "expr": "count(pve_storage_info)", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 6,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Shared Storage",
+      "type": "stat",
+      "targets": [{ "expr": "count(pve_storage_shared{id=~\"storage/.*\"} == 1)", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 7,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Local Storage",
+      "type": "stat",
+      "targets": [{ "expr": "count(pve_storage_shared{id=~\"storage/.*\"} == 0)", "refId": "A" }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 10,
+      "title": "ZFS Storage (shirezfs)",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 6 },
+      "id": 11,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "ZFS Total Capacity",
+      "type": "stat",
+      "targets": [{ "expr": "pve_disk_size_bytes{id=\"storage/shire/shirezfs\"}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 6 },
+      "id": 12,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "ZFS Used",
+      "type": "stat",
+      "targets": [{ "expr": "pve_disk_usage_bytes{id=\"storage/shire/shirezfs\"}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 6 },
+      "id": 13,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "ZFS Free",
+      "type": "stat",
+      "targets": [{ "expr": "pve_disk_size_bytes{id=\"storage/shire/shirezfs\"} - pve_disk_usage_bytes{id=\"storage/shire/shirezfs\"}", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 }] },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 6 },
+      "id": 14,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "ZFS Usage %",
+      "type": "stat",
+      "targets": [{ "expr": "(pve_disk_usage_bytes{id=\"storage/shire/shirezfs\"} / pve_disk_size_bytes{id=\"storage/shire/shirezfs\"}) * 100", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": true, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+      "id": 15,
+      "options": { "legend": { "calcs": ["lastNotNull", "mean"], "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "title": "ZFS Usage Over Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "pve_disk_size_bytes{id=\"storage/shire/shirezfs\"}", "legendFormat": "Total Capacity", "refId": "A" },
+        { "expr": "pve_disk_usage_bytes{id=\"storage/shire/shirezfs\"}", "legendFormat": "Used", "refId": "B" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 20,
+      "title": "All Storage Pools",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "filterable": true, "inspect": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Storage" }, "properties": [{ "id": "custom.width", "value": 150 }] },
+          { "matcher": { "id": "byName", "options": "Node" }, "properties": [{ "id": "custom.width", "value": 100 }] },
+          { "matcher": { "id": "byName", "options": "Total" }, "properties": [{ "id": "unit", "value": "bytes" }, { "id": "custom.width", "value": 120 }] },
+          { "matcher": { "id": "byName", "options": "Used" }, "properties": [{ "id": "unit", "value": "bytes" }, { "id": "custom.width", "value": 120 }] },
+          { "matcher": { "id": "byName", "options": "Free" }, "properties": [{ "id": "unit", "value": "bytes" }, { "id": "custom.width", "value": 120 }] },
+          { "matcher": { "id": "byName", "options": "Usage %" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "custom.width", "value": 100 },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "gradient" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 85 }] } },
+            { "id": "max", "value": 100 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Shared" }, "properties": [
+            { "id": "custom.width", "value": 80 },
+            { "id": "mappings", "value": [
+              { "options": { "0": { "color": "blue", "index": 0, "text": "Local" } }, "type": "value" },
+              { "options": { "1": { "color": "purple", "index": 1, "text": "Shared" } }, "type": "value" }
+            ]}
+          ]}
+        ]
+      },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 19 },
+      "id": 21,
+      "options": { "cellHeight": "sm", "footer": { "countRows": true, "fields": "", "reducer": ["count"], "show": true }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "Total" }] },
+      "title": "Storage Pools",
+      "type": "table",
+      "targets": [
+        { "expr": "pve_storage_info", "format": "table", "instant": true, "refId": "info" },
+        { "expr": "pve_disk_size_bytes{id=~\"storage/.*\"}", "format": "table", "instant": true, "refId": "size" },
+        { "expr": "pve_disk_usage_bytes{id=~\"storage/.*\"}", "format": "table", "instant": true, "refId": "used" },
+        { "expr": "pve_storage_shared{id=~\"storage/.*\"}", "format": "table", "instant": true, "refId": "shared" }
+      ],
+      "transformations": [
+        { "id": "seriesToColumns", "options": { "byField": "id" } },
+        { "id": "calculateField", "options": { "alias": "Free", "binary": { "left": "Value #size", "operator": "-", "right": "Value #used" }, "mode": "binary", "reduce": { "reducer": "sum" } } },
+        { "id": "calculateField", "options": { "alias": "Usage %", "binary": { "left": "Value #used", "operator": "/", "right": "Value #size" }, "mode": "binary", "reduce": { "reducer": "sum" } } },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "__name__ 4": true, "id": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "instance 4": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "job 4": true, "container": true, "container 1": true, "container 2": true, "container 3": true, "container 4": true, "endpoint": true, "endpoint 1": true, "endpoint 2": true, "endpoint 3": true, "endpoint 4": true, "namespace": true, "namespace 1": true, "namespace 2": true, "namespace 3": true, "namespace 4": true, "pod": true, "pod 1": true, "pod 2": true, "pod 3": true, "pod 4": true, "proxmox_node": true, "proxmox_node 1": true, "proxmox_node 2": true, "proxmox_node 3": true, "proxmox_node 4": true, "service": true, "service 1": true, "service 2": true, "service 3": true, "service 4": true, "target": true, "target 1": true, "target 2": true, "target 3": true, "target 4": true, "Value #info": true }, "indexByName": { "storage": 0, "node": 1, "Value #size": 2, "Value #used": 3, "Free": 4, "Usage %": 5, "Value #shared": 6 }, "renameByName": { "storage": "Storage", "node": "Node", "Value #size": "Total", "Value #used": "Used", "Value #shared": "Shared" } } },
+        { "id": "convertFieldType", "options": { "conversions": [{ "targetField": "Usage %", "destinationType": "number" }], "fields": {} } }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "id": 30,
+      "title": "Storage Usage by Type",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": [],
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "id": 31,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "tooltip": { "mode": "single", "sort": "none" } },
+      "title": "Storage Capacity by Pool Type",
+      "type": "piechart",
+      "targets": [
+        { "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*/shirezfs\"})", "legendFormat": "ZFS (shirezfs)", "refId": "A" },
+        { "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*/local-lvm\"})", "legendFormat": "Local LVM", "refId": "B" },
+        { "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*/local\"})", "legendFormat": "Local", "refId": "C" },
+        { "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*/ceph.*\"})", "legendFormat": "Ceph", "refId": "D" },
+        { "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*/k3s\"})", "legendFormat": "K3s (CephFS)", "refId": "E" },
+        { "expr": "sum(pve_disk_size_bytes{id=~\"storage/.*/rook.*\"})", "legendFormat": "Rook", "refId": "F" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "mappings": [],
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "id": 32,
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "values": ["value", "percent"] }, "pieType": "donut", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "tooltip": { "mode": "single", "sort": "none" } },
+      "title": "Storage Usage by Pool Type",
+      "type": "piechart",
+      "targets": [
+        { "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*/shirezfs\"})", "legendFormat": "ZFS (shirezfs)", "refId": "A" },
+        { "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*/local-lvm\"})", "legendFormat": "Local LVM", "refId": "B" },
+        { "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*/local\"})", "legendFormat": "Local", "refId": "C" },
+        { "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*/ceph.*\"})", "legendFormat": "Ceph", "refId": "D" },
+        { "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*/k3s\"})", "legendFormat": "K3s (CephFS)", "refId": "E" },
+        { "expr": "sum(pve_disk_usage_bytes{id=~\"storage/.*/rook.*\"})", "legendFormat": "Rook", "refId": "F" }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
+      "id": 40,
+      "title": "Node Storage",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "bars", "fillOpacity": 80, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "linear", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": true, "stacking": { "group": "A", "mode": "normal" }, "thresholdsStyle": { "mode": "off" } },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
+      "id": 41,
+      "options": { "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "title": "Local LVM Usage by Node",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "pve_disk_usage_bytes{id=~\"storage/.*/local-lvm\"}", "legendFormat": "{{ node }}", "refId": "A" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": true, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 49 },
+      "id": 42,
+      "options": { "legend": { "calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "title": "Local LVM Usage % by Node",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "(pve_disk_usage_bytes{id=~\"storage/.*/local-lvm\"} / pve_disk_size_bytes{id=~\"storage/.*/local-lvm\"}) * 100", "legendFormat": "{{ node }}", "refId": "A" }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["storage", "zfs", "proxmox", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Storage Pools",
+  "uid": "storage-pools"
+}

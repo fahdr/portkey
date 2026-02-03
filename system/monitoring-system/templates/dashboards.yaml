@@ -70,6 +70,21 @@ metadata:
 data:
   ceph-cluster.json: |-
 {{ .Files.Get "files/dashboards/ceph-cluster.json" | indent 4 }}
+{{- if .Values.infrastructure.proxmox.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-storage-pools
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  storage-pools.json: |-
+{{ .Files.Get "files/dashboards/storage-pools.json" | indent 4 }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

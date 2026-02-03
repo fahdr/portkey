@@ -196,12 +196,13 @@ Scrapes the native Ceph Prometheus endpoint running on Proxmox MGR nodes.
 
 ### Dashboards
 
-Six pre-configured Grafana dashboards are available:
+Seven pre-configured Grafana dashboards are available:
 
 | Dashboard | Description |
 |-----------|-------------|
 | **Infrastructure Overview** | Single pane of glass for all components |
 | **Proxmox Cluster** | Node resources, VMs, containers, storage |
+| **Storage Pools** | ZFS and all Proxmox storage pools with capacity/usage |
 | **OPNsense Firewall** | Network traffic, firewall, services, network devices |
 | **AdGuard DNS** | Query rates, blocking stats, response times |
 | **Ceph Cluster** | Health, OSDs, capacity, performance |
@@ -263,6 +264,57 @@ Dashboards are stored as JSON ConfigMaps and auto-provisioned to Grafana.
    - Permanent (Static/Dynamic)
 
 > **Note:** DHCP leases with hostnames are not available as the OPNsense exporter doesn't expose Kea DHCP lease data as Prometheus metrics. The ARP table provides network device presence information.
+
+#### Storage Pools Dashboard
+
+Comprehensive view of all Proxmox storage pools including ZFS.
+
+**Sections:**
+
+1. **Storage Overview**
+   - Total storage capacity across all pools
+   - Total used/free space
+   - Number of storage pools
+   - Shared vs local storage count
+
+2. **ZFS Storage (shirezfs)**
+   - ZFS total capacity (~45TB)
+   - ZFS used space
+   - ZFS free space
+   - ZFS usage percentage with color thresholds
+   - ZFS usage over time graph
+
+3. **All Storage Pools Table**
+   - Storage name
+   - Node
+   - Total capacity
+   - Used space
+   - Free space
+   - Usage % (with gauge visualization)
+   - Shared/Local indicator
+
+4. **Storage Usage by Type**
+   - Pie chart of capacity by pool type (ZFS, Ceph, Local LVM, etc.)
+   - Pie chart of usage by pool type
+
+5. **Node Storage**
+   - Local LVM usage by node (stacked bar)
+   - Local LVM usage % by node over time
+
+**Key Metrics:**
+- `pve_disk_size_bytes{id=~"storage/.*"}` - Storage pool capacity
+- `pve_disk_usage_bytes{id=~"storage/.*"}` - Storage pool usage
+- `pve_storage_info` - Storage pool metadata (node, storage name)
+- `pve_storage_shared` - Whether storage is shared (1) or local (0)
+
+**Storage Types Monitored:**
+- `shirezfs` - ZFS pool on shire node (8 disks, ~45TB)
+- `local-lvm` - Local LVM on each node
+- `local` - Local storage on each node
+- `ceph-blockpool` - Ceph RBD storage
+- `cephfs` - CephFS shared storage
+- `k3s` - Kubernetes persistent storage (CephFS)
+- `rook` / `rook-k8s` - Rook-managed Ceph storage
 
 ### Alerting
 
