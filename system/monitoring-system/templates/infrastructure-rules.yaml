@@ -81,6 +81,67 @@ spec:
           annotations:
             summary: "Proxmox LXC container is down"
             description: "Container {{`{{ $labels.name }}`}} on node {{`{{ $labels.node }}`}} is not running."
+
+        # ZFS Pool and Disk Health Alerts
+        - alert: ZFSPoolDegraded
+          expr: proxmox_zfs_pool_health == 1
+          for: 1m
+          labels:
+            severity: warning
+            component: zfs
+          annotations:
+            summary: "ZFS pool is degraded"
+            description: "ZFS pool {{`{{ $labels.pool }}`}} on node {{`{{ $labels.node }}`}} is in DEGRADED state. Check disk health immediately."
+
+        - alert: ZFSPoolFaulted
+          expr: proxmox_zfs_pool_health >= 2
+          for: 0m
+          labels:
+            severity: critical
+            component: zfs
+          annotations:
+            summary: "ZFS pool is faulted/offline"
+            description: "ZFS pool {{`{{ $labels.pool }}`}} on node {{`{{ $labels.node }}`}} is FAULTED or OFFLINE. Data may be at risk!"
+
+        - alert: ZFSDiskFailed
+          expr: proxmox_disk_health{used="ZFS"} > 0
+          for: 0m
+          labels:
+            severity: critical
+            component: zfs
+          annotations:
+            summary: "ZFS disk failed"
+            description: "ZFS disk {{`{{ $labels.device }}`}} on node {{`{{ $labels.node }}`}} has failed SMART check. Replace disk immediately."
+
+        - alert: ZFSDiskUnhealthy
+          expr: proxmox_zfs_disks_total - proxmox_zfs_disks_healthy > 0
+          for: 1m
+          labels:
+            severity: critical
+            component: zfs
+          annotations:
+            summary: "ZFS disk(s) unhealthy"
+            description: "{{`{{ $value }}`}} ZFS disk(s) on node {{`{{ $labels.node }}`}} are unhealthy. Check zpool status."
+
+        - alert: ZFSExporterDown
+          expr: up{job="proxmox-zfs-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: zfs
+          annotations:
+            summary: "ZFS exporter is down"
+            description: "ZFS health monitoring is unavailable. Cannot monitor disk failures."
+
+        - alert: ZFSDiskWearoutHigh
+          expr: proxmox_disk_wearout{used="ZFS"} > 80
+          for: 1h
+          labels:
+            severity: warning
+            component: zfs
+          annotations:
+            summary: "ZFS SSD wearout high"
+            description: "ZFS disk {{`{{ $labels.device }}`}} on node {{`{{ $labels.node }}`}} has {{`{{ $value }}`}}% wearout. Plan replacement soon."
     {{- end }}
 
     # OPNsense Firewall Alerts
