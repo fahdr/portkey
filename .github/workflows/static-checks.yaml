@@ -7,7 +7,7 @@ on:
 
 jobs:
   tools-versions:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: github-runners
     steps:
       - name: Set up Nix
         run: |
@@ -18,7 +18,7 @@ jobs:
         run: nix develop --command make -C test filter=ToolsVersions
 
   pre-commit:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: github-runners
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
