@@ -15,27 +15,27 @@ app-template:
                 failureThreshold: 30
                 periodSeconds: 5
                 timeoutSeconds: 1
-                initialDelaySeconds: 10
+                initialDelaySeconds: 30
                 tcpSocket:
                   port: 443
             readiness:
               enabled: true
               custom: true
               spec:
-                failureThreshold: 3
-                periodSeconds: 10
+                failureThreshold: 5
+                periodSeconds: 15
                 timeoutSeconds: 1
-                initialDelaySeconds: 15
+                initialDelaySeconds: 35
                 tcpSocket:
                   port: 443
             liveness:
               enabled: true
               custom: true
               spec:
-                failureThreshold: 3
-                periodSeconds: 10
+                failureThreshold: 5
+                periodSeconds: 20
                 timeoutSeconds: 1
-                initialDelaySeconds: 20
+                initialDelaySeconds: 40
                 tcpSocket:
                   port: 443
       statefulset:
