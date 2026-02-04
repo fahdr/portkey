@@ -70,7 +70,7 @@ app-template:
         main:
           image:
             repository: docker.io/fallenbagel/jellyseerr
-            tag: 1.7.0
+            tag: 2.7.3
           resources:
             requests:
               cpu: 15m
