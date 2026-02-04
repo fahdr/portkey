@@ -15,29 +15,13 @@ app-template:
                 failureThreshold: 30
                 periodSeconds: 5
                 timeoutSeconds: 1
-                initialDelaySeconds: 30
+                initialDelaySeconds: 20
                 tcpSocket:
                   port: 443
             readiness:
-              enabled: true
-              custom: true
-              spec:
-                failureThreshold: 5
-                periodSeconds: 15
-                timeoutSeconds: 1
-                initialDelaySeconds: 35
-                tcpSocket:
-                  port: 443
+              enabled: false
             liveness:
-              enabled: true
-              custom: true
-              spec:
-                failureThreshold: 5
-                periodSeconds: 20
-                timeoutSeconds: 1
-                initialDelaySeconds: 40
-                tcpSocket:
-                  port: 443
+              enabled: false
       statefulset:
         volumeClaimTemplates:
           - name: data
