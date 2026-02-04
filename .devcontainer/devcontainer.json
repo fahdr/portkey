@@ -1,5 +1,5 @@
 {
-  "name": "Ubuntu Development Container",
+  "name": "Portkey Dev Container",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
   "remoteUser": "root",
   "containerEnv": {
@@ -11,87 +11,25 @@
         "ms-azuretools.vscode-docker",
         "ms-python.python",
         "redhat.vscode-yaml",
-        "esbenp.prettier-vscode",
         "ms-kubernetes-tools.vscode-kubernetes-tools"
       ]
-    },
-    "settings": {
-      "terminal.integrated.shell.linux": "/bin/bash"
     }
   },
-  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y ansible ansible-lint bmake diffutils docker docker-compose dyff git golang-go gotestsum iproute2 jq k9s kanidm kube3d kubectl kubernetes-helm kustomize libisoburn neovim openssh-client p7zip-full pre-commit shellcheck terraform yamllint python3 python3-pip && pip3 install jinja2 kubernetes mkdocs-material netaddr pexpect rich",
   "features": {
-    "ghcr.io/coder/devcontainer-features/code-server:1": {
-            "port": 13337,
-            "host": "0.0.0.0"
-        },
-    "ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {
-      "version": "latest"
-    },
     "ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
-      "version": "latest"
+      "helm": "latest",
+      "kubectl": "latest",
+      "minikube": "none"
     },
-    "ghcr.io/devcontainers/features/terraform:1": {
-      "version": "latest"
+    "ghcr.io/devcontainers/features/terraform:1": {},
+    "ghcr.io/devcontainers/features/python:1": {},
+    "ghcr.io/devcontainers-extra/features/ansible:2": {},
+    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {
+      "jqVersion": "latest"
     },
-    "ghcr.io/devcontainers/features/azure-cli:1": {
-      "version": "latest"
-    },
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "latest"
-    // },
-    // "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
-    //   "version": "latest",
-    //   "packages": [
-    //     "ansible-lint",
-    //     "bmake",
-    //     "diffutils",
-    //     "docker",
-    //     "docker-compose",
-    //     "dyff",
-    //     "git",
-    //     "golang-go",
-    //     "gotestsum",
-    //     "iproute2",
-    //     "jq",
-    //     "k9s",
-    //     "kanidm",
-    //     "kube3d",
-    //     "kubectl",
-    //     "kubernetes-helm",
-    //     "kustomize",
-    //     "libisoburn-dev",
-    //     "neovim",
-    //     "openssh-client",
-    //     "p7zip-full",
-    //     "pre-commit",
-    //     "shellcheck",
-    //     "terraform-docs"
-    //   ]
-    },
-    "ghcr.io/mpriscella/features/helm-chart-testing:1": {
-      "version": "latest"
-    },
-    	"ghcr.io/devcontainers-extra/features/ansible:2" : {
-      "version": "latest",
-      "injections": [
-        "requests"
-      ]
-    },
-    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2" : {
-      "version": "latest",
-      "packages": [
-        "yq",
-        "fx"
-      ]
-    },
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {
-      
-    }
-    
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
-  "appPort": ["13337:13337"],
-
+  "postCreateCommand": "pip install jinja2 kubernetes pyyaml rich netaddr && sudo apt-get update && sudo apt-get install -y yamllint shellcheck pre-commit neovim",
   "mounts": [
     {
       "source": "/root/.ssh",
@@ -107,9 +45,8 @@
       "source": "/var/run/docker.sock",
       "target": "/var/run/docker.sock",
       "type": "bind"
-    
     },
-    { 
+    {
       "source": "/root/.terraform.d",
       "target": "/root/.terraform.d",
       "type": "bind"
