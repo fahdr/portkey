@@ -10,4 +10,4 @@ spec:
     kind: Issuer
     name: kanidm-selfsigned
   dnsNames:
-    - home.arpa
+    - auth.themainfreak.com
