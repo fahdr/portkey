@@ -1,5 +1,10 @@
 kube-prometheus-stack:
+  # k3s bundles these components into its binary - they don't expose separate metrics
   kubeControllerManager:
+    enabled: false
+  kubeProxy:
+    enabled: false
+  kubeScheduler:
     enabled: false
   grafana:
     enabled: false
@@ -94,8 +99,9 @@ infrastructure:
       - "192.168.0.102"  # isengard
 
 # SNMP Exporter for additional OPNsense metrics (CPU, memory, disk, etc.)
+  # Requires: os-net-snmp plugin installed and configured on OPNsense
   snmp:
-    enabled: true
+    enabled: false  # Disabled - OPNsense SNMP not configured
     imageTag: "v0.26.0"
     targets:
       - name: "opnsense"
