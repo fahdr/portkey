@@ -3,19 +3,11 @@ gha-runner-scale-set:
   githubConfigUrl: "https://github.com/fahdr/portkey"
 
   # Reference to the secret containing GitHub App credentials
-  # This secret will be created by the ExternalSecret below
   githubConfigSecret: github-app-credentials
-
-  # Runner group (optional - use default for org runners)
-  # runnerGroup: "default"
 
   # Scaling configuration
   minRunners: 0
   maxRunners: 5
-
-  # Runner labels (workflows use: runs-on: [self-hosted, linux, x64])
-  # The runner automatically gets labels: self-hosted, linux, x64
-  # Additional custom labels can be added here if needed
 
   # Controller service account (must match the controller namespace)
   controllerServiceAccount:
@@ -23,10 +15,12 @@ gha-runner-scale-set:
     name: actions-runner-controller-gha-rs-controller
 
   # Use container mode with Docker-in-Docker for workflows that use containers
+  # This automatically configures the dind sidecar and volumes
   containerMode:
     type: dind
 
-  # Runner pod template
+  # Runner pod template - only specify resource limits
+  # The dind configuration is handled by containerMode above
   template:
     spec:
       containers:
@@ -40,23 +34,3 @@ gha-runner-scale-set:
             requests:
               cpu: 500m
               memory: 1Gi
-          env:
-            - name: DOCKER_HOST
-              value: unix:///var/run/docker.sock
-          volumeMounts:
-            - name: work
-              mountPath: /home/runner/_work
-        - name: dind
-          image: docker:dind
-          securityContext:
-            privileged: true
-          volumeMounts:
-            - name: work
-              mountPath: /home/runner/_work
-            - name: dind-sock
-              mountPath: /var/run
-      volumes:
-        - name: work
-          emptyDir: {}
-        - name: dind-sock
-          emptyDir: {}
