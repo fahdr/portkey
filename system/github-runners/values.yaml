@@ -1,6 +1,6 @@
 gha-runner-scale-set:
-  # GitHub organization URL
-  githubConfigUrl: "https://github.com/fahdr"
+  # GitHub repository URL
+  githubConfigUrl: "https://github.com/fahdr/portkey"
 
   # Reference to the secret containing GitHub App credentials
   # This secret will be created by the ExternalSecret below
