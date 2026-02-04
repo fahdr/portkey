@@ -59,7 +59,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: main
+                identifier: main
                 port: http
       tls:
         - secretName: ollama-tls-certificate
@@ -82,7 +82,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: ui
+                identifier: ui
                 port: http
       tls:
         - secretName: ai-tls-certificate
