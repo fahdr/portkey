@@ -16,12 +16,24 @@ jobs:
           - system
           - platform
           - apps
-    
-    container:
-      image: nixery.dev/shell/git/python3/kubernetes-helm/dyff/diffutils
+
     steps:
       - name: Checkout code
-        run: git clone --depth 1 --single-branch --branch ${{ github.event.pull_request.head.ref }} https://github.com/fahdr/portkey.git .
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup tools
+        run: |
+          # Install Helm
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Install dyff
+          curl -fsSL https://github.com/homeport/dyff/releases/download/v1.7.1/dyff_1.7.1_linux_amd64.tar.gz | tar xz -C /usr/local/bin dyff
+
+          # Install Python dependencies
+          pip install pyyaml || pip3 install pyyaml || true
+
       - name: Run Helm Diff
         run: |
           ./scripts/helm-diff \
@@ -31,5 +43,5 @@ jobs:
             --subpath "${{ matrix.STACK }}"
         env:
           CI_REPO_CLONE_URL: ${{ github.repositoryUrl }}
-          CI_COMMIT_SOURCE_BRANCH: ${{ github.pull_request.head_ref }}
-          CI_COMMIT_TARGET_BRANCH: ${{ github.pull_request.base_ref }}
+          CI_COMMIT_SOURCE_BRANCH: ${{ github.head_ref }}
+          CI_COMMIT_TARGET_BRANCH: ${{ github.base_ref }}
