@@ -5,7 +5,7 @@ app-template:
         babybuddy:
           image:
             repository: lscr.io/linuxserver/babybuddy
-            tag: 2.7.1@sha256:19ce82779238326c16de0d379f1980904e9c6b331504a6c92d8b80fc3406b29c
+            tag: 2.7.1@sha256:f035d0b95312957cb6db21ed5184ef501ad16b7fa99f5a829305586cc16da750
 
           env:
             TZ: Asia/Dubai
