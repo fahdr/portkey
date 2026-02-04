@@ -16,7 +16,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
-    name: gha-runner-scale-set-controller-gha-rs-controller
+    name: actions-runner-controller-gha-rs-controller
     namespace: actions-runner-controller
 roleRef:
   kind: Role

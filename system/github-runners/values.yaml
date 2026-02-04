@@ -20,7 +20,7 @@ gha-runner-scale-set:
   # Controller service account (must match the controller namespace)
   controllerServiceAccount:
     namespace: actions-runner-controller
-    name: gha-runner-scale-set-controller-gha-rs-controller
+    name: actions-runner-controller-gha-rs-controller
 
   # Use container mode with Docker-in-Docker for workflows that use containers
   containerMode:
