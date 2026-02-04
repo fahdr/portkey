@@ -1,8 +1,7 @@
-{{- if .Values.app-template.controllers.main }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  name: {{ .Release.Name }}-tls-converter
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
@@ -11,7 +10,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  name: {{ .Release.Name }}-tls-converter
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
@@ -24,7 +23,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  name: {{ .Release.Name }}-tls-converter
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
@@ -32,16 +31,16 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  name: {{ .Release.Name }}-tls-converter
 subjects:
 - kind: ServiceAccount
-  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  name: {{ .Release.Name }}-tls-converter
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  name: {{ .Release.Name }}-tls-converter
   namespace: {{ .Release.Namespace }}
   annotations:
     "helm.sh/hook": pre-install,pre-upgrade
@@ -56,7 +55,7 @@ spec:
         "helm.sh/hook": pre-install,pre-upgrade
         "helm.sh/hook-weight": "-5"
     spec:
-      serviceAccountName: {{ include "app-template.names.fullname" . }}-tls-converter
+      serviceAccountName: {{ .Release.Name }}-tls-converter
       restartPolicy: OnFailure
       containers:
       - name: convert-tls
@@ -66,10 +65,8 @@ spec:
           - -c
           - |
             set -e
-            
-            SECRET_NAME="{{ include "app-template.names.fullname" . }}-selfsigned-certificate"
+            SECRET_NAME="{{ .Release.Name }}-selfsigned-certificate"
             NAMESPACE="{{ .Release.Namespace }}"
-            
             echo "Waiting for secret $SECRET_NAME in namespace $NAMESPACE..."
             for i in {1..60}; do
               if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" 2>/dev/null; then
@@ -77,30 +74,21 @@ spec:
                 break
               fi
               if [ $i -eq 60 ]; then
-                echo "Secret not found after 120 seconds, exiting"
+                echo "Secret not found after 120 seconds"
                 exit 1
               fi
-              echo "Attempt $i/60: Secret not found, waiting..."
+              echo "Attempt $i/60: waiting for secret..."
               sleep 2
             done
-            
-            # Extract and check the TLS key
             echo "Checking TLS key format..."
             kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o jsonpath='{.data.tls\.key}' | base64 -d > /tmp/tls.key
-            
-            # Check if key is in PKCS#1 format (BEGIN RSA PRIVATE KEY)
             if grep -q "BEGIN RSA PRIVATE KEY" /tmp/tls.key; then
-              echo "Converting PKCS#1 key to PKCS#8 format..."
+              echo "Converting PKCS#1 to PKCS#8..."
               apt-get update >/dev/null 2>&1 && apt-get install -y openssl >/dev/null 2>&1
               openssl pkcs8 -topk8 -nocrypt -in /tmp/tls.key -out /tmp/tls.key.pkcs8
-              
-              # Encode the converted key
               ENCODED_KEY=$(base64 -w0 < /tmp/tls.key.pkcs8)
-              
-              # Patch the secret with the PKCS#8 key
               kubectl patch secret "$SECRET_NAME" -n "$NAMESPACE" -p "{\"data\":{\"tls.key\":\"$ENCODED_KEY\"}}"
-              echo "✓ Secret patched with PKCS#8 key"
+              echo "Secret patched successfully"
             else
-              echo "✓ Key is already in PKCS#8 format or correct format"
+              echo "Key format is already correct"
             fi
-{{- end }}
