@@ -29,7 +29,7 @@ app-template:
           main:
             image:
               repository: ghcr.io/koenkk/zigbee2mqtt
-              tag: 2.5.1
+              tag: 2.8.0
             resources:
               requests:
                 cpu: 15m
@@ -57,7 +57,7 @@ app-template:
               repository: ghcr.io/coder/code-server
               # -- image tag
               # this example is not automatically updated, so be sure to use the latest image
-              tag: 4.92.2
+              tag: 4.108.2
             args:
               - --auth
               - "none"

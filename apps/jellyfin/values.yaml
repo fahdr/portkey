@@ -8,7 +8,7 @@ app-template:
         main:
           image:
             repository: docker.io/jellyfin/jellyfin
-            tag: 10.8.13
+            tag: 10.11.6
           resources:
             requests:
               cpu: 25m
@@ -22,7 +22,7 @@ app-template:
         main:
             image:
               repository: lscr.io/linuxserver/transmission
-              tag: 4.0.5
+              tag: 4.1.0
             resources:
               requests:
                 cpu: 15m
@@ -34,7 +34,7 @@ app-template:
         main:
             image:
               repository: lscr.io/linuxserver/prowlarr
-              tag: 1.13.3
+              tag: 1.37.0
             resources:
               requests:
                 cpu: 15m
@@ -46,7 +46,7 @@ app-template:
         main:
             image:
               repository: lscr.io/linuxserver/radarr
-              tag: 5.3.6
+              tag: 5.28.0
             resources:
               requests:
                 cpu: 20m
@@ -58,7 +58,7 @@ app-template:
         main:
           image:
             repository: lscr.io/linuxserver/sonarr
-            tag: 4.0.2
+            tag: 4.0.16
           resources:
             requests:
               cpu: 20m
@@ -93,7 +93,7 @@ app-template:
         steroids:
           image:
             repository: busybox
-            tag: 1.33.1
+            tag: 1.37.0
           command:
             - /bin/sh
             - -c
