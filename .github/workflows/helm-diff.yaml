@@ -9,7 +9,7 @@ on:
 
 jobs:
   helm-diff:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: github-runners
     strategy:
       matrix:
         STACK:
