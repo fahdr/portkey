@@ -11,7 +11,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: github-runners
+    runs-on: k8s-runners
     environment:
       name: github-pages
     permissions:
