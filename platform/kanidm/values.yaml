@@ -14,30 +14,36 @@ app-template:
               spec:
                 failureThreshold: 30
                 periodSeconds: 5
-                timeoutSeconds: 1
+                timeoutSeconds: 5
                 initialDelaySeconds: 10
-                tcpSocket:
+                httpGet:
+                  path: /
                   port: 443
+                  scheme: HTTPS
             readiness:
               enabled: true
               custom: true
               spec:
                 failureThreshold: 3
                 periodSeconds: 10
-                timeoutSeconds: 1
+                timeoutSeconds: 5
                 initialDelaySeconds: 15
-                tcpSocket:
+                httpGet:
+                  path: /
                   port: 443
+                  scheme: HTTPS
             liveness:
               enabled: true
               custom: true
               spec:
                 failureThreshold: 3
                 periodSeconds: 10
-                timeoutSeconds: 1
+                timeoutSeconds: 5
                 initialDelaySeconds: 20
-                tcpSocket:
+                httpGet:
+                  path: /
                   port: 443
+                  scheme: HTTPS
       statefulset:
         volumeClaimTemplates:
           - name: data
