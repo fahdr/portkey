@@ -2,57 +2,6 @@ app-template:
   controllers:
     main:
       type: statefulset
-      initContainers:
-        convert-tls:
-          image:
-            repository: alpine
-            tag: "3.19"
-          command:
-            - /bin/sh
-            - -c
-            - |
-              set -e
-              echo "Checking TLS key format..."
-              
-              # Check if source key exists
-              if [ ! -f /tls-secret/tls.key ]; then
-                echo "No TLS key found yet. This is expected on initial install."
-                exit 0
-              fi
-              
-              # Check if key is in PKCS#1 format (BEGIN RSA PRIVATE KEY)
-              if grep -q "BEGIN RSA PRIVATE KEY" /tls-secret/tls.key; then
-                echo "PKCS#1 format detected. Installing openssl and converting to PKCS#8..."
-                apk add --no-cache openssl
-                openssl pkcs8 -topk8 -nocrypt -in /tls-secret/tls.key -out /data/tls.key
-                chmod 600 /data/tls.key
-                echo "TLS key converted to PKCS#8 format successfully"
-              else
-                echo "Key is already in PKCS#8 format or unsupported format. Copying..."
-                cp /tls-secret/tls.key /data/tls.key
-                chmod 600 /data/tls.key
-              fi
-              
-              # Also copy the CA certificate
-              if [ -f /tls-secret/ca.crt ]; then
-                cp /tls-secret/ca.crt /data/ca.crt
-                chmod 644 /data/ca.crt
-                echo "CA certificate copied"
-              fi
-              
-              if [ -f /tls-secret/tls.crt ]; then
-                cp /tls-secret/tls.crt /data/tls.crt
-                chmod 644 /data/tls.crt
-                echo "TLS certificate copied"
-              fi
-              
-              echo "TLS preparation completed successfully"
-          volumeMounts:
-            - name: tls
-              mountPath: /tls-secret
-              readOnly: true
-            - name: data
-              mountPath: /data
       containers:
         main:
           image:
