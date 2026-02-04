@@ -7,6 +7,37 @@ app-template:
           image:
             repository: docker.io/kanidm/server
             tag: 1.7.0
+          probes:
+            startup:
+              enabled: true
+              custom: true
+              spec:
+                failureThreshold: 30
+                periodSeconds: 5
+                timeoutSeconds: 1
+                initialDelaySeconds: 10
+                tcpSocket:
+                  port: 443
+            readiness:
+              enabled: true
+              custom: true
+              spec:
+                failureThreshold: 3
+                periodSeconds: 10
+                timeoutSeconds: 1
+                initialDelaySeconds: 15
+                tcpSocket:
+                  port: 443
+            liveness:
+              enabled: true
+              custom: true
+              spec:
+                failureThreshold: 3
+                periodSeconds: 10
+                timeoutSeconds: 1
+                initialDelaySeconds: 20
+                tcpSocket:
+                  port: 443
       statefulset:
         volumeClaimTemplates:
           - name: data
