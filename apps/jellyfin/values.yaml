@@ -181,7 +181,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: main
+                identifier: main
                 port: http
       tls:
         - secretName: jellyfin-tls-certificate
@@ -206,7 +206,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: transmission
+                identifier: transmission
                 port: http
       tls:
         - secretName: transmission-tls-certificate
@@ -231,7 +231,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: prowlarr
+                identifier: prowlarr
                 port: http
       tls:
         - secretName: prowlarr-tls-certificate
@@ -256,7 +256,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: radarr
+                identifier: radarr
                 port: http
       tls:
         - secretName: radarr-tls-certificate
@@ -281,7 +281,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: sonarr
+                identifier: sonarr
                 port: http
       tls:
         - secretName: sonarr-tls-certificate
@@ -306,7 +306,7 @@ app-template:
             - path: /
               pathType: Prefix
               service:
-                name: jellyseerr
+                identifier: jellyseerr
                 port: http
       tls:
         - secretName: jellyseerr-tls-certificate
