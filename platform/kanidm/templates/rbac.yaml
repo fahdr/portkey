@@ -1,0 +1,41 @@
+{{- if .Values.app-template.controllers.main }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "app-template.names.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-10"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-10"
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "patch", "update"]
+  resourceNames: ["{{ include "app-template.names.fullname" . }}-selfsigned-certificate"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-10"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "app-template.names.fullname" . }}-tls-converter
+subjects:
+- kind: ServiceAccount
+  name: {{ include "app-template.names.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

@@ -1,0 +1,67 @@
+{{- if .Values.app-template.controllers.main }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "app-template.names.fullname" . }}-tls-converter
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      serviceAccountName: {{ include "app-template.names.fullname" . }}
+      restartPolicy: OnFailure
+      containers:
+      - name: convert-tls
+        image: alpine:3.19
+        command:
+          - /bin/sh
+          - -c
+          - |
+            set -e
+            
+            # Install kubectl
+            apk add --no-cache curl
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            mv kubectl /usr/local/bin/
+            
+            # Wait for the secret to exist
+            SECRET_NAME="{{ include "app-template.names.fullname" . }}-selfsigned-certificate"
+            NAMESPACE="{{ .Release.Namespace }}"
+            echo "Waiting for secret $SECRET_NAME to exist..."
+            for i in $(seq 1 30); do
+              if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" 2>/dev/null; then
+                echo "Secret found!"
+                break
+              fi
+              echo "Attempt $i: Secret not found, waiting..."
+              sleep 2
+            done
+            
+            # Extract the TLS key from the secret
+            echo "Extracting TLS key from secret..."
+            kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o jsonpath='{.data.tls\.key}' | base64 -d > /tmp/tls.key || {
+              echo "Failed to extract key, exiting"
+              exit 1
+            }
+            
+            # Check if key is in PKCS#1 format
+            if grep -q "BEGIN RSA PRIVATE KEY" /tmp/tls.key; then
+              echo "PKCS#1 format detected, converting to PKCS#8..."
+              apk add --no-cache openssl
+              openssl pkcs8 -topk8 -nocrypt -in /tmp/tls.key -out /tmp/tls.key.pkcs8
+              
+              # Create patch and apply it
+              ENCODED_KEY=$(base64 -w0 < /tmp/tls.key.pkcs8)
+              
+              kubectl patch secret "$SECRET_NAME" -n "$NAMESPACE" --type merge -p '{"data":{"tls.key":"'$ENCODED_KEY'"}}'
+              echo "Secret patched with PKCS#8 key"
+            else
+              echo "Key is already in PKCS#8 format"
+            fi
+{{- end }}
