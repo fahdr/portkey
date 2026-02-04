@@ -37,9 +37,6 @@
     "ghcr.io/devcontainers/features/azure-cli:1": {
       "version": "latest"
     },
-    "ghcr.io/devcontainers/features/nix:1": {
-      "version": "latest"
-    },
     "ghcr.io/devcontainers/features/python:1": {
       "version": "latest"
     // },
