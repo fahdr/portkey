@@ -31,6 +31,7 @@ app-template:
               memory: 2Gi
   service:
     main:
+      controller: main
       ports:
         http:
           port: 11434
