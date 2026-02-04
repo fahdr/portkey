@@ -132,10 +132,7 @@ app-template:
       globalMounts:
         - path: /config
     config-cache:
-      accessMode: ReadWriteOnce
-      enabled: true
-      type: persistentVolumeClaim
-      size: 1Gi
+      type: emptyDir
       globalMounts:
         - path: /config/.venv
     logs:
