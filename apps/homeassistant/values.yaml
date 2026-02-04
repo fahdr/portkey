@@ -182,3 +182,6 @@ app-template:
         - path: /config/www/eink-styles.css
           subPath: eink-styles.css
           readOnly: true
+
+volsyncPVC:
+  existingClaim: true
