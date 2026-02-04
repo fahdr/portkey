@@ -3,7 +3,7 @@
 {{- $replicationDestination := (default dict .Values.replicationDestination) }}
 {{- $dataSourceRefName := (get $replicationDestination "name" | default (printf "%s-dst" $pvcName)) }}
 
-{{- if or (not (hasKey .Values "volsyncPVC")) (default true $volsyncPVC.enabled) }}
+{{- if and (or (not (hasKey .Values "volsyncPVC")) (default true $volsyncPVC.enabled)) (not (default false $volsyncPVC.existingClaim)) }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
