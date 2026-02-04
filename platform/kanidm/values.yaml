@@ -2,36 +2,6 @@ app-template:
   controllers:
     main:
       type: statefulset
-      initContainers:
-        prepare-tls:
-          image:
-            repository: alpine
-            tag: "3.19"
-          command:
-            - /bin/sh
-            - -c
-            - |
-              if [ -f /tls-secret/tls.key ]; then
-                # Check if key is in PKCS#1 format (BEGIN RSA PRIVATE KEY)
-                if grep -q "BEGIN RSA PRIVATE KEY" /tls-secret/tls.key; then
-                  echo "Converting PKCS#1 key to PKCS#8 format..."
-                  apk add --no-cache openssl
-                  openssl pkcs8 -topk8 -nocrypt -in /tls-secret/tls.key -out /data/tls.key
-                  chmod 600 /data/tls.key
-                  echo "Key conversion completed"
-                else
-                  echo "Key is already in correct format, copying..."
-                  cp /tls-secret/tls.key /data/tls.key
-                  chmod 600 /data/tls.key
-                fi
-                # Also copy the certificate
-                cp /tls-secret/ca.crt /data/ca.crt
-              fi
-          volumeMounts:
-            - name: tls
-              mountPath: /tls-secret
-            - name: data
-              mountPath: /data
       containers:
         main:
           image:
@@ -106,4 +76,7 @@ app-template:
       type: secret
       name: kanidm-selfsigned-certificate
       globalMounts:
-        - path: /tls-secret
+        - path: /data/tls.key
+          subPath: tls.key
+        - path: /data/ca.crt
+          subPath: ca.crt
