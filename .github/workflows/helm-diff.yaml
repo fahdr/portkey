@@ -9,7 +9,7 @@ on:
 
 jobs:
   helm-diff:
-    runs-on: github-runners
+    runs-on: k8s-runners
     strategy:
       matrix:
         STACK:

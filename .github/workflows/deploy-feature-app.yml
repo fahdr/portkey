@@ -36,7 +36,7 @@ env:
 
 jobs:
   deploy-feature-app:
-    runs-on: github-runners
+    runs-on: k8s-runners
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
