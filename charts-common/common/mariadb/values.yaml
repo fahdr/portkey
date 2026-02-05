@@ -3,6 +3,19 @@
 mariadb:
   replicas: 3
   user: ""  # If empty, defaults to "<release-name>-user"
+
+  # External Secrets integration (alternative to Helm-generated secrets)
+  externalSecret:
+    enabled: false  # Set to true to use External Secrets instead of Helm lookup
+
+  # Password configuration (only used when externalSecret.enabled is false)
+  passwords:
+    user: ""      # If empty, generates random 16-char password
+    root: ""      # If empty, generates random 24-char password
+    replication: ""  # If empty, generates random 16-char password
+    minioAccessKey: ""  # If empty, generates random 16-char key
+    minioSecretKey: ""  # If empty, generates random 32-char key
+
   storage:
     size: 1Gi
     #storageClassName: ""  # Optional, set to override default storage class
