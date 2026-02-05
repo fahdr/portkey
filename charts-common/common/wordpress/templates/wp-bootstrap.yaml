@@ -5,11 +5,6 @@ metadata:
 data:
   bootstrap.sh: |
         #!/bin/sh
-        # run the entrypoint script
-        set -e
-        /usr/local/bin/entrypoint.sh
-
-
         # check if wp-cli is installed
         if ! /usr/local/bin/wp/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
