@@ -28,8 +28,10 @@ jobs:
           # Install Helm
           curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-          # Install dyff
-          curl -fsSL https://github.com/homeport/dyff/releases/download/v1.7.1/dyff_1.7.1_linux_amd64.tar.gz | tar xz -C /usr/local/bin dyff
+          # Install dyff to user-writable location
+          mkdir -p $HOME/.local/bin
+          curl -fsSL https://github.com/homeport/dyff/releases/download/v1.7.1/dyff_1.7.1_linux_amd64.tar.gz | tar xz -C $HOME/.local/bin dyff
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
           # Install Python dependencies
           pip install pyyaml || pip3 install pyyaml || true
