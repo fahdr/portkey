@@ -35,21 +35,10 @@ data:
 
     echo "Using wp-cli at: $WP_CLI"
 
-    # Wait for database to be ready (5 minutes = 60 retries x 5 seconds)
-    # Using 'wp db query' instead of 'wp db check' since mysqlcheck may not be available
-    count=0
-    max_retries=60
-    until $WP_CLI db query "SELECT 1" --path="${WORDPRESS_PATH}" --allow-root >/dev/null 2>&1; do
-        if [ $count -ge $max_retries ]; then
-            echo "Database is not ready after 5 minutes, exiting..."
-            exit 1
-        fi
-        count=$((count + 1))
-        echo "Waiting for database to be ready... (attempt $count/$max_retries)"
-        sleep 5
-    done
-
-    echo "Database is ready!"
+    # Note: Database readiness is checked by the init container (wait-for-db)
+    # We just need to wait a moment for any connection setup
+    echo "Database should be ready (checked by init container), proceeding..."
+    sleep 2
 
     # Install WordPress if not already installed
     if ! $WP_CLI core is-installed --path="${WORDPRESS_PATH}" --allow-root 2>/dev/null; then
@@ -63,12 +52,14 @@ data:
             --admin_password="${WORDPRESS_ADMIN_PASSWORD}" \
             --admin_email="${WORDPRESS_ADMIN_EMAIL}" \
             --skip-email
+    else
+        echo "WordPress is already installed"
     fi
 
     # Update database if WordPress is installed
-    if $WP_CLI core is-installed --path="${WORDPRESS_PATH}" --allow-root; then
+    if $WP_CLI core is-installed --path="${WORDPRESS_PATH}" --allow-root 2>/dev/null; then
         echo "Updating WordPress database..."
-        $WP_CLI core update-db --path="${WORDPRESS_PATH}" --allow-root
+        $WP_CLI core update-db --path="${WORDPRESS_PATH}" --allow-root || true
     fi
 
     echo "Starting PHP-FPM..."
