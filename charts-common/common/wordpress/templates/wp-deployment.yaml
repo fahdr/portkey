@@ -52,6 +52,7 @@ spec:
       - name: wordpress
         image: {{ .Values.wordpress.image | default "wordpress:6.8.1-php8.4-fpm" }}
         imagePullPolicy: {{ .Values.wordpress.imagePullPolicy | default "Always" }}
+        command: ["/bootstrap/bootstrap.sh"]
         resources:
             requests:
               cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
@@ -80,6 +81,8 @@ spec:
         volumeMounts:
         - name: www-data
           mountPath: /var/www/html
+        - name: bootstrap
+          mountPath: /bootstrap
         env:
         - name: WORDPRESS_DB_PASSWORD
           valueFrom:
@@ -105,16 +108,14 @@ spec:
         - containerPort: 80
         {{- if .Values.wordpress.healthProbes.enabled | default true }}
         readinessProbe:
-          httpGet:
-            path: /wp-json/
+          tcpSocket:
             port: 80
           initialDelaySeconds: {{ .Values.wordpress.healthProbes.readiness.initialDelaySeconds | default 10 }}
           periodSeconds: {{ .Values.wordpress.healthProbes.readiness.periodSeconds | default 5 }}
           timeoutSeconds: {{ .Values.wordpress.healthProbes.readiness.timeoutSeconds | default 3 }}
           failureThreshold: {{ .Values.wordpress.healthProbes.readiness.failureThreshold | default 3 }}
         livenessProbe:
-          httpGet:
-            path: /wp-json/
+          tcpSocket:
             port: 80
           initialDelaySeconds: {{ .Values.wordpress.healthProbes.liveness.initialDelaySeconds | default 30 }}
           periodSeconds: {{ .Values.wordpress.healthProbes.liveness.periodSeconds | default 10 }}
@@ -132,6 +133,10 @@ spec:
       - name: www-data
         persistentVolumeClaim:
           claimName: {{ .Release.Name }}-wp-pvc
+      - name: bootstrap
+        configMap:
+          name: {{ .Release.Name }}-wp-bootstrap
+          defaultMode: 0755
       {{- if .Values.gitUploads.enabled }}
       - name: wordpress-dotssh
         secret:
