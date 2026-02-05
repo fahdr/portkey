@@ -35,9 +35,10 @@ data:
         echo "Using wp-cli at: $WP_CLI"
 
         # Wait for database to be ready (5 minutes = 60 retries x 5 seconds)
+        # Using 'wp db query' instead of 'wp db check' since mysqlcheck may not be available
         count=0
         max_retries=60
-        until $WP_CLI db check --path="${WORDPRESS_PATH}" --allow-root >/dev/null 2>&1; do
+        until $WP_CLI db query "SELECT 1" --path="${WORDPRESS_PATH}" --allow-root >/dev/null 2>&1; do
             if [ $count -ge $max_retries ]; then
                 echo "Database is not ready after 5 minutes, exiting..."
                 exit 1
