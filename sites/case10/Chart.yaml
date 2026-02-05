@@ -4,4 +4,4 @@ version: 0.1.0
 dependencies:
   - name: wordpress-site
     repository: https://fahdr.github.io/portkey/
-    version: 0.1.26
+    version: 0.1.27
