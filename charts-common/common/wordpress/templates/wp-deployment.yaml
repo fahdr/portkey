@@ -13,9 +13,22 @@ spec:
       labels:
         app: {{ .Release.Name }}-wp
     spec:
-      {{- if .Values.gitUploads.enabled }}
       initContainers:
-      - name: init
+      # Wait for MariaDB to be ready before starting WordPress
+      - name: wait-for-db
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Waiting for MariaDB to be ready..."
+          until nc -z {{ .Values.wordpress.dbHost | default (printf "%s-mariadb-primary" .Release.Name) }} 3306; do
+            echo "MariaDB is not ready yet, waiting..."
+            sleep 5
+          done
+          echo "MariaDB is ready!"
+      {{- if .Values.gitUploads.enabled }}
+      - name: git-clone
         image: alpine/git
         command:
         - /bin/sh
@@ -42,12 +55,28 @@ spec:
         resources:
             requests:
               cpu: {{ .Values.wordpress.resources.requests.cpu | default "100m" }}
-              memory: {{ .Values.wordpress.resources.requests.memory | default "48Mi" }}
+              memory: {{ .Values.wordpress.resources.requests.memory | default "128Mi" }}
             limits:
               cpu: {{ .Values.wordpress.resources.limits.cpu | default "200m" }}
-              memory: {{ .Values.wordpress.resources.limits.memory | default "96Mi" }}
+              memory: {{ .Values.wordpress.resources.limits.memory | default "256Mi" }}
         ports:
         - containerPort: 9000
+        {{- if .Values.wordpress.healthProbes.enabled | default true }}
+        livenessProbe:
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: {{ .Values.wordpress.healthProbes.liveness.initialDelaySeconds | default 30 }}
+          periodSeconds: {{ .Values.wordpress.healthProbes.liveness.periodSeconds | default 10 }}
+          timeoutSeconds: {{ .Values.wordpress.healthProbes.liveness.timeoutSeconds | default 5 }}
+          failureThreshold: {{ .Values.wordpress.healthProbes.liveness.failureThreshold | default 6 }}
+        readinessProbe:
+          tcpSocket:
+            port: 9000
+          initialDelaySeconds: {{ .Values.wordpress.healthProbes.readiness.initialDelaySeconds | default 10 }}
+          periodSeconds: {{ .Values.wordpress.healthProbes.readiness.periodSeconds | default 5 }}
+          timeoutSeconds: {{ .Values.wordpress.healthProbes.readiness.timeoutSeconds | default 3 }}
+          failureThreshold: {{ .Values.wordpress.healthProbes.readiness.failureThreshold | default 3 }}
+        {{- end }}
         volumeMounts:
         - name: www-data
           mountPath: /var/www/html
@@ -74,6 +103,24 @@ spec:
             memory: {{ .Values.nginx.resources.limits.memory | default "32Mi" }}
         ports:
         - containerPort: 80
+        {{- if .Values.wordpress.healthProbes.enabled | default true }}
+        readinessProbe:
+          httpGet:
+            path: /wp-json/
+            port: 80
+          initialDelaySeconds: {{ .Values.wordpress.healthProbes.readiness.initialDelaySeconds | default 10 }}
+          periodSeconds: {{ .Values.wordpress.healthProbes.readiness.periodSeconds | default 5 }}
+          timeoutSeconds: {{ .Values.wordpress.healthProbes.readiness.timeoutSeconds | default 3 }}
+          failureThreshold: {{ .Values.wordpress.healthProbes.readiness.failureThreshold | default 3 }}
+        livenessProbe:
+          httpGet:
+            path: /wp-json/
+            port: 80
+          initialDelaySeconds: {{ .Values.wordpress.healthProbes.liveness.initialDelaySeconds | default 30 }}
+          periodSeconds: {{ .Values.wordpress.healthProbes.liveness.periodSeconds | default 10 }}
+          timeoutSeconds: {{ .Values.wordpress.healthProbes.liveness.timeoutSeconds | default 5 }}
+          failureThreshold: {{ .Values.wordpress.healthProbes.liveness.failureThreshold | default 6 }}
+        {{- end }}
         volumeMounts:
         - name: www-data
           mountPath: /var/www/html

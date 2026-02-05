@@ -14,6 +14,10 @@ wordpress:
     secretKeyRefName: db-secrets
     secretKeyRefKey: DB_PASSWORD
 
+  # External Secrets integration (alternative to Helm-generated secrets)
+  externalSecret:
+    enabled: false  # Set to true to use External Secrets instead of Helm lookup
+
 
   # S3 uploads configuration (used if imgStore == "s3")
   imgStore:     # "s3" or "other"
@@ -38,10 +42,24 @@ wordpress:
   resources:
     requests:
       cpu: 100m
-      memory: 48Mi
+      memory: 128Mi
     limits:
       cpu: 200m
-      memory: 96Mi
+      memory: 256Mi
+
+  # Health probe configuration
+  healthProbes:
+    enabled: true
+    liveness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 6
+    readiness:
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
 
   # Horizontal Pod Autoscaler settings
   hpa:

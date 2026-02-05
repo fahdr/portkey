@@ -5,29 +5,39 @@ metadata:
 data:
   bootstrap.sh: |
         #!/bin/sh
+        # run the entrypoint script
+        set -e
+        /usr/local/bin/entrypoint.sh
+
+
         # check if wp-cli is installed
         if ! /usr/local/bin/wp/wp --info >/dev/null 2>&1; then
             echo "wp-cli installation failed, exiting..."
             ls -l /usr/local/bin/wp
             ls -l /tmp/
             ls -l /usr/local/bin/
-            break
+            exit 1
         fi
         WORDPRESS_PATH="/var/www/html"
 
         WP_CLI=$(/usr/local/bin/wp/wp --path="${WORDPRESS_PATH}" --allow-root)
         $WP_CLI --info
-        count=0
-        until $WP_CLI db check >/dev/null 2>&1; do
-            if [ $count -ge 12 ]; then
-                echo "Database is not ready after 1 minute, exiting..."
-                # exit the loop and continue with the script
 
+        # Wait for database to be ready (5 minutes = 60 retries x 5 seconds)
+        count=0
+        max_retries=60
+        until $WP_CLI db check >/dev/null 2>&1; do
+            if [ $count -ge $max_retries ]; then
+                echo "Database is not ready after 5 minutes, exiting..."
+                exit 1
             fi
             count=$((count + 1))
-            echo "Waiting for database to be ready..."
+            echo "Waiting for database to be ready... (attempt $count/$max_retries)"
             sleep 5
         done
+
+        echo "Database is ready!"
+
         if ! $WP_CLI core is-installed 2>/dev/null; then
             $WP_CLI core install --url="${WORDPRESS_URL}" \
                 --title="${WORDPRESS_TITLE}" \
