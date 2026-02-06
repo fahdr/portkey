@@ -4,16 +4,45 @@
     "config:base"
   ],
   "packageRules": [
+    // Fix Transmission: linuxserver switched from date-based (2021.x) to semver (4.x) tags
     {
-      "matchPackagePatterns": [
-        "*"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
-      ],
-      "groupName": "all non-major dependencies",
-      "groupSlug": "all-minor-patch"
+      "matchPackageNames": ["lscr.io/linuxserver/transmission"],
+      "versioning": "semver"
+    },
+    // Group apps minor+patch together
+    {
+      "matchFileNames": ["apps/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "apps minor/patch dependencies",
+      "groupSlug": "apps-minor-patch"
+    },
+    // Group system minor+patch together
+    {
+      "matchFileNames": ["system/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "system minor/patch dependencies",
+      "groupSlug": "system-minor-patch"
+    },
+    // Group platform minor+patch together
+    {
+      "matchFileNames": ["platform/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "platform minor/patch dependencies",
+      "groupSlug": "platform-minor-patch"
+    },
+    // Group charts-common and sites minor+patch together
+    {
+      "matchFileNames": ["charts-common/**", "sites/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "charts-common minor/patch dependencies",
+      "groupSlug": "charts-common-minor-patch"
+    },
+    // Group GitHub Actions minor+patch together
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "github-actions minor/patch",
+      "groupSlug": "github-actions-minor-patch"
     }
   ]
 }
