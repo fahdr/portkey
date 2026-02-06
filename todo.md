@@ -7,7 +7,11 @@
 6. ✅ Host github runner in the kubernetes cluster to run CI/CD pipelines for my projects
 7. upgrade to talos
 8. Add claude to code reviews and PRs
-9. Fix wordpress issues
+9. ✅ Fix wordpress issues
+10. Set up CephFS - create CephFilesystem CRD and deploy CephFS CSI plugin in Rook cluster
+11. Fix NFS CSI - debug mount options on Shire NFS server (192.168.0.41) for nfs-csi storage class
+12. Make WordPress stateless - split PVC into shared uploads (RWX) and per-pod code (emptyDir), separate wp-content/uploads from wp-content
+13. Re-enable HPA scaling once RWX storage is available
 ## Completed: Homepage Auto Service Discovery
 
 ### What was implemented:
