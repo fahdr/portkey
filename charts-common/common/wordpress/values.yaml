@@ -82,7 +82,7 @@ wordpress:
       external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
 
 nginx:
-  image: nginx:1.29.4
+  image: nginx:1.29.5
   resources:
     requests:
       cpu: 50m
