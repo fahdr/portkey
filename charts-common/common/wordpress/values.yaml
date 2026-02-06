@@ -62,8 +62,10 @@ wordpress:
       failureThreshold: 3
 
   # Horizontal Pod Autoscaler settings
+  # NOTE: maxReplicas is set to 1 because the PVC is RWO (ReadWriteOnce).
+  # To enable scaling, configure RWX storage (CephFS or NFS) first.
   hpa:
-    maxReplicas: 10
+    maxReplicas: 1
     cpuUtilization: 80
 
 # PVC for Wordpress data

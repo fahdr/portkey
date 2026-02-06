@@ -404,6 +404,69 @@ wordpress-site:
 
 ---
 
+### Issue 8: Wrong Entrypoint Path in Bootstrap Script
+
+**Symptom:** WordPress pod crashes immediately with `/usr/local/bin/entrypoint.sh: not found`.
+
+**Root Cause:** The bootstrap script called `/usr/local/bin/entrypoint.sh`, but the WordPress FPM image (`ghcr.io/fahdr/wordpress:*-php*-fpm`) has it at `/usr/local/bin/docker-entrypoint.sh`.
+
+**Fix Applied:**
+- Changed to call `docker-entrypoint.sh` in the background to set up `wp-config.php`
+- Entrypoint runs in background, then is killed after setup completes
+- PHP-FPM is started properly at the end with `exec`
+
+**File Changed:** `charts-common/common/wordpress/templates/wp-bootstrap.yaml`
+
+---
+
+### Issue 9: Missing MySQL Tools in WordPress FPM Image
+
+**Symptom:** Bootstrap script waits forever for database with `mysqlcheck: No such file or directory` or `mysql: No such file or directory`.
+
+**Root Cause:** The WordPress FPM image does not include `mysql`, `mysqlcheck`, or other MySQL client tools. Both `wp db check` and `wp db query` require these tools to function.
+
+**Fix Applied:**
+- Removed database wait loop from bootstrap script entirely
+- Database readiness is now handled by the `wait-for-db` init container (uses netcat to check port 3306)
+- The init container guarantees the database is reachable before the bootstrap script runs
+
+**File Changed:** `charts-common/common/wordpress/templates/wp-bootstrap.yaml`
+
+---
+
+### Issue 10: Wrong wp-cli Path
+
+**Symptom:** wp-cli commands fail with `not found` errors.
+
+**Root Cause:** Bootstrap script used `/usr/local/bin/wp/wp` (subdirectory) but the custom image has wp-cli at `/usr/local/bin/wp` (direct binary).
+
+**Fix Applied:**
+- Default wp-cli path set to `/usr/local/bin/wp`
+- Added fallback detection: checks `/usr/local/bin/wp` first, then `/usr/local/bin/wp/wp`
+- Logs which path is being used for debugging
+
+**File Changed:** `charts-common/common/wordpress/templates/wp-bootstrap.yaml`
+
+---
+
+### Issue 11: HPA Scaling Fails with Multi-Attach Error
+
+**Symptom:** Pods repeatedly created and deleted with `Multi-Attach error for volume`. Events show HPA scaling to 2, then back to 1 in a loop.
+
+**Root Cause:** The WordPress PVC uses `ReadWriteOnce` (ceph-block), but the HPA scales to multiple replicas. Only one pod can mount an RWO volume at a time.
+
+**Fix Applied (Temporary):**
+- Set HPA `maxReplicas: 1` to prevent scaling
+- Neither CephFS nor NFS were available for RWX storage
+
+**Permanent Fix (When RWX storage is available):**
+- Change PVC to `ReadWriteMany` with CephFS or NFS storage class
+- Restore HPA `maxReplicas` to desired value
+
+**Files Changed:** `charts-common/common/wordpress/values.yaml`, `charts-common/common/wordpress/templates/pvc.yaml`
+
+---
+
 ## Troubleshooting Guide
 
 ### Pod CrashLoopBackOff
