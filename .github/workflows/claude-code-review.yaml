@@ -1,66 +1,66 @@
-name: Claude Code Review
+# name: Claude Code Review
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-  issues:
-    types: [opened, assigned]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: 'PR number to review (leave empty for latest)'
-        required: false
-        type: string
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
+#   issue_comment:
+#     types: [created]
+#   pull_request_review_comment:
+#     types: [created]
+#   issues:
+#     types: [opened, assigned]
+#   workflow_dispatch:
+#     inputs:
+#       pr_number:
+#         description: 'PR number to review (leave empty for latest)'
+#         required: false
+#         type: string
 
-jobs:
-  claude-review:
-    # Run on PR events, issue events, manual trigger, or when someone mentions @claude in a comment
-    if: |
-      github.event_name == 'pull_request' ||
-      github.event_name == 'issues' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
+# jobs:
+#   claude-review:
+#     # Run on PR events, issue events, manual trigger, or when someone mentions @claude in a comment
+#     if: |
+#       github.event_name == 'pull_request' ||
+#       github.event_name == 'issues' ||
+#       github.event_name == 'workflow_dispatch' ||
+#       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+#       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: write
+#       pull-requests: write
+#       issues: write
+#       id-token: write
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
 
-      - name: Run Claude Code
-        uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # For manual triggers, specify the PR number
-          pr_number: ${{ github.event.inputs.pr_number }}
-          allowed_tools: |
-            mcp__github__create_or_update_file
-            mcp__github__push_files
-            mcp__github__create_pull_request_review
-            mcp__github__add_issue_comment
-            mcp__github__create_issue
-            Edit
-            Write
-            Bash(git status)
-            Bash(git diff)
-            Bash(git log)
-            Bash(helm template*)
-            Bash(helm lint*)
-            Bash(yamllint*)
-          # Optional: Add custom instructions specific to your project
-          # direct_prompt: |
-          #   When reviewing Helm charts, pay special attention to:
-          #   - Values schema validation
-          #   - Resource limits and requests
-          #   - Security contexts
+#       - name: Run Claude Code
+#         uses: anthropics/claude-code-action@beta
+#         with:
+#           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+#           # For manual triggers, specify the PR number
+#           pr_number: ${{ github.event.inputs.pr_number }}
+#           allowed_tools: |
+#             mcp__github__create_or_update_file
+#             mcp__github__push_files
+#             mcp__github__create_pull_request_review
+#             mcp__github__add_issue_comment
+#             mcp__github__create_issue
+#             Edit
+#             Write
+#             Bash(git status)
+#             Bash(git diff)
+#             Bash(git log)
+#             Bash(helm template*)
+#             Bash(helm lint*)
+#             Bash(yamllint*)
+#           # Optional: Add custom instructions specific to your project
+#           # direct_prompt: |
+#           #   When reviewing Helm charts, pay special attention to:
+#           #   - Values schema validation
+#           #   - Resource limits and requests
+#           #   - Security contexts
