@@ -6,6 +6,12 @@ kube-prometheus-stack:
     enabled: false
   kubeScheduler:
     enabled: false
+  # TODO: Re-enable KubeHpaMaxedOut once WordPress PVCs use RWX storage (CephFS/NFS)
+  # so HPAs can scale beyond 1 replica. Currently maxReplicas=1 due to RWO PVC constraint,
+  # which causes false-positive KubeHpaMaxedOut alerts.
+  defaultRules:
+    disabled:
+      KubeHpaMaxedOut: true
   grafana:
     enabled: false
     forceDeployDatasources: true
