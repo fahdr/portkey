@@ -1,0 +1,68 @@
+name: Helm Validate
+
+on:
+  pull_request:
+    paths:
+      - 'system/**'
+      - 'platform/**'
+      - 'apps/**'
+      - 'charts-common/**'
+      - 'sites/**'
+
+jobs:
+  detect-changes:
+    runs-on: k8s-runners
+    outputs:
+      charts: ${{ steps.find-charts.outputs.charts }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find changed charts
+        id: find-charts
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
+          CHARTS="[]"
+
+          for dir in apps system platform sites charts-common/common charts-common/bootstrap; do
+            for chart in $(ls -d ${dir}/*/ 2>/dev/null); do
+              chart="${chart%/}"
+              if echo "$CHANGED_FILES" | grep -q "^${chart}/" && [ -f "${chart}/Chart.yaml" ]; then
+                CHARTS=$(echo "$CHARTS" | jq -c ". + [\"${chart}\"]")
+              fi
+            done
+          done
+
+          echo "charts=$CHARTS" >> $GITHUB_OUTPUT
+          echo "Changed charts: $CHARTS"
+
+  validate:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.charts != '[]'
+    runs-on: k8s-runners
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ${{ fromJson(needs.detect-changes.outputs.charts) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Helm dependency update
+        run: |
+          helm dependency update ${{ matrix.chart }}
+
+      - name: Helm lint
+        run: |
+          helm lint ${{ matrix.chart }} --strict
+
+      - name: Helm template
+        run: |
+          CHART_NAME=$(basename ${{ matrix.chart }})
+          helm template ${CHART_NAME} ${{ matrix.chart }} > /dev/null
