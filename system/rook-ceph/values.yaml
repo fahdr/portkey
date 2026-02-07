@@ -1,8 +1,36 @@
 # Reduce CSI driver resource usage
 rook-ceph:
   csi:
-    # Disable CephFS CSI since we're not using CephFS
-    enableCephfsDriver: false
+    enableCephfsDriver: true
+    csiCephFSProvisionerResource: |
+      - name: csi-provisioner
+        resource:
+          requests:
+            memory: 128Mi
+            cpu: 50m
+          limits:
+            memory: 256Mi
+      - name: csi-resizer
+        resource:
+          requests:
+            memory: 128Mi
+            cpu: 50m
+          limits:
+            memory: 256Mi
+      - name: csi-attacher
+        resource:
+          requests:
+            memory: 128Mi
+            cpu: 50m
+          limits:
+            memory: 256Mi
+      - name: csi-snapshotter
+        resource:
+          requests:
+            memory: 128Mi
+            cpu: 50m
+          limits:
+            memory: 256Mi
     csiRBDProvisionerResource: |
       - name: csi-provisioner
         resource:
@@ -72,52 +100,43 @@ rook-ceph-cluster:
           csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
           csi.storage.k8s.io/fstype: ext4
 
-  # CephFS explicitly disabled to reduce CPU usage - set to empty array to override chart defaults
-  # To re-enable CephFS:
-  # 1. Replace the empty array below with the full cephFileSystems configuration
-  # 2. Set enableCephfsDriver: true in the CSI section above  
-  # 3. Uncomment cephFileSystemVolumeSnapshotClass section below
-  # 4. Increase MDS resources if needed (activeStandby: true, resources)
-  cephFileSystems: []  # EXPLICITLY DISABLED - prevents Helm chart defaults from creating CephFS
-  # 
-  # Full configuration to restore when needed:
-  # cephFileSystems:
-  #   - name: ceph-filesystem
-  #     spec:
-  #       metadataPool:
-  #         replicated:
-  #           size: 3
-  #       dataPools:
-  #         - failureDomain: host
-  #           replicated:
-  #             size: 3
-  #           name: data0
-  #       metadataServer:
-  #         activeCount: 1
-  #         activeStandby: false  # Set to true for HA
-  #         resources:
-  #           requests:
-  #             cpu: "100m"  # Increase if performance issues
-  #             memory: "4Gi"
-  #           limits:
-  #             memory: "4Gi"
-  #         priorityClassName: system-cluster-critical
-  #     storageClass:
-  #       enabled: true
-  #       name: ceph-filesystem
-  #       pool: data0
-  #       reclaimPolicy: Delete
-  #       allowVolumeExpansion: true
-  #       volumeBindingMode: "Immediate"
-  #       mountOptions: []
-  #       parameters:
-  #         csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
-  #         csi.storage.k8s.io/provisioner-secret-namespace: "{{ .Release.Namespace }}"
-  #         csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
-  #         csi.storage.k8s.io/controller-expand-secret-namespace: "{{ .Release.Namespace }}"
-  #         csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
-  #         csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
-  #         csi.storage.k8s.io/fstype: ext4
+  cephFileSystems:
+    - name: ceph-filesystem
+      spec:
+        metadataPool:
+          replicated:
+            size: 3
+        dataPools:
+          - failureDomain: host
+            replicated:
+              size: 3
+            name: cephfs_data
+        metadataServer:
+          activeCount: 1
+          activeStandby: false
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "4Gi"
+            limits:
+              memory: "4Gi"
+          priorityClassName: system-cluster-critical
+      storageClass:
+        enabled: true
+        name: ceph-filesystem
+        pool: cephfs_data
+        reclaimPolicy: Delete
+        allowVolumeExpansion: true
+        volumeBindingMode: "Immediate"
+        mountOptions: []
+        parameters:
+          csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+          csi.storage.k8s.io/provisioner-secret-namespace: "{{ .Release.Namespace }}"
+          csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+          csi.storage.k8s.io/controller-expand-secret-namespace: "{{ .Release.Namespace }}"
+          csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+          csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
+          csi.storage.k8s.io/fstype: ext4
 
   cephObjectStores:
     - name: ceph-objectstore
@@ -169,19 +188,11 @@ rook-ceph-cluster:
               - s3.themainfreak.com
 
 
-  # CephFS Volume Snapshot Class - explicitly disabled since CephFS is disabled
-  # Set to empty object to override any chart defaults
-  cephFileSystemVolumeSnapshotClass: {}  # EXPLICITLY DISABLED
-  #
-  # Uncomment when re-enabling CephFS above:
-  # cephFileSystemVolumeSnapshotClass:
-  #   enabled: true
-  #   name: ceph-filesystem
-  #   isDefault: false
-  #   deletionPolicy: Delete
-  #   annotations: {}
-  #   labels: {}
-  #   parameters: {}
+  cephFileSystemVolumeSnapshotClass:
+    enabled: true
+    name: ceph-filesystem
+    isDefault: false
+    deletionPolicy: Delete
 
   cephBlockPoolsVolumeSnapshotClass:
     enabled: true
