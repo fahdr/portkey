@@ -84,6 +84,19 @@ metadata:
 data:
   storage-pools.json: |-
 {{ .Files.Get "files/dashboards/storage-pools.json" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-thermal
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: grafana-dashboards
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    grafana_dashboard: "1"
+data:
+  thermal-monitoring.json: |-
+{{ .Files.Get "files/dashboards/thermal-monitoring.json" | indent 4 }}
 {{- end }}
 ---
 apiVersion: v1

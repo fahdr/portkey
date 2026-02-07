@@ -104,6 +104,25 @@ infrastructure:
       - "192.168.0.202"  # rivendell
       - "192.168.0.102"  # isengard
 
+  # External Node Exporter on Proxmox hosts (CPU temp, case temp, fans, system metrics)
+  # Requires: apt install prometheus-node-exporter on each Proxmox node
+  nodeExporter:
+    enabled: true
+    port: 9100
+    nodes:
+      - name: shire
+        ip: "192.168.0.2"
+      - name: rivendell
+        ip: "192.168.0.202"
+      - name: isengard
+        ip: "192.168.0.102"
+      - name: mirkwood
+        ip: "192.168.0.8"
+      - name: rohan
+        ip: "192.168.0.7"
+      - name: gondor
+        ip: "192.168.0.6"
+
 # SNMP Exporter for additional OPNsense metrics (CPU, memory, disk, etc.)
   # Requires: os-net-snmp plugin installed and configured on OPNsense
   snmp:
