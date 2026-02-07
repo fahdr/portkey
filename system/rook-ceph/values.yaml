@@ -2,7 +2,6 @@
 rook-ceph:
   csi:
     enableCephfsDriver: true
-    logLevel: 5
     csiCephFSProvisionerResource: |
       - name: csi-provisioner
         resource:
@@ -138,6 +137,7 @@ rook-ceph-cluster:
           csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
           csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
           csi.storage.k8s.io/fstype: ext4
+          subvolumeGroup: csi
 
   cephObjectStores:
     - name: ceph-objectstore
