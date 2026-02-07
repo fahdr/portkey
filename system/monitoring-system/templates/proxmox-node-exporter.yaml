@@ -2,9 +2,14 @@
 # External node-exporter scraping for Proxmox hosts
 # Requires: apt install prometheus-node-exporter on each Proxmox node
 # Provides: CPU temp, case temp, fan speeds, full system metrics
+#
+# NOTE: ArgoCD excludes Endpoints/EndpointSlice resources globally.
+# The Endpoints resource below is rendered but not synced by ArgoCD.
+# It must be applied manually (one-time):
+#   kubectl apply -f <(helm template monitoring-system . -s templates/proxmox-node-exporter.yaml | yq 'select(.kind == "Endpoints")')
 ---
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
+apiVersion: v1
+kind: Endpoints
 metadata:
   name: proxmox-node-exporter
   namespace: {{ .Release.Namespace }}
@@ -12,20 +17,16 @@ metadata:
     app.kubernetes.io/name: proxmox-node-exporter
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: exporter
-    kubernetes.io/service-name: proxmox-node-exporter
-addressType: IPv4
-ports:
-  - name: metrics
-    port: {{ .Values.infrastructure.nodeExporter.port | default 9100 }}
-    protocol: TCP
-endpoints:
-  {{- range .Values.infrastructure.nodeExporter.nodes }}
+subsets:
   - addresses:
-      - {{ .ip | quote }}
-    hostname: {{ .name }}
-    conditions:
-      ready: true
-  {{- end }}
+      {{- range .Values.infrastructure.nodeExporter.nodes }}
+      - ip: {{ .ip | quote }}
+        hostname: {{ .name }}
+      {{- end }}
+    ports:
+      - name: metrics
+        port: {{ .Values.infrastructure.nodeExporter.port | default 9100 }}
+        protocol: TCP
 ---
 apiVersion: v1
 kind: Service
@@ -66,7 +67,7 @@ spec:
       path: /metrics
       honorLabels: true
       relabelings:
-        # Use the EndpointSlice hostname as the "proxmox_node" label
-        - sourceLabels: [__meta_kubernetes_endpointslice_endpoint_hostname]
+        # Use the Endpoints hostname as the "proxmox_node" label
+        - sourceLabels: [__meta_kubernetes_endpoint_hostname]
           targetLabel: proxmox_node
 {{- end }}
