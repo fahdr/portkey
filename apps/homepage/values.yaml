@@ -6,6 +6,8 @@ app-template:
           image:
             repository: ghcr.io/gethomepage/homepage
             tag: v1.10.1
+          env:
+            HOMEPAGE_ALLOWED_HOSTS: home.themainfreak.com
           envFrom:
             - secretRef:
                 name: homepage-secrets
