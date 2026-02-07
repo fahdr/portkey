@@ -1,0 +1,72 @@
+{{- if .Values.infrastructure.nodeExporter.enabled }}
+# External node-exporter scraping for Proxmox hosts
+# Requires: apt install prometheus-node-exporter on each Proxmox node
+# Provides: CPU temp, case temp, fan speeds, full system metrics
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: proxmox-node-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-node-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+    kubernetes.io/service-name: proxmox-node-exporter
+addressType: IPv4
+ports:
+  - name: metrics
+    port: {{ .Values.infrastructure.nodeExporter.port | default 9100 }}
+    protocol: TCP
+endpoints:
+  {{- range .Values.infrastructure.nodeExporter.nodes }}
+  - addresses:
+      - {{ .ip | quote }}
+    hostname: {{ .name }}
+    conditions:
+      ready: true
+  {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-node-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-node-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ .Values.infrastructure.nodeExporter.port | default 9100 }}
+      targetPort: metrics
+      protocol: TCP
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: proxmox-node-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-node-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-node-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: 60s
+      scrapeTimeout: 15s
+      path: /metrics
+      honorLabels: true
+      relabelings:
+        # Use the EndpointSlice hostname as the "proxmox_node" label
+        - sourceLabels: [__meta_kubernetes_endpointslice_endpoint_hostname]
+          targetLabel: proxmox_node
+{{- end }}

@@ -1,0 +1,325 @@
+{{- if .Values.infrastructure.proxmox.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: proxmox-thermal-exporter-script
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-thermal-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  exporter.py: |
+    #!/usr/bin/env python3
+    """Proxmox Thermal Exporter - exposes disk temperature metrics from all Proxmox nodes via SMART data"""
+
+    import os
+    import json
+    import urllib.request
+    import urllib.parse
+    import ssl
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    # Configuration from environment
+    PVE_HOST = os.getenv('PVE_HOST', '192.168.0.2')
+    PVE_PORT = os.getenv('PVE_PORT', '8006')
+    PVE_USER = os.getenv('PVE_USER', 'prometheus@pve')
+    PVE_TOKEN_NAME = os.getenv('PVE_TOKEN_NAME', 'monitoring')
+    PVE_TOKEN_VALUE = os.getenv('PVE_TOKEN_VALUE', '')
+    EXPORTER_PORT = int(os.getenv('EXPORTER_PORT', '9103'))
+
+    # SSL context that ignores certificate verification (internal Proxmox API)
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+
+    def pve_api_get(endpoint):
+        """Make GET request to Proxmox API"""
+        url = "https://{}:{}/api2/json{}".format(PVE_HOST, PVE_PORT, endpoint)
+        auth = "PVEAPIToken={}!{}={}".format(PVE_USER, PVE_TOKEN_NAME, PVE_TOKEN_VALUE)
+
+        req = urllib.request.Request(url)
+        req.add_header('Authorization', auth)
+
+        try:
+            with urllib.request.urlopen(req, context=ssl_ctx, timeout=15) as response:
+                return json.loads(response.read().decode())
+        except Exception as e:
+            print("Error fetching {}: {}".format(endpoint, e))
+            return None
+
+    def get_cluster_nodes():
+        """Get all online nodes in the cluster"""
+        data = pve_api_get("/nodes")
+        if data and 'data' in data:
+            return [node['node'] for node in data['data'] if node.get('status') == 'online']
+        return []
+
+    def get_node_disks(node):
+        """Get disk list for a node"""
+        data = pve_api_get("/nodes/{}/disks/list".format(node))
+        if data and 'data' in data:
+            return data['data']
+        return []
+
+    def get_disk_smart(node, disk_path):
+        """Get SMART data for a specific disk"""
+        encoded_path = urllib.parse.quote(disk_path, safe='')
+        data = pve_api_get("/nodes/{}/disks/smart?disk={}".format(node, encoded_path))
+        if data and 'data' in data:
+            return data['data']
+        return None
+
+    def extract_disk_temperature(smart_data):
+        """Extract temperature from SMART data (handles SATA, SAS, and NVMe formats)"""
+        if not smart_data:
+            return None
+
+        attributes = smart_data.get('attributes', [])
+
+        # SATA/SAS drives: attributes is a list of dicts with 'id' and 'raw' fields
+        if isinstance(attributes, list):
+            for attr in attributes:
+                # PVE API returns id as string, compare both forms
+                attr_id = str(attr.get('id', ''))
+                # ID 194 = Temperature_Celsius, ID 190 = Airflow_Temperature_Cel
+                if attr_id in ('194', '190'):
+                    raw = attr.get('raw', '')
+                    try:
+                        # Raw value can be "43" or "43 (Min/Max 20/64)"
+                        val = float(str(raw).split()[0])
+                        if 0 < val < 120:
+                            return val
+                    except (ValueError, IndexError):
+                        pass
+
+        # NVMe drives: attributes is a dict with key-value pairs
+        if isinstance(attributes, dict):
+            for key, value in attributes.items():
+                if 'temperature' in key.lower():
+                    try:
+                        # Could be "38 C", "38", or just 38
+                        val = float(str(value).replace('C', '').replace('\xb0', '').strip().split()[0])
+                        if 0 < val < 120:
+                            return val
+                    except (ValueError, IndexError):
+                        pass
+
+        # Fallback: parse the raw SMART text output
+        text = smart_data.get('text', '')
+        if text:
+            for line in text.split('\n'):
+                lower_line = line.lower()
+                if 'temperature' in lower_line and ('celsius' in lower_line or 'current' in lower_line):
+                    parts = line.split()
+                    for p in parts:
+                        try:
+                            val = float(p)
+                            if 0 < val < 120:
+                                return val
+                        except ValueError:
+                            continue
+
+        return None
+
+    def metric_line(name, labels, value):
+        """Format a Prometheus metric line"""
+        if labels:
+            return name + "{" + labels + "} " + str(value)
+        return name + " " + str(value)
+
+    def generate_metrics():
+        """Generate Prometheus metrics for disk temperatures across all nodes"""
+        lines = []
+        scrape_errors = 0
+        disk_count = 0
+
+        lines.append('# HELP proxmox_disk_temperature_celsius Disk temperature in Celsius from SMART data')
+        lines.append('# TYPE proxmox_disk_temperature_celsius gauge')
+        lines.append('# HELP proxmox_node_max_disk_temperature_celsius Maximum disk temperature on a node')
+        lines.append('# TYPE proxmox_node_max_disk_temperature_celsius gauge')
+        lines.append('# HELP proxmox_thermal_disks_monitored Number of disks with temperature readings')
+        lines.append('# TYPE proxmox_thermal_disks_monitored gauge')
+        lines.append('# HELP proxmox_thermal_scrape_errors_total Errors encountered during thermal scrape')
+        lines.append('# TYPE proxmox_thermal_scrape_errors_total gauge')
+        lines.append('# HELP proxmox_thermal_exporter_up Whether the thermal exporter is running')
+        lines.append('# TYPE proxmox_thermal_exporter_up gauge')
+
+        nodes = get_cluster_nodes()
+
+        for node in nodes:
+            node_max_temp = 0
+            disks = get_node_disks(node)
+
+            for disk in disks:
+                devpath = disk.get('devpath', '')
+                if not devpath:
+                    continue
+
+                model = disk.get('model', 'unknown')
+                serial = disk.get('serial', 'unknown')
+                disk_type = disk.get('type', 'unknown')
+                used = disk.get('used', 'unused')
+
+                smart_data = get_disk_smart(node, devpath)
+                if smart_data:
+                    temp = extract_disk_temperature(smart_data)
+                    if temp is not None:
+                        labels = 'node="{}",device="{}",model="{}",serial="{}",type="{}",used="{}"'.format(
+                            node, devpath, model, serial, disk_type, used)
+                        lines.append(metric_line('proxmox_disk_temperature_celsius', labels, temp))
+                        disk_count += 1
+                        if temp > node_max_temp:
+                            node_max_temp = temp
+                else:
+                    scrape_errors += 1
+
+            if node_max_temp > 0:
+                lines.append(metric_line('proxmox_node_max_disk_temperature_celsius',
+                                         'node="{}"'.format(node), node_max_temp))
+
+        lines.append(metric_line('proxmox_thermal_disks_monitored', '', disk_count))
+        lines.append(metric_line('proxmox_thermal_scrape_errors_total', '', scrape_errors))
+        lines.append(metric_line('proxmox_thermal_exporter_up', '', 1))
+
+        return '\n'.join(lines) + '\n'
+
+    class MetricsHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == '/metrics':
+                metrics = generate_metrics()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(metrics.encode())
+            elif self.path == '/health':
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b'OK')
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, format, *args):
+            pass  # Suppress access logs
+
+    if __name__ == '__main__':
+        print("Starting Proxmox Thermal Exporter on port {}".format(EXPORTER_PORT))
+        print("Target: {}:{} (all cluster nodes)".format(PVE_HOST, PVE_PORT))
+        server = HTTPServer(('', EXPORTER_PORT), MetricsHandler)
+        server.serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxmox-thermal-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-thermal-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-thermal-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: proxmox-thermal-exporter
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: exporter
+          image: python:3.11-alpine
+          command: ["python", "/app/exporter.py"]
+          ports:
+            - name: metrics
+              containerPort: 9103
+              protocol: TCP
+          env:
+            - name: PVE_HOST
+              value: "{{ index .Values.infrastructure.proxmox.targets 0 }}"
+            - name: PVE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_USER
+            - name: PVE_TOKEN_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_TOKEN_NAME
+            - name: PVE_TOKEN_VALUE
+              valueFrom:
+                secretKeyRef:
+                  name: proxmox-exporter-secret
+                  key: PVE_TOKEN_VALUE
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: script
+          configMap:
+            name: proxmox-thermal-exporter-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxmox-thermal-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-thermal-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: exporter
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9103
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: proxmox-thermal-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: proxmox-thermal-exporter
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: proxmox-thermal-exporter
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: proxmox-thermal-exporter
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: metrics
+      interval: 120s
+      scrapeTimeout: 90s
+{{- end }}

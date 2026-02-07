@@ -142,6 +142,93 @@ spec:
           annotations:
             summary: "ZFS SSD wearout high"
             description: "ZFS disk {{`{{ $labels.device }}`}} on node {{`{{ $labels.node }}`}} has {{`{{ $value }}`}}% wearout. Plan replacement soon."
+
+        # Thermal Monitoring Alerts
+        - alert: ThermalExporterDown
+          expr: up{job="proxmox-thermal-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: thermal
+          annotations:
+            summary: "Thermal exporter is down"
+            description: "Proxmox thermal exporter has been unreachable for more than 5 minutes. Temperature monitoring is unavailable."
+
+        - alert: DiskTemperatureWarning
+          expr: proxmox_disk_temperature_celsius > 50
+          for: 15m
+          labels:
+            severity: warning
+            component: thermal
+          annotations:
+            summary: "Disk temperature elevated"
+            description: "Disk {{`{{ $labels.device }}`}} on node {{`{{ $labels.node }}`}} ({{`{{ $labels.model }}`}}) is at {{`{{ $value | printf \"%.0f\" }}`}}°C. Consider improving airflow."
+
+        - alert: DiskTemperatureCritical
+          expr: proxmox_disk_temperature_celsius > 60
+          for: 5m
+          labels:
+            severity: critical
+            component: thermal
+          annotations:
+            summary: "Disk temperature critical"
+            description: "Disk {{`{{ $labels.device }}`}} on node {{`{{ $labels.node }}`}} ({{`{{ $labels.model }}`}}) is at {{`{{ $value | printf \"%.0f\" }}`}}°C. Risk of data loss or hardware damage!"
+
+        - alert: NodeMaxDiskTemperatureWarning
+          expr: proxmox_node_max_disk_temperature_celsius > 55
+          for: 10m
+          labels:
+            severity: warning
+            component: thermal
+          annotations:
+            summary: "Node disk temperatures high"
+            description: "Node {{`{{ $labels.node }}`}} has a disk reaching {{`{{ $value | printf \"%.0f\" }}`}}°C. Check node cooling and airflow."
+
+    {{- end }}
+
+    # Proxmox Host Thermal Alerts (from node-exporter on Proxmox hosts)
+    {{- if .Values.infrastructure.nodeExporter.enabled }}
+    - name: proxmox-host-thermal.rules
+      rules:
+        - alert: ProxmoxNodeExporterDown
+          expr: up{job="proxmox-node-exporter"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            component: thermal
+          annotations:
+            summary: "Proxmox node-exporter unreachable"
+            description: "Node-exporter on Proxmox host {{`{{ $labels.proxmox_node }}`}} has been unreachable for 5 minutes."
+
+        - alert: CPUTemperatureWarning
+          expr: node_thermal_zone_temp{job="proxmox-node-exporter", type=~"x86_pkg_temp|coretemp"} > 75
+          for: 10m
+          labels:
+            severity: warning
+            component: thermal
+          annotations:
+            summary: "Proxmox CPU temperature elevated"
+            description: "{{`{{ $labels.proxmox_node }}`}} CPU is at {{`{{ $value | printf \"%.0f\" }}`}}°C. Check fans and airflow."
+
+        - alert: CPUTemperatureCritical
+          expr: node_thermal_zone_temp{job="proxmox-node-exporter", type=~"x86_pkg_temp|coretemp"} > 90
+          for: 5m
+          labels:
+            severity: critical
+            component: thermal
+          annotations:
+            summary: "Proxmox CPU temperature critical"
+            description: "{{`{{ $labels.proxmox_node }}`}} CPU is at {{`{{ $value | printf \"%.0f\" }}`}}°C. Risk of thermal throttling or damage!"
+
+        - alert: CaseTemperatureWarning
+          expr: node_thermal_zone_temp{job="proxmox-node-exporter", type="acpitz"} > 55
+          for: 15m
+          labels:
+            severity: warning
+            component: thermal
+          annotations:
+            summary: "Proxmox case temperature elevated"
+            description: "{{`{{ $labels.proxmox_node }}`}} case/chassis is at {{`{{ $value | printf \"%.0f\" }}`}}°C. Check ambient temperature and case airflow."
     {{- end }}
 
     # OPNsense Firewall Alerts
