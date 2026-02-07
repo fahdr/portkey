@@ -75,7 +75,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Hottest CPU",
       "type": "stat",
-      "targets": [{ "expr": "max(node_thermal_zone_temp{job=\"proxmox-node-exporter\", type=~\"x86_pkg_temp|coretemp\"})", "legendFormat": "Max CPU", "refId": "A" }]
+      "targets": [{ "expr": "max(node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", chip=~\".*coretemp.*|.*k10temp.*\", sensor=\"temp1\"})", "legendFormat": "Max CPU", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -156,7 +156,7 @@
       },
       "title": "CPU Package Temperature per Node",
       "type": "gauge",
-      "targets": [{ "expr": "node_thermal_zone_temp{job=\"proxmox-node-exporter\", type=~\"x86_pkg_temp|coretemp\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
+      "targets": [{ "expr": "node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", chip=~\".*coretemp.*|.*k10temp.*\", sensor=\"temp1\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -194,7 +194,7 @@
       },
       "title": "CPU Package Temperature Over Time",
       "type": "timeseries",
-      "targets": [{ "expr": "node_thermal_zone_temp{job=\"proxmox-node-exporter\", type=~\"x86_pkg_temp|coretemp\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
+      "targets": [{ "expr": "node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", chip=~\".*coretemp.*|.*k10temp.*\", sensor=\"temp1\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
