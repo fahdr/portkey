@@ -75,7 +75,7 @@
       "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Hottest CPU",
       "type": "stat",
-      "targets": [{ "expr": "max(node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", chip=~\".*coretemp.*|.*k10temp.*\", sensor=\"temp1\"})", "legendFormat": "Max CPU", "refId": "A" }]
+      "targets": [{ "expr": "max(node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", sensor=\"temp1\"} * on(chip, instance) group_left() node_hwmon_chip_names{job=\"proxmox-node-exporter\", chip_name=~\"coretemp|k10temp\"})", "legendFormat": "Max CPU", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -156,7 +156,7 @@
       },
       "title": "CPU Package Temperature per Node",
       "type": "gauge",
-      "targets": [{ "expr": "node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", chip=~\".*coretemp.*|.*k10temp.*\", sensor=\"temp1\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
+      "targets": [{ "expr": "node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", sensor=\"temp1\"} * on(chip, instance) group_left() node_hwmon_chip_names{job=\"proxmox-node-exporter\", chip_name=~\"coretemp|k10temp\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -194,7 +194,7 @@
       },
       "title": "CPU Package Temperature Over Time",
       "type": "timeseries",
-      "targets": [{ "expr": "node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", chip=~\".*coretemp.*|.*k10temp.*\", sensor=\"temp1\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
+      "targets": [{ "expr": "node_hwmon_temp_celsius{job=\"proxmox-node-exporter\", sensor=\"temp1\"} * on(chip, instance) group_left() node_hwmon_chip_names{job=\"proxmox-node-exporter\", chip_name=~\"coretemp|k10temp\"}", "legendFormat": "{{ proxmox_node }}", "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -360,8 +360,7 @@
             "cellOptions": { "type": "auto" },
             "inspect": false
           },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 45 }, { "color": "orange", "value": 55 }, { "color": "red", "value": 65 }] },
-          "unit": "celsius"
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 45 }, { "color": "orange", "value": 55 }, { "color": "red", "value": 65 }] }
         },
         "overrides": [
           {
@@ -381,9 +380,11 @@
             "properties": [{ "id": "custom.width", "value": 100 }]
           },
           {
-            "matcher": { "id": "byName", "options": "Temperature" },
+            "matcher": { "id": "byName", "options": "Value" },
             "properties": [
               { "id": "custom.width", "value": 120 },
+              { "id": "unit", "value": "celsius" },
+              { "id": "displayName", "value": "Temperature" },
               { "id": "custom.cellOptions", "value": { "mode": "gradient", "type": "color-background" } }
             ]
           }
@@ -401,21 +402,27 @@
       "type": "table",
       "transformations": [
         {
-          "id": "reduce",
-          "options": { "reducers": ["lastNotNull"] }
+          "id": "labelsToFields",
+          "options": { "valueLabel": "node", "keepLabels": ["device", "model", "type", "used"] }
         },
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "serial": true },
+            "excludeByName": {},
+            "indexByName": {
+              "node": 0,
+              "device": 1,
+              "model": 2,
+              "type": 3,
+              "used": 4,
+              "Value": 5
+            },
             "renameByName": {
               "node": "Node",
               "device": "Device",
               "model": "Model",
               "type": "Type",
-              "used": "Used By",
-              "Field": "Metric",
-              "Last *": "Temperature"
+              "used": "Used By"
             }
           }
         }

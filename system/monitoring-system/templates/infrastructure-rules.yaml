@@ -201,7 +201,7 @@ spec:
             description: "Node-exporter on Proxmox host {{`{{ $labels.proxmox_node }}`}} has been unreachable for 5 minutes."
 
         - alert: CPUTemperatureWarning
-          expr: node_hwmon_temp_celsius{job="proxmox-node-exporter", chip=~".*coretemp.*|.*k10temp.*", sensor="temp1"} > 75
+          expr: node_hwmon_temp_celsius{job="proxmox-node-exporter", sensor="temp1"} * on(chip, instance) group_left() node_hwmon_chip_names{job="proxmox-node-exporter", chip_name=~"coretemp|k10temp"} > 75
           for: 10m
           labels:
             severity: warning
@@ -211,7 +211,7 @@ spec:
             description: "{{`{{ $labels.proxmox_node }}`}} CPU is at {{`{{ $value | printf \"%.0f\" }}`}}°C. Check fans and airflow."
 
         - alert: CPUTemperatureCritical
-          expr: node_hwmon_temp_celsius{job="proxmox-node-exporter", chip=~".*coretemp.*|.*k10temp.*", sensor="temp1"} > 90
+          expr: node_hwmon_temp_celsius{job="proxmox-node-exporter", sensor="temp1"} * on(chip, instance) group_left() node_hwmon_chip_names{job="proxmox-node-exporter", chip_name=~"coretemp|k10temp"} > 90
           for: 5m
           labels:
             severity: critical
