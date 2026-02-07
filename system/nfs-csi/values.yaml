@@ -47,5 +47,7 @@ csi-driver-nfs:
     allowVolumeExpansion: true
     mountOptions:
       - vers=4.1
-      - no_root_squash
+      - nconnect=8
+      - hard
+      - noatime
       - rw
