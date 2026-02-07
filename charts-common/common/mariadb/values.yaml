@@ -21,6 +21,8 @@ mariadb:
     #storageClassName: ""  # Optional, set to override default storage class
   replication:
     enabled: true
+    syncTimeout: "5m"
+    connectionTimeout: "10s"
   primaryService:
     type: ClusterIP
   secondaryService:

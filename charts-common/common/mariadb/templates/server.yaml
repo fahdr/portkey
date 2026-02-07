@@ -20,6 +20,8 @@ spec:
       replPasswordSecretKeyRef:
         name: {{ .Release.Name }}-mariadb-secrets
         key: MARIADB_REPL_PASSWORD
+      syncTimeout: {{ .Values.mariadb.replication.syncTimeout | default "5m" }}
+      connectionTimeout: {{ .Values.mariadb.replication.connectionTimeout | default "10s" }}
 
   primaryService:
     type: {{ .Values.mariadb.primaryService.type | default "ClusterIP" }}
