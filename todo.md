@@ -14,6 +14,7 @@
 13. Re-enable HPA scaling once RWX storage is available
 14. ✅ Migrate Immich from LXC to Kubernetes - migrated v2.2.3 with 15,624 assets, upgraded to v2.5.5, configured VolSync backups
 15. Add GPU (gpu.intel.com/i915) to Immich ML pod when more iGPU nodes are available in the cluster
+16. Verify VolSync backup restoration for Immich - test by deleting immich PVC and recreating from ReplicationDestination to ensure backups are working
 ## Completed: Homepage Auto Service Discovery
 
 ### What was implemented:
