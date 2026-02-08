@@ -12,6 +12,8 @@
 11. ✅ Fix NFS CSI - debug mount options on Shire NFS server (192.168.0.41) for nfs-csi storage class
 12. Make WordPress stateless - split PVC into shared uploads (RWX) and per-pod code (emptyDir), separate wp-content/uploads from wp-content
 13. Re-enable HPA scaling once RWX storage is available
+14. ✅ Migrate Immich from LXC to Kubernetes - migrated v2.2.3 with 15,624 assets, upgraded to v2.5.5, configured VolSync backups
+15. Add GPU (gpu.intel.com/i915) to Immich ML pod when more iGPU nodes are available in the cluster
 ## Completed: Homepage Auto Service Discovery
 
 ### What was implemented:
