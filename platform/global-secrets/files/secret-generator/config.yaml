@@ -34,6 +34,15 @@
       length: 32
       special: true
 
+# Immich
+- name: immich
+  syncTo: ["kubernetes", "vaultwarden"]
+  syncDirection: "vaultwarden-to-kubernetes"
+  data:
+    - key: DB_PASSWORD
+      length: 32
+      special: true
+
 # Vaultwarden itself - uses kubernetes-to-vaultwarden to avoid circular dependency
 # These secrets bootstrap vaultwarden, so they can't come FROM vaultwarden
 - name: vaultwarden

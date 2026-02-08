@@ -1,0 +1,141 @@
+app-template:
+  controllers:
+    server:
+      containers:
+        main:
+          image:
+            repository: ghcr.io/immich-app/immich-server
+            tag: v2.2.3
+          env:
+            TZ: Asia/Dubai
+            DB_HOSTNAME: localhost
+            DB_PORT: "5432"
+            DB_USERNAME: postgres
+            DB_DATABASE_NAME: immich
+            REDIS_HOSTNAME: localhost
+            IMMICH_MACHINE_LEARNING_URL: http://immich-machine-learning:3003
+          envFrom:
+            - secretRef:
+                name: "{{ .Release.Name }}-secret"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+        redis:
+          image:
+            repository: docker.io/valkey/valkey
+            tag: "8"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+        postgres:
+          image:
+            repository: ghcr.io/immich-app/postgres
+            tag: 14-vectorchord0.4.3-pgvectors0.2.0
+          env:
+            POSTGRES_USER: postgres
+            POSTGRES_DB: immich
+            POSTGRES_INITDB_ARGS: "--data-checksums"
+            PGDATA: /var/lib/postgresql/data/pgdata
+          envFrom:
+            - secretRef:
+                name: "{{ .Release.Name }}-secret"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+    machine-learning:
+      containers:
+        main:
+          image:
+            repository: ghcr.io/immich-app/immich-machine-learning
+            tag: v2.2.3
+          env:
+            IMMICH_HOST: 0.0.0.0
+            IMMICH_PORT: "3003"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1Gi
+              gpu.intel.com/i915: 1
+            limits:
+              memory: 4Gi
+              gpu.intel.com/i915: 1
+
+  service:
+    server:
+      controller: server
+      ports:
+        http:
+          port: 2283
+          protocol: HTTP
+    machine-learning:
+      controller: machine-learning
+      ports:
+        http:
+          port: 3003
+          protocol: HTTP
+
+  ingress:
+    server:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "Immich"
+        gethomepage.dev/description: "Photo & video management"
+        gethomepage.dev/group: "Popular"
+        gethomepage.dev/icon: "immich.svg"
+      hosts:
+        - host: &host immich.themainfreak.com
+          paths:
+            - path: /
+              pathType: Prefix
+              service:
+                identifier: server
+                port: http
+      tls:
+        - hosts:
+            - *host
+          secretName: immich-tls-certificate
+
+  persistence:
+    library:
+      type: nfs
+      server: 192.168.0.41
+      path: /nfs/immich
+      advancedMounts:
+        server:
+          main:
+            - path: /data
+    pgdata:
+      type: persistentVolumeClaim
+      accessMode: ReadWriteOnce
+      size: 5Gi
+      storageClass: ceph-block
+      advancedMounts:
+        server:
+          postgres:
+            - path: /var/lib/postgresql/data
+    pgshm:
+      type: emptyDir
+      medium: Memory
+      advancedMounts:
+        server:
+          postgres:
+            - path: /dev/shm
+    model-cache:
+      type: emptyDir
+      advancedMounts:
+        machine-learning:
+          main:
+            - path: /cache
