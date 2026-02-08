@@ -1,0 +1,60 @@
+---
+- name: Post-bootstrap Talos cluster setup
+  hosts: localhost
+  gather_facts: false
+  vars:
+    talos_config: "{{ playbook_dir }}/../talos-configs/talosconfig"
+    kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
+
+  tasks:
+    - name: Display cluster information
+      ansible.builtin.debug:
+        msg: |
+          Configuring Talos cluster:
+          - Control plane nodes: metal0, metal1, metal2
+          - VIP: 192.168.0.100
+          - Kubernetes: v1.35.0
+          - Talos: v1.12.3
+
+    - name: Get kubeconfig from Talos cluster
+      ansible.builtin.command:
+        cmd: talosctl --talosconfig {{ talos_config }} kubeconfig {{ kubeconfig }} --nodes 192.168.0.11 --force
+      changed_when: true
+
+    - name: Wait for Kubernetes API to be ready
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ kubeconfig }} get nodes
+      register: nodes_check
+      until: nodes_check.rc == 0
+      retries: 30
+      delay: 10
+
+    - name: Display nodes
+      ansible.builtin.debug:
+        msg: "{{ nodes_check.stdout_lines }}"
+
+- name: Deploy Cilium CNI
+  import_playbook: talos-install-cilium.yml
+
+- name: Configure Cilium networking
+  import_playbook: talos-configure-networking.yml
+
+- name: Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Talos cluster is ready!
+
+          Next steps:
+          1. Deploy storage: ansible-playbook playbooks/talos-deploy-storage.yml
+          2. Deploy ArgoCD: kubectl apply -k bootstrap/root/
+          3. Restore applications from backups
+
+          Cluster access:
+          - talosctl: export TALOSCONFIG={{ playbook_dir }}/../talos-configs/talosconfig
+          - kubectl: export KUBECONFIG={{ playbook_dir }}/../kubeconfig
+          ========================================

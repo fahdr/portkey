@@ -1,0 +1,76 @@
+---
+- name: Deploy storage infrastructure to Talos cluster
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
+    system_charts_dir: "{{ playbook_dir }}/../../system"
+
+  tasks:
+    - name: Check if Rook Ceph secrets exist
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ kubeconfig }} get secret -n rook-ceph rook-ceph-mon
+      register: rook_secrets_check
+      failed_when: false
+      changed_when: false
+
+    - name: Display Rook secrets status
+      ansible.builtin.debug:
+        msg: "{{ 'Rook secrets already exist - external cluster configured' if rook_secrets_check.rc == 0 else 'Need to configure Rook secrets for external Ceph cluster' }}"
+
+    - name: Deploy Rook Ceph operator
+      kubernetes.core.helm:
+        name: rook-ceph
+        chart_ref: "{{ system_charts_dir }}/rook-ceph"
+        release_namespace: rook-ceph
+        create_namespace: true
+        kubeconfig: "{{ kubeconfig }}"
+        wait: true
+        wait_timeout: 10m
+      when: rook_secrets_check.rc == 0
+
+    - name: Deploy NFS CSI driver
+      kubernetes.core.helm:
+        name: nfs-csi
+        chart_ref: "{{ system_charts_dir }}/nfs-csi"
+        release_namespace: kube-system
+        create_namespace: false
+        kubeconfig: "{{ kubeconfig }}"
+        wait: true
+        wait_timeout: 5m
+
+    - name: Wait for storage CSI drivers to be ready
+      ansible.builtin.pause:
+        seconds: 30
+        prompt: "Waiting for CSI drivers to initialize..."
+
+    - name: Get storage classes
+      ansible.builtin.command:
+        cmd: kubectl --kubeconfig {{ kubeconfig }} get storageclasses
+      register: sc_list
+      changed_when: false
+
+    - name: Display storage classes
+      ansible.builtin.debug:
+        msg: "{{ sc_list.stdout_lines }}"
+
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ✓ Storage infrastructure deployed
+          - Rook Ceph operator (external cluster mode)
+          - NFS CSI driver
+
+          Test storage with:
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: test-pvc
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 1Gi
+            storageClassName: ceph-block
+          EOF

@@ -1,0 +1,65 @@
+---
+all:
+  vars:
+    control_plane_endpoint: 192.168.0.100
+    talos_version: v1.12.3
+    kubernetes_version: v1.33.0
+    load_balancer_ip_pool:
+      - 192.168.0.160/27  # Temporary pool during migration, switch to .224/27 after
+
+    # Proxmox API credentials (set via environment or vault)
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_HOST') | default('192.168.0.2') }}"
+    proxmox_user: "{{ lookup('env', 'PROXMOX_USER') | default('root@pam') }}"
+    proxmox_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') | default('') }}"
+    proxmox_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') | default('') }}"
+
+talos:
+  children:
+    talos_masters:
+      hosts:
+        metal0:
+          ansible_host: 192.168.0.11
+          proxmox_node: mirkwood
+          proxmox_host: 192.168.0.8  # mirkwood IP
+          vm_id: 106  # Existing VM
+          cpu: 4
+          memory: 44000  # 44GB in MB (actual current config)
+          disk_size: 50
+          network_interface: ens18
+          # This node will be added last (Phase 4)
+
+        metal1:
+          ansible_host: 192.168.0.12
+          proxmox_node: rohan
+          proxmox_host: 192.168.0.7  # rohan IP
+          vm_id: 107  # Existing VM
+          cpu: 4
+          memory: 27000  # 27GB in MB (actual current config)
+          disk_size: 50
+          network_interface: ens18
+          # This node will be added in Phase 3
+
+        metal2:
+          ansible_host: 192.168.0.13
+          proxmox_node: gondor
+          proxmox_host: 192.168.0.6  # gondor IP
+          vm_id: 104  # Existing VM
+          cpu: 4
+          memory: 27000  # 27GB in MB (actual current config)
+          disk_size: 50
+          network_interface: ens18
+          # This node will be converted first (Phase 1)
+          talos_vip_enabled: true  # Assign VIP to first control plane node
+
+    talos_workers:
+      hosts:
+        metal3:
+          ansible_host: 192.168.0.14
+          proxmox_node: rivendell
+          proxmox_host: 192.168.0.202  # rivendell IP
+          vm_id: 114
+          cpu: 4
+          memory: 10240  # 10GB in MB
+          disk_size: 50
+          network_interface: ens18
+          # This node will be created new in Phase 1

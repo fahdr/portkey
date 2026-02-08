@@ -1,0 +1,49 @@
+---
+- name: Bootstrap Talos Kubernetes cluster
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: talos_bootstrap
+      tags:
+        - bootstrap
+        - cilium
+
+- name: Verify cluster health
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get cluster nodes
+      kubernetes.core.k8s_info:
+        kind: Node
+        kubeconfig: "{{ playbook_dir }}/../kubeconfig-talos.yaml"
+      register: cluster_nodes
+
+    - name: Display cluster information
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          Talos Kubernetes Cluster Bootstrap Complete
+          ============================================
+
+          Cluster: portkey-talos
+          Control Plane: {{ hostvars['localhost'].control_plane_endpoint | default('192.168.0.100') }}
+          Kubeconfig: {{ playbook_dir }}/../kubeconfig-talos.yaml
+
+          Nodes ({{ cluster_nodes.resources | length }}):
+          {% for node in cluster_nodes.resources %}
+          - {{ node.metadata.name }}: {{ node.status.nodeInfo.kubeletVersion }} ({{ node.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first }})
+          {% endfor %}
+
+          Access the cluster:
+            export KUBECONFIG={{ playbook_dir }}/../kubeconfig-talos.yaml
+            kubectl get nodes
+            kubectl get pods -A
+
+          Talos access:
+            export TALOSCONFIG={{ playbook_dir }}/../talos-configs/talosconfig
+            talosctl --nodes {{ hostvars[groups['talos_masters'][0]].ansible_host }} dashboard
+
+          Next steps:
+          1. Deploy storage infrastructure (Rook Ceph, NFS CSI)
+          2. Deploy ArgoCD
+          3. Begin application migration from K3s cluster

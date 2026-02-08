@@ -1,0 +1,113 @@
+---
+- name: Boot existing K3s VMs into Talos Linux
+  hosts: talos_masters
+  gather_facts: false
+  serial: 1
+  vars:
+    proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+    talos_version: v1.12.3
+    talos_iso_name: "talos-{{ talos_version }}-amd64.iso"
+    iso_storage: local
+
+  tasks:
+    - name: Display VM info
+      ansible.builtin.debug:
+        msg: "Converting {{ inventory_hostname }} (VM {{ vm_id }}) on {{ proxmox_node }} to Talos"
+
+    - name: Check VM current status
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/current"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+      register: vm_status
+      delegate_to: localhost
+
+    - name: Stop VM if running
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/stop"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+        status_code: [200, 500]
+      delegate_to: localhost
+      when: vm_status.json.data.status == "running"
+
+    - name: Wait for VM to stop
+      ansible.builtin.pause:
+        seconds: 10
+      when: vm_status.json.data.status == "running"
+
+    - name: Configure VM to boot from Talos ISO
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          ide2: "{{ iso_storage }}:iso/{{ talos_iso_name }},media=cdrom"
+          boot: "order=ide2;scsi0"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+
+    - name: Display VM configuration result
+      ansible.builtin.debug:
+        msg: "VM {{ inventory_hostname }} configured to boot from Talos ISO"
+
+    - name: Start VM
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+      delegate_to: localhost
+
+    - name: Wait for VM to boot
+      ansible.builtin.pause:
+        seconds: 30
+        prompt: "Waiting for {{ inventory_hostname }} to boot into Talos..."
+
+    - name: Wait for Talos API to be ready
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 50000
+        delay: 10
+        timeout: 300
+        state: started
+      delegate_to: localhost
+
+    - name: Display boot status
+      ansible.builtin.debug:
+        msg: "✓ {{ inventory_hostname }} (VM {{ vm_id }}) booted into Talos successfully"
+
+- name: Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          All VMs booted into Talos Linux!
+
+          Next steps:
+          1. Apply machine configs:
+             cd /workspaces/portkey/metal && ansible-playbook playbooks/talos-apply-configs.yml
+
+          2. Bootstrap cluster:
+             talosctl bootstrap --nodes 192.168.0.11 --talosconfig talos-configs/talosconfig
+
+          3. Get kubeconfig:
+             talosctl kubeconfig --nodes 192.168.0.11 --talosconfig talos-configs/talosconfig
+
+          4. Install Cilium CNI:
+             See docs/talos-migration-simplified.md for Cilium installation
+          ========================================

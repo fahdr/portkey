@@ -1,0 +1,56 @@
+---
+# Talos bootstrap settings
+talos_config_dir: "{{ playbook_dir }}/talos-configs"
+talos_config_file: "{{ talos_config_dir }}/talosconfig"
+kubeconfig_file: "{{ playbook_dir }}/kubeconfig-talos.yaml"
+
+# Determine the first master node for bootstrap
+bootstrap_node: "{{ groups['talos_masters'][0] }}"
+bootstrap_ip: "{{ hostvars[bootstrap_node].ansible_host }}"
+
+# Cilium settings (matching existing K3s config)
+cilium_version: "1.17.4"
+cilium_namespace: "kube-system"
+cilium_repo_url: "https://helm.cilium.io"
+
+# LoadBalancer IP pool (temporary during migration)
+load_balancer_ip_pool:
+  - "192.168.0.160/27"  # Will switch to .224/27 after migration complete
+
+# Cilium values
+cilium_values:
+  operator:
+    replicas: 1
+  kubeProxyReplacement: true
+  l2announcements:
+    enabled: true
+  ipam:
+    mode: kubernetes
+  hubble:
+    relay:
+      enabled: true
+    ui:
+      enabled: true
+  # Talos-specific settings
+  securityContext:
+    capabilities:
+      ciliumAgent:
+        - CHOWN
+        - KILL
+        - NET_ADMIN
+        - NET_RAW
+        - IPC_LOCK
+        - SYS_ADMIN
+        - SYS_RESOURCE
+        - DAC_OVERRIDE
+        - FOWNER
+        - SETGID
+        - SETUID
+      cleanCiliumState:
+        - NET_ADMIN
+        - SYS_ADMIN
+        - SYS_RESOURCE
+  cgroup:
+    autoMount:
+      enabled: false
+    hostRoot: /sys/fs/cgroup

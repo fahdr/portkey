@@ -9,3 +9,10 @@ book/
 Chart.lock
 .vscode/settings.json
 bootstrap/argocd/githubsecret.env
+
+# Talos configuration with secrets
+metal/talos-configs/
+talos-configs/
+
+# Proxmox API credentials
+metal/.env

@@ -1,0 +1,94 @@
+---
+- name: Install Cilium CNI to Talos cluster using helm command
+  hosts: localhost
+  gather_facts: false
+  vars:
+    cilium_version: "1.17.4"
+    kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
+
+  tasks:
+    - name: Add Cilium Helm repository
+      ansible.builtin.command:
+        cmd: helm repo add cilium https://helm.cilium.io/
+      register: helm_repo_add
+      failed_when: false
+      changed_when: "'has been added' in helm_repo_add.stdout"
+
+    - name: Update Helm repositories
+      ansible.builtin.command:
+        cmd: helm repo update
+      changed_when: false
+
+    - name: Check if Cilium is already installed
+      ansible.builtin.command:
+        cmd: helm list -n kube-system -o json
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: helm_list
+      changed_when: false
+
+    - name: Parse Cilium installation status
+      ansible.builtin.set_fact:
+        cilium_installed: "{{ (helm_list.stdout | from_json) | selectattr('name', 'equalto', 'cilium') | list | length > 0 }}"
+
+    - name: Install Cilium with Talos-compatible settings
+      ansible.builtin.shell: |
+        helm install cilium cilium/cilium --version {{ cilium_version }} \
+          --namespace kube-system \
+          --set operator.replicas=1 \
+          --set kubeProxyReplacement=true \
+          --set l2announcements.enabled=true \
+          --set ipam.mode=kubernetes \
+          --set hubble.relay.enabled=true \
+          --set hubble.ui.enabled=true \
+          --set securityContext.capabilities.ciliumAgent="{CHOWN,KILL,NET_ADMIN,NET_RAW,IPC_LOCK,SYS_ADMIN,SYS_RESOURCE,DAC_OVERRIDE,FOWNER,SETGID,SETUID}" \
+          --set securityContext.capabilities.cleanCiliumState="{NET_ADMIN,SYS_ADMIN,SYS_RESOURCE}" \
+          --set cgroup.autoMount.enabled=false \
+          --set cgroup.hostRoot=/sys/fs/cgroup \
+          --wait --timeout=10m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      when: not cilium_installed
+      register: cilium_install
+      async: 600
+      poll: 10
+
+    - name: Upgrade Cilium if already installed
+      ansible.builtin.shell: |
+        helm upgrade cilium cilium/cilium --version {{ cilium_version }} \
+          --namespace kube-system \
+          --reuse-values \
+          --wait --timeout=10m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      when: cilium_installed
+      register: cilium_upgrade
+
+    - name: Wait for Cilium agents to be ready
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Ready pod -l k8s-app=cilium -n kube-system --timeout=5m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: cilium_wait
+      retries: 3
+      delay: 10
+      until: cilium_wait.rc == 0
+
+    - name: Get Cilium agent status
+      ansible.builtin.command:
+        cmd: kubectl get pods -n kube-system -l k8s-app=cilium -o wide
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: cilium_pods
+      changed_when: false
+
+    - name: Display Cilium status
+      ansible.builtin.debug:
+        msg: |
+          ✓ Cilium {{ cilium_version }} installed successfully
+
+          {{ cilium_pods.stdout }}
+
+          Next steps:
+          1. Configure L2 announcements: ansible-playbook playbooks/talos-configure-networking.yml
+          2. Deploy storage: ansible-playbook playbooks/talos-deploy-storage.yml

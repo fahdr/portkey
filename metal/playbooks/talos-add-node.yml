@@ -1,0 +1,87 @@
+---
+- name: Add nodes to existing Talos cluster
+  hosts: talos
+  gather_facts: false
+  serial: 1  # Add nodes one at a time for safety
+  tasks:
+    - name: Apply Talos configuration to new node
+      include_role:
+        name: talos_config
+      tags:
+        - config
+
+    - name: Wait for node to join cluster
+      kubernetes.core.k8s_info:
+        kind: Node
+        name: "{{ inventory_hostname }}"
+        kubeconfig: "{{ playbook_dir }}/../kubeconfig-talos.yaml"
+      delegate_to: localhost
+      register: node_status
+      retries: 30
+      delay: 10
+      until: >
+        node_status.resources | length > 0 and
+        node_status.resources[0].status.conditions |
+        selectattr('type', 'equalto', 'Ready') |
+        selectattr('status', 'equalto', 'True') |
+        list | length > 0
+
+    - name: Display node join status
+      ansible.builtin.debug:
+        msg: |
+          Node {{ inventory_hostname }} successfully joined the cluster!
+          - IP: {{ ansible_host }}
+          - Role: {{ 'talos_masters' in group_names | ternary('Control Plane', 'Worker') }}
+          - Status: Ready
+      delegate_to: localhost
+
+- name: Verify etcd cluster health (control plane nodes only)
+  hosts: talos_masters[0]
+  gather_facts: false
+  tasks:
+    - name: Check etcd members
+      ansible.builtin.command:
+        cmd: >
+          talosctl --nodes {{ ansible_host }}
+          --talosconfig {{ playbook_dir }}/../talos-configs/talosconfig
+          etcd members
+      delegate_to: localhost
+      register: etcd_members
+      changed_when: false
+
+    - name: Display etcd status
+      ansible.builtin.debug:
+        msg: |
+          etcd cluster status:
+          {{ etcd_members.stdout }}
+
+          Control plane nodes: {{ groups['talos_masters'] | length }}
+          Quorum status: {{ (groups['talos_masters'] | length >= 3) | ternary('HA (3+ nodes)', 'WARNING: Less than 3 nodes, not fully HA') }}
+
+- name: Cluster summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get all cluster nodes
+      kubernetes.core.k8s_info:
+        kind: Node
+        kubeconfig: "{{ playbook_dir }}/../kubeconfig-talos.yaml"
+      register: all_nodes
+
+    - name: Display cluster summary
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          Talos Cluster Status
+          ============================================
+
+          Total nodes: {{ all_nodes.resources | length }}
+          Control plane: {{ groups['talos_masters'] | length }}
+          Workers: {{ groups['talos_workers'] | length }}
+
+          Nodes:
+          {% for node in all_nodes.resources %}
+          - {{ node.metadata.name }}: {{ node.status.nodeInfo.kubeletVersion }} ({{ node.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first }})
+          {% endfor %}
+
+          HA Status: {{ (groups['talos_masters'] | length >= 3) | ternary('✓ Full HA (3+ control plane nodes)', '⚠ Not fully HA (need 3+ control plane nodes)') }}

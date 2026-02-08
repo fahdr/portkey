@@ -1,0 +1,40 @@
+---
+- name: Configure Cilium networking (L2 announcements, IP pools)
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
+    loadbalancer_pool_cidr: "192.168.0.224/27"  # Production pool
+
+  tasks:
+    - name: Apply Cilium L2 Announcement Policy
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig }}"
+        definition:
+          apiVersion: cilium.io/v2alpha1
+          kind: CiliumL2AnnouncementPolicy
+          metadata:
+            name: default
+          spec:
+            externalIPs: true
+            loadBalancerIPs: true
+
+    - name: Apply Cilium LoadBalancer IP Pool
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig }}"
+        definition:
+          apiVersion: cilium.io/v2alpha1
+          kind: CiliumLoadBalancerIPPool
+          metadata:
+            name: default
+          spec:
+            blocks:
+              - cidr: "{{ loadbalancer_pool_cidr }}"
+
+    - name: Display networking configuration status
+      ansible.builtin.debug:
+        msg: |
+          ✓ Cilium networking configured
+          LoadBalancer IP Pool: {{ loadbalancer_pool_cidr }}

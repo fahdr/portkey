@@ -1,0 +1,44 @@
+---
+# Talos configuration settings
+talos_version: "{{ hostvars[inventory_hostname].talos_version | default('v1.9.4') }}"
+kubernetes_version: "{{ hostvars[inventory_hostname].kubernetes_version | default('v1.33.0') }}"
+cluster_name: "portkey-talos"
+control_plane_endpoint: "{{ hostvars['localhost'].control_plane_endpoint | default('192.168.0.100') }}"
+
+# Config output directory
+talos_config_dir: "{{ playbook_dir }}/talos-configs"
+talos_patches_dir: "{{ talos_config_dir }}/patches"
+
+# Network configuration
+pod_subnet: "10.0.1.0/8"
+service_subnet: "10.43.0.0/16"
+dns_servers:
+  - "192.168.0.1"  # Gateway/OpnSense with AdGuard
+  - "8.8.8.8"  # Fallback
+gateway: "192.168.0.1"
+
+# Control plane settings
+allow_scheduling_on_control_planes: false  # Dedicated control plane
+
+# Feature gates (matching K3s configuration)
+api_server_extra_args:
+  enable-aggregator-routing: "true"
+  feature-gates: "MutatingAdmissionPolicy=true"
+  runtime-config: "admissionregistration.k8s.io/v1alpha1=true"
+
+# Cert SANs for API server
+cert_sans:
+  - "{{ control_plane_endpoint }}"
+  - "192.168.0.11"  # metal0
+  - "192.168.0.12"  # metal1
+  - "192.168.0.13"  # metal2
+
+# Time servers
+time_servers:
+  - time.cloudflare.com
+
+# Is this node a master?
+is_master: "{{ 'talos_masters' in group_names }}"
+
+# Should this node have the VIP?
+has_vip: "{{ hostvars[inventory_hostname].talos_vip_enabled | default(false) }}"

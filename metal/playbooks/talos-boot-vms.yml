@@ -1,0 +1,176 @@
+---
+- name: Boot VMs into Talos Linux
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_HOST') }}"
+    proxmox_user: "{{ lookup('env', 'PROXMOX_USER') }}"
+    proxmox_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+    proxmox_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+    talos_version: v1.12.3
+    talos_iso_url: "https://github.com/siderolabs/talos/releases/download/{{ talos_version }}/metal-amd64.iso"
+    talos_iso_name: "talos-{{ talos_version }}-amd64.iso"
+    download_dir: "{{ playbook_dir }}/../roles/talos_vm/files"
+
+  tasks:
+    - name: Load environment variables from .env
+      ansible.builtin.shell:
+        cmd: "grep -v '^#' {{ playbook_dir }}/../.env | xargs"
+      register: env_vars
+      changed_when: false
+
+    - name: Set Proxmox credentials from .env
+      ansible.builtin.set_fact:
+        proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+
+    - name: Create download directory
+      ansible.builtin.file:
+        path: "{{ download_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download Talos ISO
+      ansible.builtin.get_url:
+        url: "{{ talos_iso_url }}"
+        dest: "{{ download_dir }}/{{ talos_iso_name }}"
+        mode: '0644'
+      register: iso_download
+
+    - name: Display ISO download status
+      ansible.builtin.debug:
+        msg: "Talos ISO downloaded to {{ download_dir }}/{{ talos_iso_name }}"
+
+- name: Configure VMs on Proxmox nodes
+  hosts: talos
+  gather_facts: false
+  serial: 1
+  vars:
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_HOST') | default('192.168.0.2') }}"
+    proxmox_user: "{{ lookup('env', 'PROXMOX_USER') | default('root@pam') }}"
+    proxmox_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+    proxmox_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+    talos_version: v1.12.3
+    talos_iso_name: "talos-{{ talos_version }}-amd64.iso"
+    download_dir: "{{ playbook_dir }}/../roles/talos_vm/files"
+    iso_storage: local
+
+  tasks:
+    - name: Set Proxmox credentials from .env
+      ansible.builtin.set_fact:
+        proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+      delegate_to: localhost
+
+    - name: Check if ISO already exists on Proxmox node
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/storage/{{ iso_storage }}/content"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+      register: iso_list
+      delegate_to: localhost
+
+    - name: Check if our ISO is in the list
+      ansible.builtin.set_fact:
+        iso_exists: "{{ iso_list.json.data | selectattr('volid', 'search', talos_iso_name) | list | length > 0 }}"
+      delegate_to: localhost
+
+    - name: Upload ISO to Proxmox node
+      ansible.builtin.shell:
+        cmd: >
+          curl -k -X POST
+          -H "Authorization: PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+          -F "content=iso"
+          -F "filename=@{{ download_dir }}/{{ talos_iso_name }}"
+          "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/storage/{{ iso_storage }}/upload"
+      delegate_to: localhost
+      when: not iso_exists
+      register: upload_result
+
+    - name: Display upload result
+      ansible.builtin.debug:
+        msg: "ISO uploaded to {{ proxmox_node }}"
+      when: not iso_exists
+
+    - name: Stop VM if running
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_id }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ vm_id }}"
+        state: stopped
+        validate_certs: false
+      delegate_to: localhost
+      ignore_errors: true
+
+    - name: Wait for VM to stop
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Configure VM to boot from ISO
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          ide2: "{{ iso_storage }}:iso/{{ talos_iso_name }},media=cdrom"
+          boot: "order=ide2;scsi0"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+      register: vm_config
+
+    - name: Display VM configuration result
+      ansible.builtin.debug:
+        msg: "VM {{ vm_id }} configured to boot from Talos ISO"
+
+    - name: Start VM
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_user }}"
+        api_token_id: "{{ proxmox_token_id }}"
+        api_token_secret: "{{ proxmox_token_secret }}"
+        node: "{{ proxmox_node }}"
+        vmid: "{{ vm_id }}"
+        state: started
+        validate_certs: false
+      delegate_to: localhost
+
+    - name: Wait for Talos API to be ready
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 50000
+        delay: 30
+        timeout: 300
+        state: started
+      delegate_to: localhost
+
+    - name: Display VM boot status
+      ansible.builtin.debug:
+        msg: "VM {{ inventory_hostname }} ({{ vm_id }}) booted into Talos successfully"
+
+- name: Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          All VMs booted into Talos Linux!
+
+          Next steps:
+          1. Apply machine configs: cd metal && ansible-playbook playbooks/talos-apply-configs.yml
+          2. Bootstrap cluster: talosctl bootstrap --nodes 192.168.0.11
+          3. Get kubeconfig: talosctl kubeconfig
+          ========================================

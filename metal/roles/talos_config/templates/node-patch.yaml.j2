@@ -1,0 +1,15 @@
+---
+machine:
+  network:
+    hostname: {{ inventory_hostname }}
+    interfaces:
+      - interface: eth0
+        addresses:
+          - {{ ansible_host }}/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: {{ gateway }}
+{% if has_vip %}
+        vip:
+          ip: {{ control_plane_endpoint }}
+{% endif %}

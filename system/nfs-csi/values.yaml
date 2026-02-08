@@ -14,7 +14,7 @@ csi-driver-nfs:
         memory: 20Mi
     # Create volume snapshot CRDs.
     customResourceDefinitions:
-      enabled: true   #if set true, VolumeSnapshot, VolumeSnapshotContent and VolumeSnapshotClass CRDs will be created. Set it false, If they already exist in cluster.
+      enabled: false   #if set true, VolumeSnapshot, VolumeSnapshotContent and VolumeSnapshotClass CRDs will be created. Set it false, If they already exist in cluster.
 
 
   volumeSnapshotClass:

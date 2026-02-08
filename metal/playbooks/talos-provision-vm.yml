@@ -1,0 +1,28 @@
+---
+- name: Provision Talos VMs on Proxmox
+  hosts: talos
+  gather_facts: false
+  roles:
+    - role: talos_vm
+      tags:
+        - provision
+        - vm
+
+- name: Display provisioning summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show provisioned VMs
+      ansible.builtin.debug:
+        msg: |
+          VMs provisioned successfully!
+
+          Next steps:
+          1. Apply Talos configuration:
+             ansible-playbook -i inventories/talos.yml playbooks/talos-configure.yml
+
+          2. Bootstrap cluster (if new cluster):
+             ansible-playbook -i inventories/talos.yml playbooks/talos-bootstrap.yml
+
+          3. Or add nodes to existing cluster:
+             ansible-playbook -i inventories/talos.yml playbooks/talos-add-node.yml --limit <node>

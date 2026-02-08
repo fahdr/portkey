@@ -1,16 +1,32 @@
 # Portkey Cluster Architecture
 
+> **✅ MIGRATION COMPLETE**: Cluster successfully migrated to Talos Linux on 2026-02-08.
+>
+> **Deployment Details**: See [metal/TALOS-DEPLOYMENT.md](metal/TALOS-DEPLOYMENT.md) for complete setup documentation.
+>
+> **Migration Guides** (for reference):
+> - **[Simplified](docs/talos-migration-simplified.md)**: Clean cutover approach (used for this migration)
+> - **[Production/Zero-Downtime](docs/k3s-to-talos-migration.md)**: Rolling migration approach
+
 ## Overview
 
-This is a 3-node bare-metal Kubernetes cluster running on Proxmox with external Ceph storage.
+This is a 3-node bare-metal Kubernetes cluster running **Talos Linux v1.12.3** with **Kubernetes v1.35.0** on Proxmox VMs.
+
+**Key Features**:
+- Immutable, API-driven infrastructure
+- Cilium CNI with kube-proxy replacement
+- External Ceph storage + NFS
+- GitOps with ArgoCD
 
 ## Nodes
 
-| Node | Role | Resources | Special Hardware | Proxmox Host | Type |
-|------|------|-----------|------------------|--------------|------|
-| metal0 | Worker | 4 CPU, 42GB RAM | - | mirkwood (AMD Ryzen 5 4500U) | VM |
-| metal1 | Worker | 4 CPU, 26GB RAM | Intel GPU (i915) | rohan (Intel N100) | VM |
-| metal2 | Worker | 4 CPU, 26GB RAM | Intel GPU (i915) | gondor (Intel N100) | VM |
+| Node | Role | Resources | IP | Proxmox Host | VM ID |
+|------|------|-----------|-----|--------------|-------|
+| metal0 | Control Plane | 4 CPU, 44GB RAM | 192.168.0.11 | mirkwood | 106 |
+| metal1 | Control Plane | 4 CPU, 27GB RAM | 192.168.0.12 | rohan | 107 |
+| metal2 | Control Plane | 4 CPU, 27GB RAM | 192.168.0.13 | gondor | 104 |
+
+**Control Plane VIP**: 192.168.0.100 (Talos built-in VIP)
 
 ### GPU Access Notes
 
@@ -137,3 +153,135 @@ Renovate bot creates PRs for image updates. Manual merge required.
 **Option 3: More Intel N100 Nodes**
 - Intel iGPU passthrough proven to work (metal1/metal2)
 - Consistent experience across nodes
+
+---
+
+## Talos Migration Plan
+
+### Migration Strategy
+
+The cluster is being migrated from K3s (Fedora 39) to **Talos Linux** using a **rolling in-place** approach:
+
+1. **Phase 1** (Week 1): Convert metal2 to Talos + add rivendell (metal3) → 2-node Talos cluster
+2. **Phase 2** (Weeks 2-3): Deploy infrastructure and migrate low-risk applications
+3. **Phase 3** (Week 3): Convert metal1 to Talos → 3-node cluster (HA control plane achieved)
+4. **Phase 4** (Week 4): Migrate critical apps, convert metal0 → 4-node final cluster
+5. **Phase 5** (Week 4-5): Cleanup, update IP pools, documentation
+
+**Total Duration**: 4-5 weeks with gradual, safe cutover
+
+### Target Cluster Configuration
+
+#### Nodes (After Migration)
+
+| Node | Hostname | IP | Role | Resources | Proxmox Host |
+|------|----------|-----|------|-----------|--------------|
+| metal0 | mirkwood | 192.168.0.11 | Control Plane | 4 CPU, 26GB RAM | mirkwood (AMD Ryzen 5 4500U) |
+| metal1 | rohan | 192.168.0.12 | Control Plane | 4 CPU, 26GB RAM | rohan (Intel N100) |
+| metal2 | gondor | 192.168.0.13 | Control Plane | 4 CPU, 26GB RAM | gondor (Intel N100) |
+| **metal3** | **rivendell** | **192.168.0.14** | **Worker** | **4 CPU, 10GB RAM** | **rivendell** |
+
+**New**: metal3 (rivendell) added as worker node
+
+#### Talos Linux Benefits
+
+- **Immutable OS**: No SSH access, API-driven configuration
+- **Security**: Minimal attack surface, automatic updates
+- **Declarative**: Full cluster config in YAML
+- **Built-in VIP**: No kube-vip pod needed
+- **GitOps-friendly**: Machine configs in version control
+
+### Networking (After Migration)
+
+- **Control Plane VIP**: 192.168.0.100 (Talos built-in VIP)
+- **CNI**: Cilium 1.17.4 (kube-proxy replacement, same as K3s)
+- **Pod CIDR**: 10.0.1.0/8 (unchanged)
+- **Service CIDR**: 10.43.0.0/16 (unchanged)
+- **LoadBalancer Pool**: 192.168.0.224/27 (Cilium L2 announcements, unchanged)
+- **Ingress**: NGINX Ingress Controller (unchanged)
+
+### Storage (Unchanged)
+
+- **Ceph RBD**: Default storage class (external Proxmox Ceph cluster)
+- **CephFS**: Shared filesystem (Proxmox-managed MDS)
+- **NFS**: 192.168.0.41:/nfs/k8s (Shire ZFS array)
+
+All existing PVCs and data will be preserved during migration.
+
+### Ansible Automation
+
+New Talos provisioning playbooks in `metal/playbooks/`:
+
+```bash
+# Create rivendell VM
+ansible-playbook -i inventories/talos.yml playbooks/talos-provision-vm.yml --limit metal3
+
+# Apply Talos configuration to nodes
+ansible-playbook -i inventories/talos.yml playbooks/talos-configure.yml
+
+# Bootstrap new Talos cluster
+ansible-playbook -i inventories/talos.yml playbooks/talos-bootstrap.yml
+
+# Add node to existing cluster
+ansible-playbook -i inventories/talos.yml playbooks/talos-add-node.yml --limit metal1
+```
+
+### Talos Operations (After Migration)
+
+#### Access the cluster
+
+```bash
+# Set kubeconfig
+export KUBECONFIG=/workspaces/portkey/metal/kubeconfig-talos.yaml
+
+# Set talosconfig
+export TALOSCONFIG=/workspaces/portkey/metal/talos-configs/talosconfig
+```
+
+#### Common talosctl commands
+
+```bash
+# Interactive dashboard
+talosctl --nodes 192.168.0.11 dashboard
+
+# Check cluster health
+talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13 health
+
+# View logs
+talosctl --nodes 192.168.0.11 logs kubelet
+talosctl --nodes 192.168.0.11 logs etcd
+talosctl --nodes 192.168.0.11 dmesg
+
+# Check etcd cluster
+talosctl --nodes 192.168.0.11 etcd members
+talosctl --nodes 192.168.0.11 etcd status
+
+# Upgrade Talos
+talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13,192.168.0.14 upgrade \
+  --image ghcr.io/siderolabs/installer:v1.10.0 --preserve
+
+# Upgrade Kubernetes
+talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13 upgrade-k8s --to 1.34.0
+```
+
+### Migration Status
+
+- [ ] **Phase 1**: Bootstrap Talos cluster (metal2 + metal3/rivendell)
+- [ ] **Phase 2**: Deploy infrastructure (storage, ArgoCD, monitoring)
+- [ ] **Phase 2**: Migrate stateless & low-risk apps (8-12 apps)
+- [ ] **Phase 3**: Add metal1 to Talos cluster (achieve HA)
+- [ ] **Phase 4**: Migrate critical apps (Vaultwarden, Home Assistant, Immich)
+- [ ] **Phase 4**: Add metal0 to Talos cluster (final 4-node cluster)
+- [ ] **Phase 5**: Decommission K3s, update documentation
+
+**Current Phase**: Planning & Ansible automation complete
+
+### Rollback Plan
+
+- VM snapshots in Proxmox before each phase
+- VolSync backups verified current before migration
+- K3s cluster kept running until all apps migrated
+- Per-app rollback: scale up on K3s, switch DNS back
+- Full rollback: restore VMs from snapshots, restart K3s
+
+For detailed migration procedures, see [docs/k3s-to-talos-migration.md](docs/k3s-to-talos-migration.md)

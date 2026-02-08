@@ -1,0 +1,31 @@
+---
+# Talos version and image settings
+talos_version: "{{ hostvars[inventory_hostname].talos_version | default('v1.9.4') }}"
+talos_image_base_url: "https://github.com/siderolabs/talos/releases/download"
+talos_image_name: "metal-amd64.raw.zst"
+talos_image_url: "{{ talos_image_base_url }}/{{ talos_version }}/{{ talos_image_name }}"
+talos_image_checksum_url: "{{ talos_image_base_url }}/{{ talos_version }}/{{ talos_image_name }}.sha256"
+talos_download_dir: "{{ role_path }}/files"
+
+# Proxmox settings (from inventory or group_vars)
+proxmox_api_host: "{{ hostvars[inventory_hostname].proxmox_host }}"
+proxmox_node: "{{ hostvars[inventory_hostname].proxmox_node }}"
+proxmox_user: "{{ hostvars['localhost'].proxmox_user | default('root@pam') }}"
+proxmox_token_id: "{{ hostvars['localhost'].proxmox_token_id | default('') }}"
+proxmox_token_secret: "{{ hostvars['localhost'].proxmox_token_secret | default('') }}"
+
+# VM configuration (from inventory)
+vm_id: "{{ hostvars[inventory_hostname].vm_id }}"
+vm_name: "{{ inventory_hostname }}"
+vm_cpu_cores: "{{ hostvars[inventory_hostname].cpu }}"
+vm_memory: "{{ hostvars[inventory_hostname].memory }}"
+vm_disk_size: "{{ hostvars[inventory_hostname].disk_size }}G"
+vm_storage: "local-lvm"  # Default Proxmox storage
+vm_network_bridge: "vmbr1"  # LAN bridge
+vm_network_interface: "{{ hostvars[inventory_hostname].network_interface | default('ens18') }}"
+
+# OS type and boot settings
+vm_ostype: "l26"  # Linux 2.6+ kernel
+vm_agent_enabled: true  # Enable QEMU guest agent
+vm_boot_order: "order=scsi0"
+vm_cpu_type: "host"  # Pass through host CPU features

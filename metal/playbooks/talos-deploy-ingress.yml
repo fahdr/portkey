@@ -1,0 +1,90 @@
+---
+- name: Deploy NGINX Ingress Controller to Talos cluster
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
+    ingress_nginx_version: "controller-v1.11.3"
+
+  tasks:
+    - name: Check if NGINX Ingress Controller is already deployed
+      ansible.builtin.command:
+        cmd: kubectl get namespace ingress-nginx
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: ingress_ns_check
+      failed_when: false
+      changed_when: false
+
+    - name: Deploy NGINX Ingress Controller
+      ansible.builtin.command:
+        cmd: >
+          kubectl apply -f
+          https://raw.githubusercontent.com/kubernetes/ingress-nginx/{{ ingress_nginx_version }}/deploy/static/provider/cloud/deploy.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      when: ingress_ns_check.rc != 0
+      register: ingress_deploy
+
+    - name: Wait for ingress-nginx namespace to be created
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Active namespace/ingress-nginx --timeout=2m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      when: ingress_ns_check.rc != 0
+
+    - name: Wait for admission secret to be created
+      ansible.builtin.command:
+        cmd: kubectl wait --for=jsonpath='{.data}' secret/ingress-nginx-admission -n ingress-nginx --timeout=2m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      retries: 5
+      delay: 10
+      register: secret_wait
+      until: secret_wait.rc == 0
+
+    - name: Wait for Ingress Controller to be ready
+      ansible.builtin.command:
+        cmd: >
+          kubectl wait --for=condition=Ready pod
+          -l app.kubernetes.io/component=controller
+          -n ingress-nginx --timeout=5m
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: controller_wait
+      retries: 3
+      delay: 10
+      until: controller_wait.rc == 0
+
+    - name: Get Ingress Controller service
+      ansible.builtin.command:
+        cmd: kubectl get svc ingress-nginx-controller -n ingress-nginx -o wide
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: ingress_svc
+      changed_when: false
+
+    - name: Get Ingress Controller LoadBalancer IP
+      ansible.builtin.command:
+        cmd: >
+          kubectl get svc ingress-nginx-controller -n ingress-nginx
+          -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: ingress_ip
+      changed_when: false
+
+    - name: Display Ingress Controller status
+      ansible.builtin.debug:
+        msg: |
+          ✓ NGINX Ingress Controller deployed successfully
+
+          {{ ingress_svc.stdout }}
+
+          LoadBalancer IP: {{ ingress_ip.stdout }}
+
+          Configure DNS to point your domain to this IP:
+          - *.themainfreak.com → {{ ingress_ip.stdout }}
+
+          Or add to /etc/hosts for testing:
+          {{ ingress_ip.stdout }} argocd.themainfreak.com

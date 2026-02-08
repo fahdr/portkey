@@ -1,0 +1,28 @@
+---
+- name: Apply Talos machine configuration
+  hosts: talos
+  gather_facts: false
+  roles:
+    - role: talos_config
+      tags:
+        - config
+        - configure
+
+- name: Display configuration summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Show configuration status
+      ansible.builtin.debug:
+        msg: |
+          Talos machine configurations applied!
+
+          Nodes will reboot to apply the configuration (~2-3 minutes).
+
+          Next steps:
+          1. Wait for nodes to finish rebooting
+          2. For new cluster, bootstrap etcd:
+             ansible-playbook -i inventories/talos.yml playbooks/talos-bootstrap.yml
+
+          3. For existing cluster, nodes will automatically join
+             Check status: talosctl --nodes <ip> get members

@@ -1,0 +1,106 @@
+---
+- name: Create download directory
+  ansible.builtin.file:
+    path: "{{ talos_download_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+
+- name: Download Talos metal image
+  ansible.builtin.get_url:
+    url: "{{ talos_image_url }}"
+    dest: "{{ talos_download_dir }}/{{ talos_image_name }}"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+  register: talos_download
+  retries: 3
+  delay: 10
+
+- name: Extract Talos image
+  ansible.builtin.command:
+    cmd: "zstd -d {{ talos_download_dir }}/{{ talos_image_name }} -o {{ talos_download_dir }}/metal-amd64.raw"
+    creates: "{{ talos_download_dir }}/metal-amd64.raw"
+  delegate_to: localhost
+  run_once: true
+  when: talos_download is changed or not ansible_check_mode
+
+- name: Check if VM already exists
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_token_id }}"
+    api_token_secret: "{{ proxmox_token_secret }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vm_id }}"
+    state: current
+    validate_certs: false
+  delegate_to: localhost
+  register: vm_status
+  failed_when: false
+  changed_when: false
+
+- name: Create Talos VM on Proxmox
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_token_id }}"
+    api_token_secret: "{{ proxmox_token_secret }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vm_id }}"
+    name: "{{ vm_name }}"
+    cpu: "{{ vm_cpu_type }}"
+    cores: "{{ vm_cpu_cores }}"
+    memory: "{{ vm_memory }}"
+    scsihw: "virtio-scsi-pci"
+    scsi:
+      scsi0: "{{ vm_storage }}:{{ vm_disk_size }},format=raw,import-from={{ talos_download_dir }}/metal-amd64.raw"
+    net:
+      net0: "virtio,bridge={{ vm_network_bridge }},firewall=0"
+    boot: "{{ vm_boot_order }}"
+    ostype: "{{ vm_ostype }}"
+    agent: "enabled=1"
+    onboot: true
+    autostart: true
+    state: present
+    validate_certs: false
+  delegate_to: localhost
+  when: vm_status.msg is defined and 'does not exist' in vm_status.msg
+  register: vm_created
+
+- name: Start VM if not running
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_user }}"
+    api_token_id: "{{ proxmox_token_id }}"
+    api_token_secret: "{{ proxmox_token_secret }}"
+    node: "{{ proxmox_node }}"
+    vmid: "{{ vm_id }}"
+    state: started
+    validate_certs: false
+  delegate_to: localhost
+  when: vm_created is changed or (vm_status is defined and vm_status.status is defined and vm_status.status != 'running')
+
+- name: Wait for VM to boot
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 50000  # Talos API port
+    delay: 10
+    timeout: 300
+    state: started
+  delegate_to: localhost
+  when: vm_created is changed
+
+- name: Display VM creation status
+  ansible.builtin.debug:
+    msg: |
+      VM {{ vm_name }} (ID: {{ vm_id }}) status:
+      {% if vm_created is changed %}
+      - Created successfully on {{ proxmox_node }}
+      {% else %}
+      - Already exists
+      {% endif %}
+      - IP: {{ ansible_host }}
+      - Resources: {{ vm_cpu_cores }} CPU, {{ vm_memory }}MB RAM
+      - Ready for Talos configuration

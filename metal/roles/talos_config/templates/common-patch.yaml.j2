@@ -1,0 +1,45 @@
+---
+machine:
+  network:
+    nameservers:
+{% for dns in dns_servers %}
+      - {{ dns }}
+{% endfor %}
+  time:
+    servers:
+{% for server in time_servers %}
+      - {{ server }}
+{% endfor %}
+  kubelet:
+    extraArgs:
+      rotate-server-certificates: "true"
+  install:
+    disk: /dev/sda
+    image: ghcr.io/siderolabs/installer:{{ talos_version }}
+    bootloader: true
+    wipe: false
+
+cluster:
+  network:
+    cni:
+      name: none  # Install Cilium manually after bootstrap
+    podSubnets:
+      - {{ pod_subnet }}
+    serviceSubnets:
+      - {{ service_subnet }}
+  apiServer:
+    certSANs:
+{% for san in cert_sans %}
+      - {{ san }}
+{% endfor %}
+    extraArgs:
+{% for key, value in api_server_extra_args.items() %}
+      {{ key }}: "{{ value }}"
+{% endfor %}
+  proxy:
+    disabled: true  # Cilium replaces kube-proxy
+  discovery:
+    enabled: true
+    registries:
+      kubernetes:
+        disabled: false

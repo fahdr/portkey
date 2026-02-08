@@ -1,0 +1,100 @@
+---
+- name: Check if talosctl is installed
+  ansible.builtin.command: which talosctl
+  register: talosctl_check
+  failed_when: false
+  changed_when: false
+  delegate_to: localhost
+  run_once: true
+
+- name: Install talosctl
+  ansible.builtin.shell: |
+    curl -sL https://talos.dev/install | sh
+  delegate_to: localhost
+  run_once: true
+  when: talosctl_check.rc != 0
+
+- name: Create Talos config directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ talos_config_dir }}"
+    - "{{ talos_patches_dir }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Template common patch
+  ansible.builtin.template:
+    src: common-patch.yaml.j2
+    dest: "{{ talos_patches_dir }}/common.yaml"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Template control plane patch
+  ansible.builtin.template:
+    src: controlplane-patch.yaml.j2
+    dest: "{{ talos_patches_dir }}/controlplane.yaml"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Template worker patch
+  ansible.builtin.template:
+    src: worker-patch.yaml.j2
+    dest: "{{ talos_patches_dir }}/worker.yaml"
+    mode: '0644'
+  delegate_to: localhost
+  run_once: true
+
+- name: Template node-specific patches
+  ansible.builtin.template:
+    src: node-patch.yaml.j2
+    dest: "{{ talos_patches_dir }}/{{ inventory_hostname }}.yaml"
+    mode: '0644'
+  delegate_to: localhost
+
+- name: Check if secrets file exists
+  ansible.builtin.stat:
+    path: "{{ talos_config_dir }}/secrets.yaml"
+  register: secrets_file
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate Talos machine configs
+  ansible.builtin.command:
+    cmd: >
+      talosctl gen config {{ cluster_name }} https://{{ control_plane_endpoint }}:6443
+      --output-dir {{ talos_config_dir }}
+      --config-patch @{{ talos_patches_dir }}/common.yaml
+      --config-patch-control-plane @{{ talos_patches_dir }}/controlplane.yaml
+      --config-patch-worker @{{ talos_patches_dir }}/worker.yaml
+    creates: "{{ talos_config_dir }}/controlplane.yaml"
+  delegate_to: localhost
+  run_once: true
+  when: not secrets_file.stat.exists
+
+- name: Apply Talos configuration to nodes
+  ansible.builtin.command:
+    cmd: >
+      talosctl apply-config --insecure
+      --nodes {{ ansible_host }}
+      --file {{ talos_config_dir }}/{{ is_master | ternary('controlplane', 'worker') }}.yaml
+      --config-patch @{{ talos_patches_dir }}/{{ inventory_hostname }}.yaml
+  delegate_to: localhost
+  register: apply_result
+  changed_when: "'applied' in apply_result.stdout or apply_result.rc == 0"
+  failed_when: apply_result.rc != 0 and 'already applied' not in apply_result.stderr
+
+- name: Display configuration status
+  ansible.builtin.debug:
+    msg: |
+      Talos configuration applied to {{ inventory_hostname }}:
+      - Type: {{ is_master | ternary('Control Plane', 'Worker') }}
+      - IP: {{ ansible_host }}
+      {% if has_vip %}
+      - VIP: {{ control_plane_endpoint }} (assigned)
+      {% endif %}
+      - Node will reboot to apply configuration

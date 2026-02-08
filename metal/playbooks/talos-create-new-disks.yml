@@ -1,0 +1,144 @@
+---
+- name: Create new disks for Talos and preserve old K3s disks
+  hosts: talos_masters
+  gather_facts: false
+  serial: 1
+  vars:
+    proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+    talos_version: v1.12.3
+    talos_iso_name: "talos-{{ talos_version }}-amd64.iso"
+    iso_storage: local
+    vm_storage: local-lvm
+    new_disk_size: 50
+
+  tasks:
+    - name: Display VM info
+      ansible.builtin.debug:
+        msg: "Preparing {{ inventory_hostname }} (VM {{ vm_id }}) on {{ proxmox_node }} for Talos"
+
+    - name: Stop VM if running
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/stop"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+        status_code: [200, 500]
+      delegate_to: localhost
+      register: stop_result
+
+    - name: Wait for VM to stop
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Get current VM configuration
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+      register: vm_config
+      delegate_to: localhost
+
+    - name: Determine old disk device (scsi0, scsi1, or virtio0)
+      ansible.builtin.set_fact:
+        old_disk_device: "{{ 'scsi0' if vm_config.json.data.scsi0 is defined else ('scsi1' if vm_config.json.data.scsi1 is defined else 'virtio0') }}"
+        old_disk_name: "{{ vm_config.json.data.scsi0 | default(vm_config.json.data.scsi1 | default(vm_config.json.data.virtio0)) }}"
+
+    - name: Display old disk info
+      ansible.builtin.debug:
+        msg: "Old disk: {{ old_disk_device }} = {{ old_disk_name }}"
+
+    - name: Detach old disk (becomes unused - preserved as backup)
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          delete: "{{ old_disk_device }}"
+        validate_certs: false
+      delegate_to: localhost
+      register: detach_result
+
+    - name: Create new disk for Talos
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          scsi0: "{{ vm_storage }}:{{ new_disk_size }},iothread=1,ssd=1"
+        validate_certs: false
+      delegate_to: localhost
+      register: create_disk_result
+
+    - name: Set boot order to CD first, then new disk
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          ide2: "{{ iso_storage }}:iso/{{ talos_iso_name }},media=cdrom"
+          boot: "order=ide2;scsi0"
+        validate_certs: false
+      delegate_to: localhost
+
+    - name: Start VM with Talos ISO
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+      delegate_to: localhost
+
+    - name: Wait for VM to boot
+      ansible.builtin.pause:
+        seconds: 45
+        prompt: "Waiting for {{ inventory_hostname }} to boot from Talos ISO..."
+
+    - name: Wait for Talos API to be ready
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 50000
+        delay: 10
+        timeout: 300
+        state: started
+      delegate_to: localhost
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg: |
+          ✓ {{ inventory_hostname }} (VM {{ vm_id }}) booted into Talos successfully
+          Old K3s disk preserved as unused0 (backup)
+
+- name: Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          All VMs booted into Talos Linux!
+          Old K3s disks preserved as backups.
+
+          Next steps:
+          1. Apply machine configs:
+             cd /workspaces/portkey/metal && ansible-playbook playbooks/talos-apply-configs.yml
+
+          2. Bootstrap cluster:
+             talosctl bootstrap --nodes 192.168.0.11 --talosconfig talos-configs/talosconfig
+
+          3. Get kubeconfig:
+             talosctl kubeconfig --nodes 192.168.0.11 --talosconfig talos-configs/talosconfig
+          ========================================

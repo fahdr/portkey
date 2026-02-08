@@ -1,0 +1,5 @@
+---
+cluster:
+  controlPlane:
+    endpoint: https://{{ control_plane_endpoint }}:6443
+  allowSchedulingOnControlPlanes: {{ allow_scheduling_on_control_planes | lower }}

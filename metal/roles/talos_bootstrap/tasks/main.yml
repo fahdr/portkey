@@ -1,0 +1,119 @@
+---
+- name: Bootstrap Talos cluster (etcd initialization)
+  ansible.builtin.command:
+    cmd: >
+      talosctl bootstrap
+      --nodes {{ bootstrap_ip }}
+      --talosconfig {{ talos_config_file }}
+  delegate_to: localhost
+  run_once: true
+  register: bootstrap_result
+  changed_when: bootstrap_result.rc == 0
+  failed_when: bootstrap_result.rc != 0 and 'already bootstrapped' not in bootstrap_result.stderr
+
+- name: Wait for Kubernetes API to be ready
+  ansible.builtin.command:
+    cmd: >
+      talosctl --nodes {{ bootstrap_ip }}
+      --talosconfig {{ talos_config_file }}
+      health --server=false
+  delegate_to: localhost
+  run_once: true
+  register: health_check
+  retries: 30
+  delay: 10
+  until: health_check.rc == 0
+  changed_when: false
+
+- name: Export kubeconfig
+  ansible.builtin.command:
+    cmd: >
+      talosctl kubeconfig {{ kubeconfig_file }}
+      --nodes {{ bootstrap_ip }}
+      --talosconfig {{ talos_config_file }}
+      --force
+  delegate_to: localhost
+  run_once: true
+  register: kubeconfig_export
+  changed_when: kubeconfig_export.rc == 0
+
+- name: Add Cilium Helm repository
+  kubernetes.core.helm_repository:
+    name: cilium
+    repo_url: "{{ cilium_repo_url }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Install Cilium CNI
+  kubernetes.core.helm:
+    name: cilium
+    chart_ref: cilium/cilium
+    chart_version: "{{ cilium_version }}"
+    release_namespace: "{{ cilium_namespace }}"
+    create_namespace: false  # kube-system already exists
+    kubeconfig: "{{ kubeconfig_file }}"
+    values: "{{ cilium_values }}"
+    wait: true
+    wait_timeout: "10m"
+  delegate_to: localhost
+  run_once: true
+  register: cilium_install
+
+- name: Wait for Cilium to be ready
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: "{{ cilium_namespace }}"
+    label_selectors:
+      - "app.kubernetes.io/name=cilium-agent"
+    kubeconfig: "{{ kubeconfig_file }}"
+  delegate_to: localhost
+  run_once: true
+  register: cilium_pods
+  retries: 30
+  delay: 10
+  until: >
+    cilium_pods.resources | length > 0 and
+    cilium_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == cilium_pods.resources | length
+
+- name: Apply Cilium L2 Announcement Policy
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_file }}"
+    template: ciliuml2announcementpolicy.yaml.j2
+  delegate_to: localhost
+  run_once: true
+
+- name: Apply Cilium LoadBalancer IP Pool
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_file }}"
+    template: ciliumloadbalancerippool.yaml.j2
+  delegate_to: localhost
+  run_once: true
+
+- name: Verify nodes are Ready
+  kubernetes.core.k8s_info:
+    kind: Node
+    kubeconfig: "{{ kubeconfig_file }}"
+  delegate_to: localhost
+  run_once: true
+  register: nodes_status
+
+- name: Display cluster status
+  ansible.builtin.debug:
+    msg: |
+      Talos cluster bootstrap complete!
+      - Cluster name: {{ cluster_name }}
+      - Control plane endpoint: {{ control_plane_endpoint }}
+      - Kubeconfig: {{ kubeconfig_file }}
+      - Nodes ready: {{ nodes_status.resources | selectattr('status.conditions', 'defined') | selectattr('status.conditions', 'select', 'match', '.*Ready.*True') | list | length }}/{{ nodes_status.resources | length }}
+      - Cilium version: {{ cilium_version }}
+      - LoadBalancer IP pool: {{ load_balancer_ip_pool | join(', ') }}
+
+      Next steps:
+      1. Export kubeconfig: export KUBECONFIG={{ kubeconfig_file }}
+      2. Check cluster: kubectl get nodes
+      3. Deploy storage (Rook Ceph, NFS CSI)
+      4. Deploy ArgoCD
+      5. Begin application migration
+  run_once: true

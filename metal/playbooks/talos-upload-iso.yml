@@ -1,0 +1,54 @@
+---
+- name: Download and Upload Talos ISO to Proxmox
+  hosts: localhost
+  gather_facts: false
+  vars:
+    proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+    talos_version: v1.12.3
+    talos_iso_url: "https://github.com/siderolabs/talos/releases/download/{{ talos_version }}/metal-amd64.iso"
+    talos_iso_name: "talos-{{ talos_version }}-amd64.iso"
+    download_dir: "{{ playbook_dir }}/../roles/talos_vm/files"
+    iso_storage: local
+    proxmox_nodes:
+      - mirkwood
+      - rohan
+      - gondor
+      - rivendell
+
+  tasks:
+    - name: Create download directory
+      ansible.builtin.file:
+        path: "{{ download_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download Talos ISO
+      ansible.builtin.get_url:
+        url: "{{ talos_iso_url }}"
+        dest: "{{ download_dir }}/{{ talos_iso_name }}"
+        mode: '0644'
+      register: iso_download
+
+    - name: Display ISO download status
+      ansible.builtin.debug:
+        msg: "Talos ISO downloaded to {{ download_dir }}/{{ talos_iso_name }}"
+
+    - name: Upload ISO to each Proxmox node
+      ansible.builtin.shell:
+        cmd: >
+          curl -k -X POST
+          -H "Authorization: PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+          -F "content=iso"
+          -F "filename=@{{ download_dir }}/{{ talos_iso_name }}"
+          "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ item }}/storage/{{ iso_storage }}/upload"
+      loop: "{{ proxmox_nodes }}"
+      register: upload_results
+      changed_when: "'200' in upload_results.stdout"
+      failed_when: false
+
+    - name: Display upload results
+      ansible.builtin.debug:
+        msg: "ISO uploaded to all Proxmox nodes: {{ proxmox_nodes | join(', ') }}"

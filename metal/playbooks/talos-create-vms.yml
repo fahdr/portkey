@@ -1,0 +1,118 @@
+---
+- name: Create Talos VMs on Proxmox
+  hosts: talos
+  gather_facts: false
+  serial: 1
+  vars:
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_HOST') | default('192.168.0.2') }}"
+    proxmox_user: "{{ lookup('env', 'PROXMOX_USER') | default('root@pam') }}"
+    proxmox_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') }}"
+    proxmox_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') }}"
+    talos_version: v1.12.3
+    talos_iso_name: "talos-{{ talos_version }}-amd64.iso"
+    iso_storage: local
+    vm_storage: local-lvm
+    vm_disk_size: 50
+    vm_network_bridge: vmbr1
+    vm_cpu_type: host
+    vm_ostype: l26
+
+  tasks:
+    - name: Set Proxmox credentials from .env
+      ansible.builtin.set_fact:
+        proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+        proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+      delegate_to: localhost
+
+    - name: Set VM specs from inventory
+      ansible.builtin.set_fact:
+        vm_cpu_cores: "{{ cpu | default(4) }}"
+        vm_memory: "{{ memory | default(26624) }}"
+
+    - name: Check if VM already exists
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/current"
+        method: GET
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+        status_code: [200, 500]
+      register: vm_exists
+      delegate_to: localhost
+
+    - name: Create VM
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          vmid: "{{ vm_id }}"
+          name: "{{ inventory_hostname }}"
+          memory: "{{ vm_memory }}"
+          cores: "{{ vm_cpu_cores }}"
+          cpu: "{{ vm_cpu_type }}"
+          scsihw: virtio-scsi-pci
+          scsi0: "{{ vm_storage }}:{{ vm_disk_size }}"
+          net0: "virtio,bridge={{ vm_network_bridge }},firewall=0"
+          ostype: "{{ vm_ostype }}"
+          agent: "enabled=1"
+          onboot: "1"
+          ide2: "{{ iso_storage }}:iso/{{ talos_iso_name }},media=cdrom"
+          boot: "order=ide2;scsi0"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+      when: vm_exists.status == 500
+      register: vm_created
+
+    - name: Display VM creation result
+      ansible.builtin.debug:
+        msg: "{{ 'Created VM ' + inventory_hostname + ' (ID: ' + (vm_id | string) + ') on ' + proxmox_node if vm_created is changed else 'VM ' + inventory_hostname + ' already exists' }}"
+
+    - name: Start VM
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+
+    - name: Wait for VM to boot
+      ansible.builtin.pause:
+        seconds: 30
+        prompt: "Waiting for {{ inventory_hostname }} to boot into Talos..."
+
+    - name: Wait for Talos API to be ready
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 50000
+        delay: 10
+        timeout: 300
+        state: started
+      delegate_to: localhost
+
+    - name: Display VM boot status
+      ansible.builtin.debug:
+        msg: "VM {{ inventory_hostname }} (ID: {{ vm_id }}) booted successfully on {{ proxmox_node }}"
+
+- name: Summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          All Talos VMs created and booted!
+
+          Next steps:
+          1. Apply machine configs: cd metal && ansible-playbook playbooks/talos-apply-configs.yml
+          2. Bootstrap cluster: talosctl bootstrap --nodes 192.168.0.11
+          3. Get kubeconfig: talosctl kubeconfig
+          ========================================
