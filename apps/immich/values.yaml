@@ -64,10 +64,8 @@ app-template:
             requests:
               cpu: 100m
               memory: 1Gi
-              gpu.intel.com/i915: 1
             limits:
               memory: 4Gi
-              gpu.intel.com/i915: 1
 
   service:
     server:
