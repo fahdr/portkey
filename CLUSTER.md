@@ -6,11 +6,22 @@ This is a 3-node bare-metal Kubernetes cluster running on Proxmox with external 
 
 ## Nodes
 
-| Node | Role | Resources | Special Hardware |
-|------|------|-----------|------------------|
-| metal0 | Worker | 4 CPU, 42GB RAM | - |
-| metal1 | Worker | 4 CPU, 26GB RAM | Intel GPU (i915) |
-| metal2 | Worker | 4 CPU, 26GB RAM | Intel GPU (i915) |
+| Node | Role | Resources | Special Hardware | Proxmox Host | Type |
+|------|------|-----------|------------------|--------------|------|
+| metal0 | Worker | 4 CPU, 42GB RAM | - | mirkwood (AMD Ryzen 5 4500U) | VM |
+| metal1 | Worker | 4 CPU, 26GB RAM | Intel GPU (i915) | rohan (Intel N100) | VM |
+| metal2 | Worker | 4 CPU, 26GB RAM | Intel GPU (i915) | gondor (Intel N100) | VM |
+
+### GPU Access Notes
+
+**Intel N100 (metal1, metal2)**:
+- VM GPU passthrough works reliably using Intel GVT-g or direct passthrough
+- Using `intel-device-plugins-operator` for `gpu.intel.com/i915` resource
+
+**AMD Ryzen 5 4500U (mirkwood/metal0)**:
+- ⚠️ **VM GPU Passthrough**: Not recommended due to AMD APU reset bug and IOMMU grouping issues
+- ✅ **LXC Alternative**: Can create LXC container (metal3) with native GPU access
+- See [docs/lxc-kubernetes-node.md](docs/lxc-kubernetes-node.md) for LXC setup guide
 
 ## External Dependencies
 
@@ -105,3 +116,24 @@ Renovate bot creates PRs for image updates. Manual merge required.
 1. **metal1 memory overcommit**: Memory limits at ~96%, monitor for OOM
 2. **Renovate authentication**: Check GitHub token if jobs fail
 3. **zigbee2mqtt restarts**: May restart if MQTT broker (mosquitto) restarts first
+4. **AMD GPU on mirkwood**: AMD Ryzen 5 4500U iGPU cannot be passed through to VMs reliably (reset bug + IOMMU issues). Use LXC container for GPU workloads instead.
+
+## Expansion Options
+
+### Adding GPU Capacity
+
+**Option 1: LXC Container on Mirkwood (Recommended)**
+- Create privileged LXC container with device passthrough
+- Native AMD GPU access without VM overhead
+- Suitable for ML workloads (Immich, Ollama)
+- Guide: [docs/lxc-kubernetes-node.md](docs/lxc-kubernetes-node.md)
+- Script: `scripts/create-lxc-k8s-node.sh`
+
+**Option 2: Discrete GPU in Mirkwood**
+- Add low-power GPU (NVIDIA GT 1030, AMD RX 6400)
+- Passthrough to VM more reliable than iGPU
+- Leaves iGPU for Proxmox console
+
+**Option 3: More Intel N100 Nodes**
+- Intel iGPU passthrough proven to work (metal1/metal2)
+- Consistent experience across nodes
