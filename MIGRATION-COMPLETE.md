@@ -94,20 +94,27 @@ talosctl --nodes 192.168.0.11 dashboard
 
 ---
 
-## ⚠️ Known Issues & Workarounds
+## ✅ Issues Resolved
 
-### 1. ApplicationSet Controller Connectivity
+### 1. API Server Certificate Missing Service CIDR IP
 
-**Issue**: ApplicationSet controller can't connect to argocd-repo-server
-**Error**: `dial tcp X.X.X.X:8081: connect: operation not permitted`
-**Impact**: Automatic application deployment via ApplicationSets not working
+**Issue**: CoreDNS and ArgoCD couldn't connect to Kubernetes API server
+**Error**: `tls: failed to verify certificate: x509: certificate is valid for 10.96.0.1, ..., not 10.43.0.1`
+**Root Cause**: API server certificate was missing `10.43.0.1` (Kubernetes service IP in our custom service CIDR) from its SANs list
 
-**Workarounds**:
-1. Deploy apps manually via ArgoCD UI
-2. Deploy apps using kubectl directly
-3. Debug network policies/Cilium rules (future task)
+**Resolution**:
+1. Patched Talos machine config to include `10.43.0.1` in API server certSANs
+2. Rebooted all control plane nodes to regenerate certificates
+3. Enabled scheduling on control planes (no worker node deployed yet)
+4. Verified certificate now includes all required IPs
 
-**Priority**: Medium (workarounds available)
+**Status**: ✅ **RESOLVED** - ArgoCD fully operational, applications deploying automatically
+
+### 2. No Worker Nodes - Control Plane Scheduling
+
+**Issue**: No worker nodes deployed, pods couldn't schedule due to control plane taints
+**Resolution**: Enabled `allowSchedulingOnControlPlanes: true` in Talos config
+**Note**: For homelab use, running workloads on control planes is acceptable. Add rivendell (metal3) worker node later if needed for isolation.
 
 ---
 
@@ -115,16 +122,21 @@ talosctl --nodes 192.168.0.11 dashboard
 
 ### Immediate (Today)
 
-1. **Configure Local DNS in OpnSense** ⭐
+1. **✅ COMPLETED: ArgoCD Issue Fixed**
+   - Resolved API server certificate SANs issue
+   - 9 applications synced and running
+   - 33 applications deploying automatically
+
+2. **Configure Local DNS in OpnSense** ⭐
    - Run: `bash scripts/generate-opnsense-dns.sh`
    - Follow guide: [docs/opnsense-dns-setup.md](docs/opnsense-dns-setup.md)
    - Recommended: Use wildcard DNS (`*.themainfreak.com → 192.168.0.224`)
    - Verify: `nslookup argocd.themainfreak.com` should return 192.168.0.224
 
-2. **Deploy Applications via ArgoCD UI**
-   - Access ArgoCD: https://argocd.themainfreak.com
-   - Manually create applications from Git repo
-   - Or wait for ApplicationSet issue to be resolved
+3. **Monitor Application Deployment**
+   - Check ArgoCD UI: https://argocd.themainfreak.com
+   - View status: `kubectl get applications -n argocd`
+   - Automated sync will deploy remaining apps over next 10-20 minutes
 
 ### Short Term (This Week)
 
