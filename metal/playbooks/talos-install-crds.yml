@@ -1,0 +1,79 @@
+---
+- name: Install common CRDs before ArgoCD deployment
+  hosts: localhost
+  gather_facts: false
+  vars:
+    kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
+
+  tasks:
+    - name: Display task
+      ansible.builtin.debug:
+        msg: |
+          Installing common CRDs to prevent race conditions:
+          - cert-manager CRDs
+          - Prometheus Operator CRDs
+          - VolSync CRDs
+
+    - name: Install cert-manager CRDs
+      ansible.builtin.shell: |
+        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.3/cert-manager.crds.yaml \
+          --server-side --force-conflicts
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: cert_manager_crds
+      changed_when: "'created' in cert_manager_crds.stdout or 'configured' in cert_manager_crds.stdout"
+
+    - name: Install Prometheus Operator CRDs
+      ansible.builtin.shell: |
+        kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+        kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
+        kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: prometheus_crds
+      changed_when: "'created' in prometheus_crds.stdout or 'configured' in prometheus_crds.stdout"
+      ignore_errors: true  # May already exist or URLs may change
+
+    - name: Install VolSync CRDs
+      ansible.builtin.shell: |
+        kubectl apply -f https://raw.githubusercontent.com/backube/volsync/main/config/crd/bases/volsync.backube_replicationdestinations.yaml --server-side
+        kubectl apply -f https://raw.githubusercontent.com/backube/volsync/main/config/crd/bases/volsync.backube_replicationsources.yaml --server-side
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: volsync_crds
+      changed_when: "'created' in volsync_crds.stdout or 'configured' in volsync_crds.stdout"
+      ignore_errors: true
+
+    - name: Wait for CRDs to be established
+      ansible.builtin.shell: |
+        kubectl wait --for condition=established --timeout=60s \
+          crd/certificaterequests.cert-manager.io \
+          crd/certificates.cert-manager.io \
+          crd/clusterissuers.cert-manager.io \
+          crd/issuers.cert-manager.io || true
+      environment:
+        KUBECONFIG: "{{ kubeconfig}}"
+
+    - name: Verify CRDs installed
+      ansible.builtin.shell: |
+        kubectl get crd | grep -E "(cert-manager|monitoring.coreos.com|volsync)" | wc -l
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: crd_count
+      changed_when: false
+
+    - name: Display CRD count
+      ansible.builtin.debug:
+        msg: "Installed {{ crd_count.stdout }} CRDs successfully"
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          CRD Installation Complete
+          ========================================
+          Next steps:
+          1. Deploy ArgoCD: kubectl apply -k bootstrap/root/
+          2. CRDs are now available for applications
+          3. No more race conditions during app deployment
+          ========================================

@@ -39,6 +39,9 @@
 - name: Configure Cilium networking
   import_playbook: talos-configure-networking.yml
 
+- name: Install common CRDs (prevents race conditions)
+  import_playbook: talos-install-crds.yml
+
 - name: Summary
   hosts: localhost
   gather_facts: false
