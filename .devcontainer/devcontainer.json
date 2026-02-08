@@ -27,6 +27,9 @@
     "ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {
       "jqVersion": "latest"
     },
+    "ghcr.io/devcontainers/features/github-cli:1": {
+      "version": "latest"
+    },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
   "postCreateCommand": "pip install jinja2 kubernetes pyyaml rich netaddr && /usr/local/py-utils/venvs/ansible-core/bin/python -m pip install kubernetes && sudo apt-get update && sudo apt-get install -y yamllint shellcheck pre-commit neovim zstd",
