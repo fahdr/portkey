@@ -137,3 +137,10 @@ app-template:
         machine-learning:
           main:
             - path: /cache
+
+volsync-backups:
+  volsyncPVC:
+    existingClaim: true
+  replicationSource:
+    sourcePVC: immich
+    name: immich
