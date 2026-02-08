@@ -16,3 +16,7 @@ talos-configs/
 
 # Proxmox API credentials
 metal/.env
+
+# Talos image files (too large, download on demand)
+metal/roles/talos_vm/files/*.raw
+metal/roles/talos_vm/files/*.raw.zst
