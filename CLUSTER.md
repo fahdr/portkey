@@ -107,10 +107,12 @@ All on metal0 (intentional - Zigbee dongle location):
 
 ### Complete Cluster Recovery
 1. Restore nodes from Proxmox templates/backups
-2. Bootstrap Talos cluster (see [metal/README.md](metal/README.md))
-3. Apply ArgoCD bootstrap
-4. ArgoCD will restore all applications from Git
+2. Run `make` from repo root (deploys: Talos cluster → Ceph secrets + ArgoCD → Terraform secrets)
+3. ArgoCD will restore all applications from Git
+4. Run `make post-install` for Kanidm OAuth setup
 5. Restore data from Volsync backups
+
+See [metal/README.md](metal/README.md) for step-by-step instructions.
 
 ## Monitoring
 

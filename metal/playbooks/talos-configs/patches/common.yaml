@@ -1,0 +1,45 @@
+---
+machine:
+  network:
+    nameservers:
+      - 192.168.0.1
+      - 8.8.8.8
+  time:
+    servers:
+      - time.cloudflare.com
+  kernel:
+    modules:
+      - name: i915  # Intel GPU driver for VAAPI
+  kubelet: {}
+  install:
+    disk: /dev/sda
+    image: ghcr.io/siderolabs/installer:v1.12.3
+    bootloader: true
+    wipe: false
+
+cluster:
+  network:
+    cni:
+      name: none  # Install Cilium manually after bootstrap
+    podSubnets:
+      - 10.0.1.0/8
+    serviceSubnets:
+      - 10.43.0.0/16
+  apiServer:
+    certSANs:
+      - 192.168.0.100
+      - 192.168.0.11
+      - 192.168.0.12
+      - 192.168.0.13
+      - 10.43.0.1  # Kubernetes service IP in our service CIDR
+    extraArgs:
+      enable-aggregator-routing: "true"
+      feature-gates: "MutatingAdmissionPolicy=true"
+      runtime-config: "admissionregistration.k8s.io/v1beta1=true"
+  proxy:
+    disabled: true  # Cilium replaces kube-proxy
+  discovery:
+    enabled: true
+    registries:
+      kubernetes:
+        disabled: false

@@ -93,12 +93,54 @@ ansible-playbook playbooks/talos-deploy-storage.yml
 ansible-playbook playbooks/talos-deploy-ingress.yml
 ```
 
-### Step 8: Deploy ArgoCD
+### Step 8: Bootstrap (Secrets + ArgoCD + Root ApplicationSet)
 
 ```bash
-# Bootstrap ArgoCD
-cd ../bootstrap/argocd
-bash apply.sh
+# Creates Ceph secrets, GitHub credentials, deploys ArgoCD, and root ApplicationSet.
+# ArgoCD takes over from here and auto-deploys everything in git.
+cd /workspaces/portkey
+make bootstrap
+# (prompts for Ansible vault password)
+```
+
+### Step 9: External Secrets (Terraform)
+
+```bash
+# Creates Cloudflare tunnel, ZeroTier VPN, ntfy, and Vaultwarden secrets
+make external
+```
+
+### Step 10: Verify
+
+```bash
+# Wait for all apps to sync (may take 5-10 minutes)
+kubectl get applications -n argocd
+
+# Check for any degraded apps
+kubectl get applications -n argocd -o jsonpath='{range .items[?(@.status.health.status!="Healthy")]}{.metadata.name}{"\t"}{.status.health.status}{"\n"}{end}'
+```
+
+## Full Bootstrap (One-liner)
+
+For a complete fresh deploy after VMs are booted with Talos:
+
+```bash
+cd /workspaces/portkey
+
+# Everything: metal (Talos cluster) → bootstrap (secrets + ArgoCD) → external (Terraform)
+make
+
+# After apps are running, finish Kanidm OAuth setup:
+make post-install
+```
+
+Or step by step with Make targets:
+
+```bash
+make metal       # Talos cluster + Cilium + CRDs
+make bootstrap   # Ceph secrets + GitHub creds + ArgoCD + root ApplicationSet
+make external    # Terraform: Cloudflare, ZeroTier, ntfy, Vaultwarden
+make post-install # Kanidm OAuth setup (needs running pods)
 ```
 
 ## Common Operations
@@ -218,13 +260,26 @@ EOF
 | `talos-upload-iso.yml` | Upload Talos ISO to all Proxmox nodes |
 | `talos-create-new-disks.yml` | Create VMs with new disks, preserve old ones |
 | `talos-apply-configs.yml` | Apply machine configs to nodes |
-| `talos-post-bootstrap.yml` | Get kubeconfig, deploy Cilium, configure networking (orchestrator) |
-| `talos-install-cilium.yml` | Install Cilium CNI using helm CLI (Talos-compatible) |
-| `talos-deploy-cilium.yml` | Deploy Cilium CNI using Ansible helm module (may have issues) |
-| `talos-configure-networking.yml` | Configure L2 announcements and IP pools |
+| `talos-post-bootstrap.yml` | Orchestrator: kubeconfig + Cilium + networking + CRDs |
+| `talos-install-cilium.yml` | Install Cilium CNI (called by post-bootstrap) |
+| `talos-deploy-cilium.yml` | Alternative Cilium install via Ansible helm module |
+| `talos-configure-networking.yml` | Configure L2 announcements and LB IP pools |
+| `talos-install-crds.yml` | Pre-install CRDs to prevent race conditions |
 | `talos-deploy-storage.yml` | Deploy Rook Ceph and NFS CSI |
 | `talos-deploy-ingress.yml` | Deploy NGINX Ingress Controller |
 | `talos-upgrade.yml` | Rolling upgrade of all nodes (one at a time) |
+
+### Talos Config Patches
+
+Machine config patches live in `playbooks/talos-configs/patches/`:
+
+| File | Purpose |
+|------|---------|
+| `common.yaml` | DNS, NTP, kernel modules (i915), API server args, CNI, proxy |
+| `controlplane.yaml` | Control plane endpoint, scheduling on control planes |
+| `metal0.yaml` | Node 0: IP 192.168.0.11, VIP |
+| `metal1.yaml` | Node 1: IP 192.168.0.12, VIP |
+| `metal2.yaml` | Node 2: IP 192.168.0.13, VIP |
 
 ## Architecture
 
@@ -311,7 +366,6 @@ Each of these has a `templates/namespace.yaml` that sets the label:
 | nfs-csi | CSI driver: SYS_ADMIN, hostPath, privileged |
 | rook-ceph | Storage operator: privileged containers |
 | kured | Reboot daemon: hostPID, privileged, hostPath |
-| akri | Device discovery: hostPath |
 | homeassistant | Bluetooth: hostPath for /run/dbus |
 | zigbee2mqtt | USB device: privileged container |
 | zerotier | Networking: NET_ADMIN, hostPath |

@@ -52,12 +52,15 @@
           ========================================
           Talos cluster is ready!
 
-          Next steps:
-          1. Deploy storage: ansible-playbook playbooks/talos-deploy-storage.yml
-          2. Deploy ArgoCD: kubectl apply -k bootstrap/root/
-          3. Restore applications from backups
+          Next steps (from repo root):
+          1. Bootstrap secrets + ArgoCD + root ApplicationSet:
+             make bootstrap
+          2. Deploy external secrets (Terraform):
+             make external
+          3. Verify all apps sync:
+             kubectl get applications -n argocd
 
           Cluster access:
           - talosctl: export TALOSCONFIG={{ playbook_dir }}/../talos-configs/talosconfig
-          - kubectl: export KUBECONFIG={{ playbook_dir }}/../kubeconfig
+          - kubectl: export KUBECONFIG={{ playbook_dir }}/../kubeconfig.yaml
           ========================================

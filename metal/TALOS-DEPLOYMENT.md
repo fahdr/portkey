@@ -28,7 +28,7 @@
 
 - **NFS CSI:** ✅ Deployed (storage class: nfs-csi)
   - NFS Server: 192.168.0.41:/nfs/k8s
-- **Rook Ceph:** ⚠️ Requires external cluster secrets
+- **Rook Ceph:** ✅ External cluster (secrets from Ansible Vault)
 
 ### GitOps Platform
 
@@ -70,29 +70,28 @@ talosctl health
 
 ## Next Steps
 
-### 1. Configure Rook Ceph (Optional)
-
-If you want to use the external Ceph cluster:
+### 1. Bootstrap (Secrets + ArgoCD + Root ApplicationSet)
 
 ```bash
-# Copy secrets from old K3s cluster or run import script
-cd /workspaces/portkey/bootstrap/root
-# Follow .cephrc configuration
-bash apply.sh
+# From repo root — creates Ceph secrets, GitHub credentials,
+# deploys ArgoCD, and root ApplicationSet in one step.
+# ArgoCD takes over from here and auto-deploys everything in git.
+make bootstrap
+# (prompts for Ansible vault password)
 ```
 
-### 2. Deploy Applications via ArgoCD
+This creates:
+- Ceph external cluster secrets in `rook-ceph` namespace
+- GitHub repo credentials in `argocd` namespace
+- ArgoCD (seed or production install)
+- Root ApplicationSet (5 stacks: bootstrap, system, platform, apps, sites)
+
+### 2. External Secrets (Terraform)
 
 ```bash
-# Deploy the root ApplicationSet to bootstrap all apps
-cd /workspaces/portkey/bootstrap/root
-bash apply.sh
+# Creates Cloudflare tunnel, ZeroTier VPN, ntfy, and Vaultwarden secrets
+make external
 ```
-
-This will create ApplicationSets that automatically deploy:
-- System infrastructure (monitoring, logging, etc.)
-- Platform services
-- Applications
 
 ### 3. Update DNS
 

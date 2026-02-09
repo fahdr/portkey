@@ -1,5 +1,7 @@
 .POSIX:
 
+export KUBECONFIG = $(shell pwd)/../metal/kubeconfig.yaml
+
 default: apply
 
 ~/.terraform.d/credentials.tfrc.json:
@@ -7,7 +9,7 @@ default: apply
 
 terraform.tfvars:
 	cp terraform.tfvars.example ${@}
-	nvim ${@}
+	$${EDITOR:-vi} ${@}
 
 .terraform.lock.hcl: ~/.terraform.d/credentials.tfrc.json versions.tf terraform.tfvars
 	terraform init

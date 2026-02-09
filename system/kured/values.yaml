@@ -1,5 +1,8 @@
 kured:
   configuration:
     annotateNodes: true
-    rebootSentinelCommand: sh -c "! needs-restarting --reboothint"
     timeZone: Asia/Dubai
+    # Talos: use sentinel file (not command). Talos doesn't have needs-restarting.
+    # Create /var/run/reboot-required on a node to trigger kured reboot.
+    useRebootSentinelHostPath: true
+    rebootSentinelFile: /var/run/reboot-required

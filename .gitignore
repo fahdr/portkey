@@ -9,10 +9,14 @@ book/
 Chart.lock
 .vscode/settings.json
 bootstrap/argocd/githubsecret.env
+bootstrap/root/.cephrc
 
-# Talos configuration with secrets
-metal/talos-configs/
-talos-configs/
+# Talos configuration with secrets (base configs have tokens/certs)
+/metal/talos-configs/
+/talos-configs/
+# Playbook talos-configs has generated base configs with secrets, but patches are safe
+metal/playbooks/talos-configs/*.yaml
+metal/playbooks/talos-configs/talosconfig
 
 # Proxmox API credentials
 metal/.env

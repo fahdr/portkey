@@ -1,0 +1,3 @@
+---
+# Worker nodes don't need cluster-specific patches beyond common settings
+# This file exists for completeness and future customization
