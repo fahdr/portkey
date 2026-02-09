@@ -1,10 +1,43 @@
 kube-prometheus-stack:
-  # k3s bundles these components into its binary - they don't expose separate metrics
+  # Talos runs controller-manager and scheduler as static pods.
+  # Requires bind-address=0.0.0.0 in Talos machine config extraArgs.
   kubeControllerManager:
-    enabled: false
-  kubeProxy:
-    enabled: false
+    enabled: true
+    endpoints:
+      - 192.168.0.11
+      - 192.168.0.12
+      - 192.168.0.13
+    service:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+      https: true
+      insecureSkipVerify: true
   kubeScheduler:
+    enabled: true
+    endpoints:
+      - 192.168.0.11
+      - 192.168.0.12
+      - 192.168.0.13
+    service:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+      https: true
+      insecureSkipVerify: true
+  kubeEtcd:
+    enabled: true
+    endpoints:
+      - 192.168.0.11
+      - 192.168.0.12
+      - 192.168.0.13
+    service:
+      enabled: true
+    serviceMonitor:
+      enabled: true
+      scheme: http
+  # kube-proxy is replaced by Cilium (kubeProxyReplacement: true)
+  kubeProxy:
     enabled: false
   # TODO: Re-enable KubeHpaMaxedOut once WordPress PVCs use RWX storage (CephFS/NFS)
   # so HPAs can scale beyond 1 replica. Currently maxReplicas=1 due to RWO PVC constraint,

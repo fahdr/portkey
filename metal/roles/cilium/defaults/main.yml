@@ -4,16 +4,49 @@ cilium_namespace: kube-system
 cilium_values:
   operator:
     replicas: 1
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
   kubeProxyReplacement: true
   l2announcements:
     enabled: true
-  # TODO the host and port are k3s-specific, generic solution is in progress
-  # https://github.com/cilium/cilium/issues/19038
-  # https://github.com/cilium/cilium/pull/28741
+  # Talos KubePrism local LB on port 7445
   k8sServiceHost: 127.0.0.1
-  k8sServicePort: 6444
+  k8sServicePort: 7445
   hubble:
+    enabled: true
     relay:
       enabled: true
     ui:
+      enabled: true
+      ingress:
+        enabled: true
+        className: nginx
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          gethomepage.dev/enabled: "true"
+          gethomepage.dev/name: "Hubble"
+          gethomepage.dev/description: "Network observability"
+          gethomepage.dev/group: "Development"
+          gethomepage.dev/icon: "cilium.svg"
+        hosts:
+          - hubble.themainfreak.com
+        tls:
+          - secretName: hubble-tls-certificate
+            hosts:
+              - hubble.themainfreak.com
+    metrics:
+      enabled:
+        - dns
+        - drop
+        - tcp
+        - flow
+        - icmp
+        - http
+      serviceMonitor:
+        enabled: true
+  prometheus:
+    enabled: true
+    serviceMonitor:
       enabled: true

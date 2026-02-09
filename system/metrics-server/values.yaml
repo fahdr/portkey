@@ -1,0 +1,13 @@
+metrics-server:
+  args:
+    - --kubelet-insecure-tls
+  resources:
+    requests:
+      cpu: 25m
+      memory: 48Mi
+    limits:
+      memory: 128Mi
+  metrics:
+    enabled: true
+  serviceMonitor:
+    enabled: true
