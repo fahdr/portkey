@@ -32,7 +32,7 @@
     },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
   },
-  "postCreateCommand": "pip install jinja2 kubernetes pyyaml rich netaddr && /usr/local/py-utils/venvs/ansible-core/bin/python -m pip install kubernetes && sudo apt-get update && sudo apt-get install -y yamllint shellcheck pre-commit neovim zstd",
+  "postCreateCommand": "pip install jinja2 kubernetes pyyaml rich netaddr pexpect && /usr/local/py-utils/venvs/ansible-core/bin/python -m pip install kubernetes && curl -s 'https://kanidm.github.io/kanidm_ppa/kanidm_ppa.asc' | sudo tee /etc/apt/trusted.gpg.d/kanidm_ppa.asc >/dev/null && echo 'deb [arch=amd64,arm64 signed-by=/etc/apt/trusted.gpg.d/kanidm_ppa.asc] https://kanidm.github.io/kanidm_ppa jammy stable' | sudo tee /etc/apt/sources.list.d/kanidm_ppa.list && sudo apt-get update && sudo apt-get install -y yamllint shellcheck pre-commit neovim zstd kanidm",
   "mounts": [
     {
       "source": "/root/.ssh",
