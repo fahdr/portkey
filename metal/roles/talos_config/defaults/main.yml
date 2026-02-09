@@ -33,6 +33,26 @@ cert_sans:
   - "192.168.0.12"  # metal1
   - "192.168.0.13"  # metal2
 
+# Kernel modules
+kernel_modules:
+  - name: i915  # Intel GPU passthrough
+
+# Talos system extensions (via Image Factory)
+# To add extensions: add to list, regenerate schematic ID, update talos_image_factory_schematic
+# Regenerate: POST https://factory.talos.dev/schematics
+# Body: {"customization":{"systemExtensions":{"officialExtensions":["siderolabs/<extension-name>"]}}}
+talos_extensions:
+  - name: i915-ucode  # Intel GPU firmware/driver
+
+# Image Factory schematic ID (generated from extensions list above)
+talos_image_factory_schematic: "ed036d0640097a4e7af413ee089851a12963cd2e2e1715f8866d551d17c2ec62"
+
+# Installer image (uses Image Factory when schematic is set, otherwise vanilla)
+talos_installer_image: >-
+  {{ 'factory.talos.dev/installer/' + talos_image_factory_schematic + ':' + talos_version
+     if talos_image_factory_schematic
+     else 'ghcr.io/siderolabs/installer:' + talos_version }}
+
 # Time servers
 time_servers:
   - time.cloudflare.com

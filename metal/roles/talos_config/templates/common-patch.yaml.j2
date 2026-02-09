@@ -10,12 +10,17 @@ machine:
 {% for server in time_servers %}
       - {{ server }}
 {% endfor %}
+  kernel:
+    modules:
+{% for module in kernel_modules %}
+      - name: {{ module.name }}
+{% endfor %}
   kubelet:
     extraArgs:
       rotate-server-certificates: "true"
   install:
     disk: /dev/sda
-    image: ghcr.io/siderolabs/installer:{{ talos_version }}
+    image: {{ talos_installer_image }}
     bootloader: true
     wipe: false
 

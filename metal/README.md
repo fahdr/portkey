@@ -4,11 +4,12 @@ Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster on
 
 ## Cluster Overview
 
-- **OS**: Talos Linux v1.12.3
+- **OS**: Talos Linux v1.12.3 (Image Factory with i915-ucode extension)
 - **Kubernetes**: v1.35.0
 - **Nodes**: 3 control plane nodes (metal0, metal1, metal2)
 - **Networking**: Cilium 1.17.4 CNI with kube-proxy replacement
 - **Storage**: Rook Ceph (external cluster), NFS CSI
+- **GPU**: Intel i915 via Talos system extension + intel-device-plugins-operator
 
 ## Prerequisites
 
@@ -121,12 +122,20 @@ talosctl dashboard
 
 ### Upgrade Talos
 
+Rolling upgrade using Ansible (recommended — one node at a time):
+
 ```bash
-talosctl upgrade \
-  --nodes 192.168.0.11,192.168.0.12,192.168.0.13 \
-  --image ghcr.io/siderolabs/installer:v1.13.0 \
-  --preserve
+ansible-playbook -i inventories/talos.yml playbooks/talos-upgrade.yml
 ```
+
+Or manually per-node (use the Image Factory image to preserve extensions):
+
+```bash
+talosctl --nodes 192.168.0.11 upgrade \
+  --image factory.talos.dev/installer/<schematic-id>:<talos-version>
+```
+
+> **Important**: Always use the Image Factory URL (not `ghcr.io/siderolabs/installer`) so system extensions like i915-ucode are included. The schematic ID is in `roles/talos_config/defaults/main.yml`.
 
 ### Upgrade Kubernetes
 
@@ -215,6 +224,7 @@ EOF
 | `talos-configure-networking.yml` | Configure L2 announcements and IP pools |
 | `talos-deploy-storage.yml` | Deploy Rook Ceph and NFS CSI |
 | `talos-deploy-ingress.yml` | Deploy NGINX Ingress Controller |
+| `talos-upgrade.yml` | Rolling upgrade of all nodes (one at a time) |
 
 ## Architecture
 
@@ -239,6 +249,123 @@ EOF
 | metal1 | 192.168.0.12 | 107 | rohan | Control Plane |
 | metal2 | 192.168.0.13 | 104 | gondor | Control Plane |
 
+## System Extensions (Image Factory)
+
+Talos uses an immutable root filesystem — kernel modules like i915 (Intel GPU) are not included by default. To add drivers, we use [Talos Image Factory](https://factory.talos.dev) to build custom installer images with system extensions baked in.
+
+### Current Extensions
+
+| Extension | Purpose |
+|-----------|---------|
+| `i915-ucode` | Intel GPU firmware + i915 kernel module |
+
+### How It Works
+
+1. A **schematic** defines which extensions to include
+2. The schematic ID is submitted to `factory.talos.dev/schematics` API
+3. The factory returns a schematic hash used in the installer image URL
+4. Format: `factory.talos.dev/installer/<schematic-id>:<talos-version>`
+
+### Adding a New Extension
+
+1. Find the extension name from [Talos Extensions](https://github.com/siderolabs/extensions)
+2. Generate a new schematic:
+   ```bash
+   curl -X POST https://factory.talos.dev/schematics \
+     -H "Content-Type: application/json" \
+     -d '{"customization":{"systemExtensions":{"officialExtensions":[
+       "siderolabs/i915-ucode",
+       "siderolabs/NEW-EXTENSION"
+     ]}}}'
+   ```
+3. Update `talos_image_factory_schematic` in `roles/talos_config/defaults/main.yml`
+4. Add to `talos_extensions` list (for documentation)
+5. Run the upgrade playbook: `ansible-playbook -i inventories/talos.yml playbooks/talos-upgrade.yml`
+
+### Verifying Extensions
+
+```bash
+# Check installed extensions on a node
+talosctl -n 192.168.0.11 get extensions
+
+# Check if a kernel module is loaded
+talosctl -n 192.168.0.11 read /proc/modules | grep i915
+
+# Check for GPU device files
+talosctl -n 192.168.0.11 ls /dev/dri/
+```
+
+## PodSecurity (Talos-Specific)
+
+Talos enforces Pod Security Standards at the **baseline** level on all namespaces by default. This is stricter than K3s which had no enforcement.
+
+Apps that need `hostNetwork`, `hostPID`, `hostPath`, `privileged` containers, or capabilities like `SYS_ADMIN` or `NET_ADMIN` must have their namespace labeled as `privileged`.
+
+### Apps Requiring Privileged PodSecurity
+
+Each of these has a `templates/namespace.yaml` that sets the label:
+
+| App | Reason |
+|-----|--------|
+| monitoring-system | node-exporter: hostNetwork, hostPID, hostPath |
+| nfs-csi | CSI driver: SYS_ADMIN, hostPath, privileged |
+| rook-ceph | Storage operator: privileged containers |
+| kured | Reboot daemon: hostPID, privileged, hostPath |
+| akri | Device discovery: hostPath |
+| homeassistant | Bluetooth: hostPath for /run/dbus |
+| zigbee2mqtt | USB device: privileged container |
+| zerotier | Networking: NET_ADMIN, hostPath |
+
+### Adding PodSecurity to a New App
+
+For Helm charts, create `templates/namespace.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Namespace }}
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+```
+
+For Kustomize apps, create `namespace.yaml` and add it to `kustomization.yaml` resources.
+
+## GPU Passthrough (Intel i915)
+
+Intel GPU passthrough is enabled on nodes where Proxmox passes through the iGPU to the VM.
+
+### Requirements
+
+1. **Proxmox**: GPU device passed through to VM (PCI passthrough)
+2. **Talos**: `i915-ucode` system extension installed (via Image Factory)
+3. **Talos config**: `machine.kernel.modules: [{name: i915}]`
+4. **Kubernetes**: `intel-device-plugins-operator` + Node Feature Discovery (NFD)
+
+### How It Works
+
+1. i915 extension provides the kernel module
+2. `machine.kernel.modules` config tells Talos to load it at boot
+3. NFD detects the GPU and labels the node: `intel.feature.node.kubernetes.io/gpu=true`
+4. GpuDevicePlugin DaemonSet schedules on labeled nodes
+5. Pods request `gpu.intel.com/i915` resource for GPU access
+
+### Verify GPU Is Working
+
+```bash
+# Check which nodes have GPU
+kubectl get nodes -l intel.feature.node.kubernetes.io/gpu=true
+
+# Check GPU plugin pods
+kubectl get pods -n intel-gpu
+
+# Check device files on a node
+talosctl -n 192.168.0.11 ls /dev/dri/
+# Should show: card0, renderD128
+```
+
 ## Migration from K3s
 
 The old K3s disks are preserved as `unused0` on each VM. To restore if needed:
@@ -256,5 +383,5 @@ The old K3s disks are preserved as `unused0` on each VM. To restore if needed:
 
 ---
 
-**Last Updated**: 2026-02-08
+**Last Updated**: 2026-02-09
 **Status**: ✅ Talos cluster deployed and running

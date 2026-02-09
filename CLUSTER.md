@@ -17,6 +17,8 @@ This is a 3-node bare-metal Kubernetes cluster running **Talos Linux v1.12.3** w
 - Cilium CNI with kube-proxy replacement
 - External Ceph storage + NFS
 - GitOps with ArgoCD
+- Intel GPU (i915) via Talos Image Factory system extension
+- PodSecurity baseline enforced by default (privileged where needed)
 
 ## Nodes
 
@@ -30,14 +32,18 @@ This is a 3-node bare-metal Kubernetes cluster running **Talos Linux v1.12.3** w
 
 ### GPU Access Notes
 
+**Talos GPU Setup**: The default Talos kernel does not include i915. We use [Talos Image Factory](https://factory.talos.dev) with the `i915-ucode` system extension to provide the driver. See [metal/README.md](metal/README.md#system-extensions-image-factory) for details.
+
 **Intel N100 (metal1, metal2)**:
-- VM GPU passthrough works reliably using Intel GVT-g or direct passthrough
-- Using `intel-device-plugins-operator` for `gpu.intel.com/i915` resource
+- VM GPU passthrough works reliably via Proxmox PCI passthrough
+- i915 loaded via Talos system extension + `machine.kernel.modules` config
+- NFD labels nodes with `intel.feature.node.kubernetes.io/gpu=true`
+- `intel-device-plugins-operator` provides `gpu.intel.com/i915` resource
 
 **AMD Ryzen 5 4500U (mirkwood/metal0)**:
-- ⚠️ **VM GPU Passthrough**: Not recommended due to AMD APU reset bug and IOMMU grouping issues
-- ✅ **LXC Alternative**: Can create LXC container (metal3) with native GPU access
-- See [docs/lxc-kubernetes-node.md](docs/lxc-kubernetes-node.md) for LXC setup guide
+- VM GPU passthrough not recommended (AMD APU reset bug + IOMMU grouping issues)
+- Node still gets i915 extension but no GPU hardware passed through — NFD won't label it
+- See [docs/lxc-kubernetes-node.md](docs/lxc-kubernetes-node.md) for LXC alternative
 
 ## External Dependencies
 
@@ -101,7 +107,7 @@ All on metal0 (intentional - Zigbee dongle location):
 
 ### Complete Cluster Recovery
 1. Restore nodes from Proxmox templates/backups
-2. Bootstrap cluster with `kubeadm`
+2. Bootstrap Talos cluster (see [metal/README.md](metal/README.md))
 3. Apply ArgoCD bootstrap
 4. ArgoCD will restore all applications from Git
 5. Restore data from Volsync backups
@@ -133,6 +139,9 @@ Renovate bot creates PRs for image updates. Manual merge required.
 2. **Renovate authentication**: Check GitHub token if jobs fail
 3. **zigbee2mqtt restarts**: May restart if MQTT broker (mosquitto) restarts first
 4. **AMD GPU on mirkwood**: AMD Ryzen 5 4500U iGPU cannot be passed through to VMs reliably (reset bug + IOMMU issues). Use LXC container for GPU workloads instead.
+5. **PodSecurity baseline on Talos**: Talos enforces `baseline` PodSecurity by default. Apps needing host access must have their namespace labeled `privileged`. See [metal/README.md](metal/README.md#podsecurity-talos-specific) for the list of affected apps.
+6. **Talos upgrades must use Image Factory**: Using vanilla `ghcr.io/siderolabs/installer` will lose system extensions (i915-ucode). Always use the factory image URL. See [metal/README.md](metal/README.md#upgrade-talos).
+7. **StorageClass is immutable**: Kubernetes StorageClass parameters cannot be updated in-place. Must delete and recreate (ArgoCD won't auto-fix).
 
 ## Expansion Options
 
@@ -156,132 +165,12 @@ Renovate bot creates PRs for image updates. Manual merge required.
 
 ---
 
-## Talos Migration Plan
+## Migration History
 
-### Migration Strategy
+Migration from K3s (Fedora 39) to Talos Linux completed on 2026-02-08. See [MIGRATION-COMPLETE.md](MIGRATION-COMPLETE.md) for details.
 
-The cluster is being migrated from K3s (Fedora 39) to **Talos Linux** using a **rolling in-place** approach:
+Old K3s disks preserved as `unused0` on each Proxmox VM for emergency rollback.
 
-1. **Phase 1** (Week 1): Convert metal2 to Talos + add rivendell (metal3) → 2-node Talos cluster
-2. **Phase 2** (Weeks 2-3): Deploy infrastructure and migrate low-risk applications
-3. **Phase 3** (Week 3): Convert metal1 to Talos → 3-node cluster (HA control plane achieved)
-4. **Phase 4** (Week 4): Migrate critical apps, convert metal0 → 4-node final cluster
-5. **Phase 5** (Week 4-5): Cleanup, update IP pools, documentation
-
-**Total Duration**: 4-5 weeks with gradual, safe cutover
-
-### Target Cluster Configuration
-
-#### Nodes (After Migration)
-
-| Node | Hostname | IP | Role | Resources | Proxmox Host |
-|------|----------|-----|------|-----------|--------------|
-| metal0 | mirkwood | 192.168.0.11 | Control Plane | 4 CPU, 26GB RAM | mirkwood (AMD Ryzen 5 4500U) |
-| metal1 | rohan | 192.168.0.12 | Control Plane | 4 CPU, 26GB RAM | rohan (Intel N100) |
-| metal2 | gondor | 192.168.0.13 | Control Plane | 4 CPU, 26GB RAM | gondor (Intel N100) |
-| **metal3** | **rivendell** | **192.168.0.14** | **Worker** | **4 CPU, 10GB RAM** | **rivendell** |
-
-**New**: metal3 (rivendell) added as worker node
-
-#### Talos Linux Benefits
-
-- **Immutable OS**: No SSH access, API-driven configuration
-- **Security**: Minimal attack surface, automatic updates
-- **Declarative**: Full cluster config in YAML
-- **Built-in VIP**: No kube-vip pod needed
-- **GitOps-friendly**: Machine configs in version control
-
-### Networking (After Migration)
-
-- **Control Plane VIP**: 192.168.0.100 (Talos built-in VIP)
-- **CNI**: Cilium 1.17.4 (kube-proxy replacement, same as K3s)
-- **Pod CIDR**: 10.0.1.0/8 (unchanged)
-- **Service CIDR**: 10.43.0.0/16 (unchanged)
-- **LoadBalancer Pool**: 192.168.0.224/27 (Cilium L2 announcements, unchanged)
-- **Ingress**: NGINX Ingress Controller (unchanged)
-
-### Storage (Unchanged)
-
-- **Ceph RBD**: Default storage class (external Proxmox Ceph cluster)
-- **CephFS**: Shared filesystem (Proxmox-managed MDS)
-- **NFS**: 192.168.0.41:/nfs/k8s (Shire ZFS array)
-
-All existing PVCs and data will be preserved during migration.
-
-### Ansible Automation
-
-New Talos provisioning playbooks in `metal/playbooks/`:
-
-```bash
-# Create rivendell VM
-ansible-playbook -i inventories/talos.yml playbooks/talos-provision-vm.yml --limit metal3
-
-# Apply Talos configuration to nodes
-ansible-playbook -i inventories/talos.yml playbooks/talos-configure.yml
-
-# Bootstrap new Talos cluster
-ansible-playbook -i inventories/talos.yml playbooks/talos-bootstrap.yml
-
-# Add node to existing cluster
-ansible-playbook -i inventories/talos.yml playbooks/talos-add-node.yml --limit metal1
-```
-
-### Talos Operations (After Migration)
-
-#### Access the cluster
-
-```bash
-# Set kubeconfig
-export KUBECONFIG=/workspaces/portkey/metal/kubeconfig-talos.yaml
-
-# Set talosconfig
-export TALOSCONFIG=/workspaces/portkey/metal/talos-configs/talosconfig
-```
-
-#### Common talosctl commands
-
-```bash
-# Interactive dashboard
-talosctl --nodes 192.168.0.11 dashboard
-
-# Check cluster health
-talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13 health
-
-# View logs
-talosctl --nodes 192.168.0.11 logs kubelet
-talosctl --nodes 192.168.0.11 logs etcd
-talosctl --nodes 192.168.0.11 dmesg
-
-# Check etcd cluster
-talosctl --nodes 192.168.0.11 etcd members
-talosctl --nodes 192.168.0.11 etcd status
-
-# Upgrade Talos
-talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13,192.168.0.14 upgrade \
-  --image ghcr.io/siderolabs/installer:v1.10.0 --preserve
-
-# Upgrade Kubernetes
-talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13 upgrade-k8s --to 1.34.0
-```
-
-### Migration Status
-
-- [ ] **Phase 1**: Bootstrap Talos cluster (metal2 + metal3/rivendell)
-- [ ] **Phase 2**: Deploy infrastructure (storage, ArgoCD, monitoring)
-- [ ] **Phase 2**: Migrate stateless & low-risk apps (8-12 apps)
-- [ ] **Phase 3**: Add metal1 to Talos cluster (achieve HA)
-- [ ] **Phase 4**: Migrate critical apps (Vaultwarden, Home Assistant, Immich)
-- [ ] **Phase 4**: Add metal0 to Talos cluster (final 4-node cluster)
-- [ ] **Phase 5**: Decommission K3s, update documentation
-
-**Current Phase**: Planning & Ansible automation complete
-
-### Rollback Plan
-
-- VM snapshots in Proxmox before each phase
-- VolSync backups verified current before migration
-- K3s cluster kept running until all apps migrated
-- Per-app rollback: scale up on K3s, switch DNS back
-- Full rollback: restore VMs from snapshots, restart K3s
-
-For detailed migration procedures, see [docs/k3s-to-talos-migration.md](docs/k3s-to-talos-migration.md)
+For migration guides (reference only):
+- [Simplified cutover](docs/talos-migration-simplified.md) (used for this migration)
+- [Rolling zero-downtime](docs/k3s-to-talos-migration.md)

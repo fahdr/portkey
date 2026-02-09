@@ -1,0 +1,96 @@
+---
+# Rolling upgrade of Talos Linux nodes using Image Factory image
+# Usage: ansible-playbook -i inventories/talos.yml playbooks/talos-upgrade.yml
+#
+# This upgrades one node at a time, waiting for it to come back Ready
+# before proceeding to the next. Uses the factory image with system extensions.
+
+- name: Rolling upgrade Talos nodes
+  hosts: talos
+  gather_facts: false
+  serial: 1
+  vars:
+    talos_config_dir: "{{ playbook_dir }}/../talos-configs"
+    talosconfig: "{{ talos_config_dir }}/talosconfig"
+    # Import installer image from role defaults
+    talos_version: "{{ hostvars[inventory_hostname].talos_version | default('v1.12.3') }}"
+    talos_image_factory_schematic: "ed036d0640097a4e7af413ee089851a12963cd2e2e1715f8866d551d17c2ec62"
+    talos_installer_image: >-
+      {{ 'factory.talos.dev/installer/' + talos_image_factory_schematic + ':' + talos_version
+         if talos_image_factory_schematic
+         else 'ghcr.io/siderolabs/installer:' + talos_version }}
+
+  tasks:
+    - name: Display upgrade plan
+      ansible.builtin.debug:
+        msg: "Upgrading {{ inventory_hostname }} ({{ ansible_host }}) to image: {{ talos_installer_image }}"
+
+    - name: Check current Talos version
+      ansible.builtin.command:
+        cmd: "talosctl --talosconfig {{ talosconfig }} --nodes {{ ansible_host }} version --short"
+      delegate_to: localhost
+      register: current_version
+      changed_when: false
+
+    - name: Display current version
+      ansible.builtin.debug:
+        msg: "{{ current_version.stdout }}"
+
+    - name: Upgrade Talos node
+      ansible.builtin.command:
+        cmd: >
+          talosctl --talosconfig {{ talosconfig }}
+          --nodes {{ ansible_host }}
+          upgrade --image {{ talos_installer_image }}
+      delegate_to: localhost
+      register: upgrade_result
+      timeout: 600
+
+    - name: Wait for Talos API to be ready
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 50000
+        delay: 30
+        timeout: 300
+        state: started
+      delegate_to: localhost
+
+    - name: Wait for node to be Ready in Kubernetes
+      ansible.builtin.command:
+        cmd: "kubectl get node -l kubernetes.io/hostname={{ inventory_hostname }} -o jsonpath='{.items[0].status.conditions[?(@.type==\"Ready\")].status}'"
+      delegate_to: localhost
+      register: node_ready
+      retries: 30
+      delay: 10
+      until: node_ready.stdout == "True"
+      changed_when: false
+
+    - name: Verify upgraded version
+      ansible.builtin.command:
+        cmd: "talosctl --talosconfig {{ talosconfig }} --nodes {{ ansible_host }} version --short"
+      delegate_to: localhost
+      register: new_version
+      changed_when: false
+
+    - name: Display upgrade result
+      ansible.builtin.debug:
+        msg: |
+          {{ inventory_hostname }} upgraded successfully!
+          {{ new_version.stdout }}
+
+- name: Upgrade summary
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Rolling upgrade complete!
+
+          All nodes upgraded to: {{ hostvars[groups['talos'][0]].talos_installer_image }}
+
+          Verify with:
+            kubectl get nodes -o wide
+            talosctl --nodes 192.168.0.11,192.168.0.12,192.168.0.13 version
+          ========================================
