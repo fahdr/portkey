@@ -18,13 +18,13 @@ dns_servers:
 gateway: "192.168.0.1"
 
 # Control plane settings
-allow_scheduling_on_control_planes: false  # Dedicated control plane
+allow_scheduling_on_control_planes: true  # Allow workloads on control plane (no dedicated workers)
 
 # Feature gates (matching K3s configuration)
 api_server_extra_args:
   enable-aggregator-routing: "true"
   feature-gates: "MutatingAdmissionPolicy=true"
-  runtime-config: "admissionregistration.k8s.io/v1alpha1=true"
+  runtime-config: "admissionregistration.k8s.io/v1beta1=true"
 
 # Cert SANs for API server
 cert_sans:
