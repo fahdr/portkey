@@ -11,6 +11,12 @@ argo-cd:
         jsonPointers:
           - /status
   server:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     ingress:
       enabled: true
       ingressClassName: nginx
@@ -36,10 +42,28 @@ argo-cd:
     enabled: false
   controller:
     metrics: *metrics
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
   repoServer:
     metrics: *metrics
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
   redis:
     metrics: *metrics
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
 argocd-apps:
   applicationsets:
     root:

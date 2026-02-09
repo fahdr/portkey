@@ -31,6 +31,12 @@ grafana:
       - secretName: grafana-general-tls
         hosts:
           - *host
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
   sidecar:
     dashboards:
       enabled: true
@@ -38,6 +44,12 @@ grafana:
     datasources:
       enabled: true
       searchNamespace: monitoring-system
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
   envFromSecret: grafana-secrets
   grafana.ini:
     server:

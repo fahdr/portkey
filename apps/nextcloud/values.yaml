@@ -1,4 +1,10 @@
 nextcloud:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
   nextcloud:
     host: nextcloud.themainfreak.com
     datadir: /data
