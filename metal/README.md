@@ -170,6 +170,8 @@ kubectl get nodes -o wide
 # metal3 should appear as Ready within ~60 seconds
 ```
 
+> **Kubelet serving certificates**: New nodes need their kubelet serving cert CSRs approved for metrics-server and Prometheus to scrape them. The `kubelet-csr-approver` controller (deployed via `system/kubelet-csr-approver/`) handles this automatically. If it's not yet deployed, approve manually: `kubectl certificate approve $(kubectl get csr -o name)`
+
 ## Complete Deployment Workflow (Fresh Cluster)
 
 ### Step 1: Create VMs
@@ -376,6 +378,21 @@ If VM creation fails with `bridge 'vmbr1' does not exist`:
 - Check which bridges exist: Proxmox UI > Node > Network
 - Set `vm_network_bridge` in inventory for that node
 - rivendell uses `vmbr0`, mirkwood/rohan/gondor use `vmbr1`
+
+### Kubelet metrics not working on new node (TLS error)
+
+If `kubectl top node <name>` shows `<unknown>` or metrics-server logs show `tls: internal error`, the kubelet serving certificate CSR hasn't been approved:
+
+```bash
+# Check for pending CSRs
+kubectl get csr
+
+# If kubelet-csr-approver is deployed, CSRs are approved automatically.
+# Otherwise, approve manually:
+kubectl certificate approve <csr-name>
+```
+
+The `kubelet-csr-approver` controller (`system/kubelet-csr-approver/`) auto-approves these CSRs for nodes matching IP prefix `192.168.0.0/24` and hostname patterns `metalN` or `talos-*`.
 
 ### Cilium not starting on new worker
 
