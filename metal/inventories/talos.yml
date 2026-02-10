@@ -62,4 +62,4 @@ talos:
           memory: 10240  # 10GB in MB
           disk_size: 50
           network_interface: ens18
-          # This node will be created new in Phase 1
+          vm_network_bridge: vmbr0  # rivendell uses vmbr0 for LAN (no vmbr1)

@@ -3,7 +3,7 @@ machine:
   network:
     hostname: {{ inventory_hostname }}
     interfaces:
-      - interface: eth0
+      - interface: {{ network_interface | default('eth0') }}
         addresses:
           - {{ ansible_host }}/24
         routes:
