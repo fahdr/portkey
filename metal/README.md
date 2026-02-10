@@ -11,7 +11,19 @@ Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster on
 - **Storage**: Rook Ceph (external cluster), NFS CSI
 - **GPU**: Intel i915 via Talos system extension + intel-device-plugins-operator
 
-### Nodes
+### Proxmox Hosts
+
+| Host | IP | Role | Notes |
+|------|-----|------|-------|
+| shire | 192.168.0.2 | Cluster seed, OPNsense, NFS | 8-disk ZFS, NFS/Samba via LXC |
+| rivendell | 192.168.0.202 | K8s worker host | LAN on vmbr0 |
+| isengard | 192.168.0.102 | Ceph MON | |
+| mirkwood | 192.168.0.8 | K8s CP host (metal0) | AMD Ryzen, LAN on vmbr1 |
+| rohan | 192.168.0.7 | K8s CP host (metal1) | Intel, LAN on vmbr1 |
+| gondor | 192.168.0.6 | K8s CP host (metal2) | Intel, LAN on vmbr1 |
+| erebor | 192.168.0.101 | K8s host | NVIDIA GTX 1660 Ti, LAN on vmbr0 |
+
+### Kubernetes Nodes (Talos VMs)
 
 | Node | IP | VM ID | Proxmox Host | Bridge | Role | CPU | RAM |
 |------|-----|-------|--------------|--------|------|-----|-----|
@@ -20,7 +32,7 @@ Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster on
 | metal2 | 192.168.0.13 | 104 | gondor | vmbr1 | Control Plane | 4 | 27GB |
 | metal3 | 192.168.0.14 | 114 | rivendell | vmbr0 | Worker | 4 | 10GB |
 
-> **Note on bridges**: mirkwood/rohan/gondor use `vmbr1` for LAN (vmbr0 = WAN via OPNsense). rivendell uses `vmbr0` for LAN directly. Set `vm_network_bridge` per-node in the inventory.
+> **Note on bridges**: mirkwood/rohan/gondor use `vmbr1` for LAN (vmbr0 = WAN via OPNsense). rivendell/erebor use `vmbr0` for LAN directly. Set `vm_network_bridge` per-node in the inventory.
 
 ### Network Configuration
 
@@ -34,8 +46,8 @@ Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster on
 ### Required Tools
 
 ```bash
-# Ansible 2.15+
-ansible-galaxy collection install community.general kubernetes.core
+# Ansible 2.15+ with required collections
+ansible-galaxy collection install -r requirements.yml
 
 # talosctl CLI
 curl -sL https://talos.dev/install | sh
@@ -64,17 +76,31 @@ The Talos ISO (`talos-v1.12.3-amd64.iso`) must be uploaded to `local` storage on
 ```
 metal/
   .env                          # Proxmox API credentials (gitignored)
+  vault.yml                     # Ansible vault (Proxmox root password, gitignored)
   Makefile                      # Top-level targets
+  requirements.yml              # Ansible collection dependencies
+  ansible.cfg                   # Ansible configuration
   inventories/
-    talos.yml                   # Node inventory (IPs, VM specs, Proxmox hosts)
+    proxmox.yml                 # Proxmox host inventory (physical nodes)
+    talos.yml                   # Talos node inventory (K8s VMs)
   playbooks/
-    talos-create-vms.yml        # Create and start VMs on Proxmox
+    proxmox-setup-node.yml      # Setup Proxmox nodes (repos, packages, GPU, cluster join)
+    talos-create-vms.yml        # Create VMs on Proxmox from Talos ISO
     talos-add-node.yml          # Add a node to an existing cluster
     talos-apply-configs.yml     # Apply Talos configs to all nodes
     talos-post-bootstrap.yml    # Post-bootstrap: kubeconfig + Cilium + CRDs
     talos-upgrade.yml           # Rolling upgrade
     ...
   roles/
+    proxmox_setup/
+      defaults/main.yml         # Package list, cluster join settings
+      tasks/
+        main.yml                # Repos, packages, Ceph, sysctl, fail2ban, cluster join
+        gpu-passthrough.yml     # NVIDIA discrete GPU passthrough (VFIO-PCI binding)
+        igpu-passthrough.yml    # Intel iGPU passthrough (i915 blacklist, IOMMU)
+        resize-root.yml         # Shrink root LV via initramfs (free space for thin pool)
+        safe-reboot.yml         # K8s-aware reboot (drain, reboot, wait, uncordon)
+      handlers/main.yml         # Service restart handlers
     talos_config/
       defaults/main.yml         # Cluster settings (CIDRs, extensions, cert SANs)
       tasks/main.yml            # Config generation + DHCP discovery + apply
@@ -116,6 +142,209 @@ The base configs are generated once with `talosctl gen config` and contain clust
 3. Scans the subnet for Talos API (port 50000), excluding known nodes
 4. Applies the config to the discovered DHCP IP
 5. Waits for the node to reboot with its static IP
+
+## Setting Up a New Proxmox Node
+
+### Step 1: Add to Inventory
+
+Edit `inventories/proxmox.yml` and add the node under `proxmox_new.hosts`:
+
+```yaml
+proxmox_new:
+  hosts:
+    erebor:
+      ansible_host: 192.168.0.101
+      proxmox_join_cluster: true
+      proxmox_create_vmbr1: false        # vmbr0 is LAN on this node
+      proxmox_root_size: "50G"            # Optional: shrink root LV
+      gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"  # Optional: NVIDIA GPU
+      gpu_pci_address: "01:00"            # PCI address of the GPU
+```
+
+### Step 2: Create the Vault (First Time Only)
+
+The vault stores the Proxmox root password for automated cluster join:
+
+```bash
+cd metal
+ansible-vault create vault.yml
+# Add: proxmox_root_password: "your-root-password"
+```
+
+### Step 3: Run the Playbook
+
+```bash
+cd metal
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-setup-node.yml \
+  -l erebor --ask-vault-pass
+```
+
+This will:
+1. Disable enterprise repos, enable no-subscription repos
+2. Remove the Proxmox subscription nag
+3. Run a full system upgrade
+4. Install 40+ essential packages (monitoring, networking, storage tools)
+5. Install Ceph Squid packages via `pveceph`
+6. Apply sysctl performance and security tuning
+7. Deploy SSH authorized key
+8. Create vmbr1 bridge (if `proxmox_create_vmbr1: true`)
+9. Configure fail2ban for Proxmox web UI
+10. Join the Proxmox cluster (via `pvecm add` with password from vault)
+11. Resize root LV (if `proxmox_root_size` is set) — see [Root LV Resize](#root-lv-resize)
+12. Configure NVIDIA GPU passthrough (if `gpu_passthrough_ids` is set) — see [GPU Passthrough](#gpu-passthrough)
+13. Configure Intel iGPU passthrough (if `igpu_passthrough: true`) — see [GPU Passthrough](#gpu-passthrough)
+
+### Step 4: Verify
+
+```bash
+# Check in Proxmox UI
+https://192.168.0.101:8006
+
+# Check cluster membership
+ssh root@<node-ip> pvecm status
+```
+
+### Moving to Existing
+
+Once a node is set up, move it from `proxmox_new` to `proxmox_existing` in the inventory to avoid re-running cluster join on subsequent playbook runs.
+
+### Running Against Existing Nodes
+
+The playbook targets all `proxmox` hosts and processes them one at a time (`serial: 1`). This is safe for existing nodes — all tasks are idempotent. Use `-l` to target specific nodes:
+
+```bash
+# Run against a single existing node (e.g., apply GPU passthrough)
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-setup-node.yml \
+  -l rohan --ask-vault-pass
+
+# Run against all nodes (serial: 1 ensures one at a time)
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-setup-node.yml \
+  --ask-vault-pass
+```
+
+## GPU Passthrough
+
+The playbook supports two GPU passthrough modes, configured via inventory variables.
+
+### NVIDIA Discrete GPU (VFIO-PCI)
+
+For NVIDIA cards (e.g., GTX 1660 Ti on erebor), VFIO-PCI binding is configured at boot:
+
+```yaml
+# inventories/proxmox.yml
+erebor:
+  gpu_type: "NVIDIA GTX 1660 Ti"
+  gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"  # All PCI functions
+  gpu_pci_address: "01:00"
+```
+
+What it does:
+1. Enables IOMMU (`intel_iommu=on iommu=pt`) in GRUB kernel parameters
+2. Configures `vfio-pci.ids` to pre-bind the GPU at boot
+3. Adds VFIO modules to initramfs
+4. Blacklists nouveau/nvidia/nvidiafb drivers on the host
+5. Configures KVM MSR ignore (prevents NVIDIA VM crashes)
+6. Reboots safely (draining K8s VMs first if applicable)
+7. Verifies IOMMU, VFIO modules, and GPU driver status
+
+After setup, pass the GPU to a VM:
+```bash
+qm set <VMID> -hostpci0 01:00,pcie=1,x-vga=1
+```
+
+> **Finding PCI IDs**: Run `lspci -nn | grep -i nvidia` on the host to find all PCI function IDs for the GPU.
+
+### Intel iGPU (i915 Blacklist)
+
+For Intel integrated GPUs (e.g., Alder Lake-N UHD on rohan/gondor), the i915 driver is blacklisted so the iGPU can be passed through to VMs:
+
+```yaml
+# inventories/proxmox.yml
+rohan:
+  igpu_passthrough: true
+  igpu_pci_address: "00:02"
+```
+
+What it does:
+1. Checks runtime state first (IOMMU enabled? i915 blacklisted? VFIO loaded?)
+2. **Skips all changes and reboots if already configured** (idempotent)
+3. Enables IOMMU with ACS override for IOMMU group isolation
+4. Blacklists i915, nouveau, nvidia, snd_hda_intel via kernel command line
+5. Loads VFIO modules at boot via `/etc/modules`
+6. Reboots safely if changes were made
+
+After setup, pass the iGPU to a VM:
+```bash
+qm set <VMID> -hostpci0 00:02,pcie=1
+```
+
+> **Note on AMD GPUs**: AMD GPUs (e.g., Renoir on mirkwood) have a known reset bug that prevents reliable passthrough. This is not automated.
+
+### Safe Reboot with K8s Awareness
+
+All reboot-triggering tasks (GPU passthrough, root resize) use `safe-reboot.yml`, which handles Kubernetes gracefully:
+
+1. **Drain**: `kubectl drain` each K8s node on the host (cordon + evict pods)
+2. **Reboot**: Reboot the Proxmox host (300s timeout)
+3. **Wait**: Pause 30s for VMs to start, then `kubectl wait --for=condition=Ready` with retries
+4. **Uncordon**: `kubectl uncordon` to allow scheduling again
+5. **Verify**: Print cluster node status
+
+This requires `k8s_vm_nodes` in the inventory to map Proxmox hosts to their K8s VMs:
+
+```yaml
+# inventories/proxmox.yml
+rohan:
+  k8s_vm_nodes: [metal1]     # K8s nodes running on this Proxmox host
+gondor:
+  k8s_vm_nodes: [metal2]
+```
+
+If `k8s_vm_nodes` is not defined for a host, it reboots normally without drain/uncordon.
+
+Combined with `serial: 1` in the playbook, this ensures only one Proxmox host reboots at a time, maintaining cluster quorum.
+
+## Root LV Resize
+
+Proxmox defaults to a large root LV (often ~96G), leaving less space for the `pve/data` thin pool used for VM storage. The resize task shrinks the root LV and extends the thin pool.
+
+### Configuration
+
+```yaml
+# inventories/proxmox.yml
+erebor:
+  proxmox_root_size: "50G"    # Target size for root LV
+```
+
+### How It Works
+
+The resize is performed safely via an initramfs premount script that runs **before** root is mounted:
+
+1. **Pre-check** (Ansible): Reads current LV size and disk usage. If usage >= target - 5G, prints a warning and **skips** the resize (playbook continues normally)
+2. **Install initramfs scripts**: Adds `resize2fs` and `e2fsck` to initramfs, plus a premount script
+3. **Reboot**: Triggers a safe reboot (with K8s drain if applicable)
+4. **Initramfs resize** (runs at boot, before root mount):
+   - `e2fsck -f -y` (filesystem check, required before shrink)
+   - `resize2fs` to 2G below target (safety margin)
+   - `lvreduce` to target size
+   - `resize2fs` to fill LV (recover safety margin)
+5. **Post-reboot**: Verifies sizes, extends `pve/data` thin pool with freed space, cleans up initramfs scripts
+
+### Safety Features
+
+- **Disk usage check**: If root uses more than target - 5G, the resize is skipped with a warning (playbook continues)
+- **Initramfs abort**: If `resize2fs` shrink fails (filesystem too full), the script aborts before `lvreduce` — no data loss
+- **Idempotent**: If root is already at or below target size, everything is skipped
+- **Cleanup**: Initramfs resize scripts are removed after successful resize
+
+### Example Output
+
+```
+Root LV:    50.00G
+Filesystem: /dev/mapper/pve-root   49G  7.2G   40G  16% /
+Thin pool:  399.87G
+Extend:     Logical volume pve/data successfully resized
+```
 
 ## Adding a Worker Node
 
@@ -287,24 +516,52 @@ talosctl reboot --nodes 192.168.0.12
 
 ## Playbook Reference
 
-| Playbook | Purpose | Usage |
-|----------|---------|-------|
-| `talos-create-vms.yml` | Create VMs on Proxmox from Talos ISO | `-l <node>` to target specific nodes |
-| `talos-add-node.yml` | Add node to existing cluster (discover IP, apply config, verify) | `-l <node>` required |
-| `talos-apply-configs.yml` | Apply machine configs (for fresh deploy, all nodes) | Optional `-l <node>` |
-| `talos-post-bootstrap.yml` | Kubeconfig + Cilium + networking + CRDs | Run once after bootstrap |
-| `talos-install-cilium.yml` | Install Cilium CNI (called by post-bootstrap) | |
-| `talos-deploy-cilium.yml` | Alternative Cilium install via Ansible helm module | |
-| `talos-configure-networking.yml` | L2 announcements and LB IP pools | |
-| `talos-install-crds.yml` | Pre-install CRDs to prevent race conditions | |
-| `talos-deploy-storage.yml` | Deploy Rook Ceph and NFS CSI | |
-| `talos-deploy-ingress.yml` | Deploy NGINX Ingress Controller | |
-| `talos-upgrade.yml` | Rolling upgrade of all nodes (one at a time) | |
-| `talos-upload-iso.yml` | Upload Talos ISO to Proxmox nodes | |
+| Playbook | Inventory | Purpose | Usage |
+|----------|-----------|---------|-------|
+| `proxmox-setup-node.yml` | `proxmox.yml` | Setup Proxmox node (repos, packages, GPU, resize, cluster join). Runs `serial: 1`. | `-l <node> --ask-vault-pass` |
+| `talos-create-vms.yml` | `talos.yml` | Create VMs on Proxmox from Talos ISO | `-l <node>` to target specific nodes |
+| `talos-add-node.yml` | `talos.yml` | Add node to existing cluster (discover IP, apply config, verify) | `-l <node>` required |
+| `talos-apply-configs.yml` | `talos.yml` | Apply machine configs (for fresh deploy, all nodes) | Optional `-l <node>` |
+| `talos-post-bootstrap.yml` | `talos.yml` | Kubeconfig + Cilium + networking + CRDs | Run once after bootstrap |
+| `talos-install-cilium.yml` | `talos.yml` | Install Cilium CNI (called by post-bootstrap) | |
+| `talos-deploy-cilium.yml` | `talos.yml` | Alternative Cilium install via Ansible helm module | |
+| `talos-configure-networking.yml` | `talos.yml` | L2 announcements and LB IP pools | |
+| `talos-install-crds.yml` | `talos.yml` | Pre-install CRDs to prevent race conditions | |
+| `talos-deploy-storage.yml` | `talos.yml` | Deploy Rook Ceph and NFS CSI | |
+| `talos-deploy-ingress.yml` | `talos.yml` | Deploy NGINX Ingress Controller | |
+| `talos-upgrade.yml` | `talos.yml` | Rolling upgrade of all nodes (one at a time) | |
+| `talos-upload-iso.yml` | `talos.yml` | Upload Talos ISO to Proxmox nodes | |
 
 ## Inventory Variables Reference
 
-### Global Variables (`all.vars`)
+### Proxmox Inventory (`inventories/proxmox.yml`)
+
+#### Global Variables (`all.vars`)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ansible_user` | SSH user for Proxmox hosts | `root` |
+| `proxmox_cluster_seed` | Existing cluster node IP for `pvecm add` | `192.168.0.2` |
+| `ceph_repo` | Ceph repo matching cluster version | `ceph-squid` |
+
+#### Per-Node Variables (Proxmox Hosts)
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `ansible_host` | Proxmox host IP | Yes | — |
+| `proxmox_join_cluster` | Join the Proxmox cluster on setup | No | `false` |
+| `proxmox_create_vmbr1` | Create vmbr1 bridge for K8s VMs | No | `true` |
+| `proxmox_root_size` | Target root LV size (e.g., `"50G"`) | No | — (skip resize) |
+| `k8s_vm_nodes` | List of K8s node names running on this host | No | `[]` |
+| `gpu_passthrough_ids` | NVIDIA PCI device IDs for VFIO-PCI binding | No | — (skip GPU) |
+| `gpu_type` | GPU description (for logging) | No | `"NVIDIA"` |
+| `gpu_pci_address` | PCI address of discrete GPU | No | `"01:00"` |
+| `igpu_passthrough` | Enable Intel iGPU passthrough | No | `false` |
+| `igpu_pci_address` | PCI address of Intel iGPU | No | `"00:02"` |
+
+### Talos Inventory (`inventories/talos.yml`)
+
+#### Global Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -312,7 +569,7 @@ talosctl reboot --nodes 192.168.0.12
 | `talos_version` | Talos Linux version | `v1.12.3` |
 | `kubernetes_version` | Kubernetes version | `v1.33.0` |
 
-### Per-Node Variables
+#### Per-Node Variables (Talos VMs)
 
 | Variable | Description | Required |
 |----------|-------------|----------|
@@ -455,4 +712,4 @@ talosctl -n 192.168.0.11 ls /dev/dri/
 ---
 
 **Last Updated**: 2026-02-10
-**Status**: 4-node cluster (3 CP + 1 worker) running Talos v1.12.3 / K8s v1.35.0
+**Status**: 7-node Proxmox cluster, 4-node K8s cluster (3 CP + 1 worker) running Talos v1.12.3 / K8s v1.35.0

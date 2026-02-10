@@ -1,0 +1,80 @@
+---
+# ============================================================
+# Safe Reboot — drain K8s VMs, reboot, verify, uncordon
+# ============================================================
+# Reusable task file for safely rebooting a Proxmox host that
+# may be running Kubernetes VMs.
+#
+# If k8s_vm_nodes is defined for the host, this will:
+#   1. Cordon + drain each K8s node (graceful pod eviction)
+#   2. Reboot the Proxmox host
+#   3. Wait for the host and K8s nodes to come back Ready
+#   4. Uncordon the K8s nodes
+#
+# If k8s_vm_nodes is NOT defined, it just reboots normally.
+#
+# Required variable:
+#   _reboot_reason: "reason string"  (set by the calling task)
+#
+# Inventory example:
+#   rohan:
+#     k8s_vm_nodes: [metal1]
+
+# --- Pre-reboot: drain K8s nodes ---
+
+- name: "Drain K8s nodes before reboot ({{ _reboot_reason | default('configuration change') }})"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl drain {{ item }}
+      --ignore-daemonsets
+      --delete-emptydir-data
+      --timeout=120s
+      --grace-period=30
+  loop: "{{ k8s_vm_nodes | default([]) }}"
+  delegate_to: localhost
+  when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+# --- Reboot ---
+
+- name: "Reboot {{ inventory_hostname }} ({{ _reboot_reason | default('configuration change') }})"
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+    msg: "{{ _reboot_reason | default('Ansible-triggered reboot') }}"
+
+# --- Post-reboot: wait for K8s nodes and uncordon ---
+
+- name: Wait for K8s VMs to start on {{ inventory_hostname }}
+  ansible.builtin.pause:
+    seconds: 30
+  when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+- name: Wait for K8s nodes to be Ready
+  ansible.builtin.command:
+    cmd: kubectl wait --for=condition=Ready node/{{ item }} --timeout=60s
+  loop: "{{ k8s_vm_nodes | default([]) }}"
+  delegate_to: localhost
+  register: k8s_wait
+  retries: 10
+  delay: 15
+  until: k8s_wait.rc == 0
+  when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+- name: Uncordon K8s nodes
+  ansible.builtin.command:
+    cmd: kubectl uncordon {{ item }}
+  loop: "{{ k8s_vm_nodes | default([]) }}"
+  delegate_to: localhost
+  when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+- name: Verify K8s cluster health
+  ansible.builtin.command:
+    cmd: kubectl get nodes -o wide
+  delegate_to: localhost
+  register: k8s_nodes_status
+  changed_when: false
+  when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+- name: K8s cluster status after reboot
+  ansible.builtin.debug:
+    msg: "{{ k8s_nodes_status.stdout }}"
+  when: k8s_nodes_status is defined and k8s_nodes_status.stdout is defined

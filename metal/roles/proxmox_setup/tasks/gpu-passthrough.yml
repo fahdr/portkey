@@ -1,0 +1,130 @@
+---
+# ============================================================
+# GPU Passthrough Configuration (NVIDIA)
+# ============================================================
+# Configures the Proxmox host for VFIO GPU passthrough to VMs.
+# Requires a reboot to take effect.
+#
+# Set gpu_passthrough_ids in inventory, e.g.:
+#   gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"
+#
+# Note: If the GPU is the only VGA device (no iGPU), vfio-pci
+# cannot pre-bind at boot (error -22). Proxmox handles driver
+# unbinding and vfio binding at VM start time instead.
+
+- name: Enable IOMMU and VFIO kernel parameters in GRUB
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt nomodeset video=efifb:off video=vesafb:off initcall_blacklist=sysfb_init vfio-pci.ids={{ gpu_passthrough_ids }}"'
+  register: grub_config
+
+- name: Update GRUB
+  ansible.builtin.command:
+    cmd: update-grub
+  when: grub_config is changed
+
+- name: Add VFIO modules to initramfs
+  ansible.builtin.lineinfile:
+    path: /etc/initramfs-tools/modules
+    line: "{{ item }}"
+    create: true
+  loop:
+    - vfio
+    - vfio_iommu_type1
+    - vfio_pci
+    - vfio_pci_core
+  register: initramfs_modules
+
+- name: Load VFIO modules at boot
+  ansible.builtin.copy:
+    content: |
+      vfio
+      vfio_iommu_type1
+      vfio_pci
+    dest: /etc/modules-load.d/vfio.conf
+    mode: "0644"
+  register: vfio_modules
+
+- name: Configure VFIO PCI binding and driver softdeps
+  ansible.builtin.copy:
+    content: |
+      # Bind GPU to vfio-pci at boot ({{ gpu_type | default('NVIDIA') }})
+      options vfio-pci ids={{ gpu_passthrough_ids }}
+
+      # Ensure vfio-pci loads before any GPU driver
+      softdep nouveau pre: vfio-pci
+      softdep nvidia pre: vfio-pci
+      softdep nvidiafb pre: vfio-pci
+      softdep nvidia_drm pre: vfio-pci
+      softdep snd_hda_intel pre: vfio-pci
+      softdep xhci_hcd pre: vfio-pci
+      softdep i2c_nvidia_gpu pre: vfio-pci
+    dest: /etc/modprobe.d/vfio.conf
+    mode: "0644"
+  register: vfio_config
+
+- name: Blacklist GPU drivers on host
+  ansible.builtin.copy:
+    content: |
+      blacklist nouveau
+      blacklist nvidia
+      blacklist nvidiafb
+      blacklist nvidia_drm
+      blacklist i2c_nvidia_gpu
+    dest: /etc/modprobe.d/blacklist-gpu.conf
+    mode: "0644"
+  register: blacklist_config
+
+- name: Configure KVM MSR ignore (prevents NVIDIA VM crashes)
+  ansible.builtin.copy:
+    content: |
+      options kvm ignore_msrs=1 report_ignored_msrs=0
+    dest: /etc/modprobe.d/kvm.conf
+    mode: "0644"
+  register: kvm_config
+
+- name: Update initramfs
+  ansible.builtin.command:
+    cmd: update-initramfs -u -k all
+  when: >-
+    vfio_modules is changed or vfio_config is changed or
+    blacklist_config is changed or kvm_config is changed or
+    initramfs_modules is changed
+  register: initramfs_updated
+
+- name: Safe reboot to apply GPU passthrough
+  ansible.builtin.include_tasks: safe-reboot.yml
+  vars:
+    _reboot_reason: "GPU passthrough configuration"
+  when: grub_config is changed or initramfs_updated is changed
+
+- name: Verify IOMMU is enabled
+  ansible.builtin.shell: dmesg | grep -q 'DMAR.*IOMMU enabled'
+  register: iommu_verify
+  failed_when: false
+  changed_when: false
+
+- name: Verify VFIO modules loaded
+  ansible.builtin.shell: lsmod | grep -q vfio_pci
+  register: vfio_mod_verify
+  failed_when: false
+  changed_when: false
+
+- name: Check GPU VGA driver status
+  ansible.builtin.shell: >
+    lspci -nnk -s {{ gpu_pci_address | default('01:00') }}.0 | grep 'Kernel driver in use'
+  register: gpu_driver
+  failed_when: false
+  changed_when: false
+
+- name: GPU passthrough status
+  ansible.builtin.debug:
+    msg: |
+      GPU passthrough for {{ gpu_type | default('NVIDIA') }}
+      VFIO PCI IDs: {{ gpu_passthrough_ids }}
+      IOMMU: {{ 'ENABLED' if iommu_verify.rc == 0 else 'DISABLED — check BIOS VT-d setting' }}
+      VFIO modules: {{ 'LOADED' if vfio_mod_verify.rc == 0 else 'NOT LOADED' }}
+      VGA driver: {{ gpu_driver.stdout | default('none (ready for passthrough)') | trim }}
+
+      Add to VM config: qm set <VMID> -hostpci0 {{ gpu_pci_address | default('01:00') }},pcie=1,x-vga=1

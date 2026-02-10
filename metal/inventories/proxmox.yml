@@ -1,0 +1,54 @@
+---
+all:
+  vars:
+    ansible_user: root
+    ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+    # Existing cluster node to join via (pvecm add <seed_ip>)
+    proxmox_cluster_seed: 192.168.0.2
+    # Ceph repo matching the cluster version (Squid = v19.x)
+    ceph_repo: ceph-squid
+
+proxmox:
+  children:
+    proxmox_existing:
+      hosts:
+        shire: {ansible_host: 192.168.0.2}
+        rivendell:
+          ansible_host: 192.168.0.202
+          k8s_vm_nodes: [metal3]
+        isengard: {ansible_host: 192.168.0.102}
+        mirkwood:
+          ansible_host: 192.168.0.8
+          k8s_vm_nodes: [metal0]
+        rohan:
+          ansible_host: 192.168.0.7
+          k8s_vm_nodes: [metal1]
+          # Intel Alder Lake-N UHD iGPU [8086:46d1] — passed through to K8s VM
+          igpu_passthrough: true
+          igpu_pci_address: "00:02"
+          # vmbr1 already configured manually
+          proxmox_create_vmbr1: false
+        gondor:
+          ansible_host: 192.168.0.6
+          k8s_vm_nodes: [metal2]
+          # Intel Alder Lake-N UHD iGPU [8086:46d1] — passed through to K8s VM
+          igpu_passthrough: true
+          igpu_pci_address: "00:02"
+          # vmbr1 already configured manually
+          proxmox_create_vmbr1: false
+
+    proxmox_new:
+      hosts:
+        erebor:
+          ansible_host: 192.168.0.101
+          # Set false to skip cluster join (if already joined)
+          proxmox_join_cluster: true
+          # eno2 already bridged as vmbr0 (LAN) — same as rivendell
+          # K8s VMs on this node use vmbr0, no vmbr1 needed
+          proxmox_create_vmbr1: false
+          # NVIDIA GTX 1660 Ti (TU116) — all 4 PCI functions
+          gpu_type: "NVIDIA GTX 1660 Ti"
+          gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"
+          gpu_pci_address: "01:00"
+          # Shrink root LV (default 96G is excessive — 50G is plenty for PVE)
+          proxmox_root_size: "50G"

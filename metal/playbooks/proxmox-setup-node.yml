@@ -1,0 +1,47 @@
+---
+# Provision a new Proxmox VE node:
+#   - Disable enterprise repos, enable no-subscription
+#   - Remove subscription nag
+#   - Install packages + Ceph
+#   - Apply sysctl tuning
+#   - Create vmbr1 bridge for K8s VMs
+#   - Configure fail2ban
+#   - Join the Proxmox cluster
+#
+# Usage:
+#   cd metal
+#   ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-setup-node.yml -l erebor --ask-vault-pass
+#
+# The vault file (metal/vault.yml) stores proxmox_root_password for automated cluster join.
+# Create it with:  ansible-vault create vault.yml
+
+- name: Setup Proxmox node
+  hosts: proxmox
+  serial: 1
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../vault.yml"
+  roles:
+    - proxmox_setup
+
+  post_tasks:
+    - name: Summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Proxmox node {{ inventory_hostname }} setup complete!
+
+          - Repos: enterprise disabled, no-subscription enabled
+          - Ceph: {{ ceph_repo }} packages installed
+          - Packages: {{ proxmox_packages | length }} packages installed
+          - Sysctl: performance + security tweaks applied
+          - Fail2ban: enabled for Proxmox web UI
+          - Network: vmbr1 bridge {{ 'created' if (vmbr1_created is defined and vmbr1_created is changed) else 'already exists' }}
+          - Cluster: {{ cluster_status.stdout_lines[0] | default('check pvecm status') }}
+
+          Next steps:
+            1. Verify in Proxmox UI: https://{{ ansible_host }}:8006
+            2. Check cluster: pvecm status
+            3. Add Talos VM: update inventories/talos.yml, then run:
+               ansible-playbook -i inventories/talos.yml playbooks/talos-create-vms.yml -l <metal_node>
+          ========================================

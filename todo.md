@@ -5,8 +5,11 @@
 4. Try to make the secret-generator an operator so that the applications can directly request for a secret to be generated from within the application definition and/or helm configuration
 5. ??
 6. ✅ Host github runner in the kubernetes cluster to run CI/CD pipelines for my projects
-7. upgrade to talos
+7. ✅ Upgrade to Talos - migrated K3s to Talos Linux v1.12.3 / K8s v1.35.0 (3 CP + 1 worker)
 8. Add claude to code reviews and PRs
+17. ✅ Add erebor (192.168.0.101) to Proxmox cluster - automated setup with Ansible (repos, packages, Ceph Squid, sysctl, fail2ban, cluster join)
+18. 🔄 Configure NVIDIA GTX 1660 Ti passthrough on erebor for K8s GPU workloads
+19. 🔄 Add erebor Talos VM to K8s cluster
 9. ✅ Fix wordpress issues
 10. ✅ Set up CephFS - enable CephFS CSI driver using existing Proxmox-managed cephfs filesystem (RWX storage available)
 11. ✅ Fix NFS CSI - debug mount options on Shire NFS server (192.168.0.41) for nfs-csi storage class

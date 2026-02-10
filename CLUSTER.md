@@ -10,7 +10,7 @@
 
 ## Overview
 
-This is a 3-node bare-metal Kubernetes cluster running **Talos Linux v1.12.3** with **Kubernetes v1.35.0** on Proxmox VMs.
+This is a 4-node Kubernetes cluster running **Talos Linux v1.12.3** with **Kubernetes v1.35.0** on a 7-node Proxmox cluster.
 
 **Key Features**:
 - Immutable, API-driven infrastructure
@@ -20,13 +20,26 @@ This is a 3-node bare-metal Kubernetes cluster running **Talos Linux v1.12.3** w
 - Intel GPU (i915) via Talos Image Factory system extension
 - PodSecurity baseline enforced by default (privileged where needed)
 
-## Nodes
+## Proxmox Cluster (7 nodes)
+
+| Host | IP | Notes |
+|------|-----|-------|
+| shire | 192.168.0.2 | Cluster seed, OPNsense, NFS (8-disk ZFS), Ceph MON |
+| rivendell | 192.168.0.202 | K8s worker host, Ceph MON |
+| isengard | 192.168.0.102 | Ceph MON |
+| mirkwood | 192.168.0.8 | K8s CP host (metal0), AMD Ryzen |
+| rohan | 192.168.0.7 | K8s CP host (metal1), Intel |
+| gondor | 192.168.0.6 | K8s CP host (metal2), Intel |
+| erebor | 192.168.0.101 | New K8s host, NVIDIA GTX 1660 Ti |
+
+## Kubernetes Nodes
 
 | Node | Role | Resources | IP | Proxmox Host | VM ID |
 |------|------|-----------|-----|--------------|-------|
 | metal0 | Control Plane | 4 CPU, 44GB RAM | 192.168.0.11 | mirkwood | 106 |
 | metal1 | Control Plane | 4 CPU, 27GB RAM | 192.168.0.12 | rohan | 107 |
 | metal2 | Control Plane | 4 CPU, 27GB RAM | 192.168.0.13 | gondor | 104 |
+| metal3 | Worker | 4 CPU, 10GB RAM | 192.168.0.14 | rivendell | 114 |
 
 **Control Plane VIP**: 192.168.0.100 (Talos built-in VIP)
 
@@ -147,23 +160,25 @@ Renovate bot creates PRs for image updates. Manual merge required.
 
 ## Expansion Options
 
-### Adding GPU Capacity
+### Erebor — NVIDIA GTX 1660 Ti (In Progress)
 
-**Option 1: LXC Container on Mirkwood (Recommended)**
-- Create privileged LXC container with device passthrough
+Erebor has a dedicated **NVIDIA GeForce GTX 1660 Ti** (TU116, PCI IDs `10de:2182`). This is the first discrete GPU in the cluster, suitable for:
+- Ollama / LLM inference
+- Immich ML (machine learning photo processing)
+- Video transcoding (NVENC)
+- General CUDA compute
+
+**Status**: Proxmox node setup complete, GPU passthrough configuration pending.
+
+### Other GPU Options
+
+**LXC Container on Mirkwood** (AMD Ryzen iGPU)
 - Native AMD GPU access without VM overhead
-- Suitable for ML workloads (Immich, Ollama)
 - Guide: [docs/lxc-kubernetes-node.md](docs/lxc-kubernetes-node.md)
-- Script: `scripts/create-lxc-k8s-node.sh`
 
-**Option 2: Discrete GPU in Mirkwood**
-- Add low-power GPU (NVIDIA GT 1030, AMD RX 6400)
-- Passthrough to VM more reliable than iGPU
-- Leaves iGPU for Proxmox console
-
-**Option 3: More Intel N100 Nodes**
-- Intel iGPU passthrough proven to work (metal1/metal2)
-- Consistent experience across nodes
+**Intel N100 Nodes** (metal1/metal2)
+- Intel i915 iGPU passthrough proven to work
+- Used for Jellyfin transcoding
 
 ---
 
