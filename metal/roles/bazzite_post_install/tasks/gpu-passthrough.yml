@@ -8,6 +8,7 @@
 #   - Add NVIDIA GPU as hostpci0
 #   - Switch VGA to none (GPU becomes primary display)
 #   - Set boot order to disk only
+#   - Add USB device passthrough (mouse, Bluetooth, etc.)
 #
 # Must be followed by stop+start (not reboot) for PCIe changes to take effect.
 # The calling playbook (main.yml) handles the stop+start after this task.
@@ -34,6 +35,14 @@
   ansible.builtin.set_fact:
     gpu_already_added: "{{ current_config.json.data.hostpci0 is defined }}"
 
+- name: Check which USB devices are already passed through
+  ansible.builtin.set_fact:
+    existing_usb_count: >-
+      {{ current_config.json.data | dict2items
+         | selectattr('key', 'match', '^usb\d+$')
+         | list | length }}
+    desired_usb_count: "{{ usb_passthrough_devices | default([]) | length }}"
+
 - name: Remove direct kernel boot args (install-time only)
   ansible.builtin.command:
     cmd: qm set {{ vm_id }} -delete args
@@ -54,9 +63,23 @@
   when: not gpu_already_added
   register: gpu_config_added
 
-- name: GPU passthrough status
+- name: Add USB device passthrough
+  ansible.builtin.command: >
+    qm set {{ vm_id }}
+    -usb{{ idx }} host={{ item.port | default(item.id) }}
+  delegate_to: "{{ proxmox_host }}"
+  loop: "{{ usb_passthrough_devices | default([]) }}"
+  loop_control:
+    index_var: idx
+  when: existing_usb_count | int != desired_usb_count | int
+  register: usb_config_added
+
+- name: Passthrough status
   ansible.builtin.debug:
     msg: >-
       {{ 'GPU passthrough added and install artifacts cleaned up on VM ' ~ vm_id | string ~ '.'
          if gpu_config_added is not skipped
          else 'GPU passthrough already configured on VM ' ~ vm_id | string ~ '.' }}
+      {{ 'USB passthrough configured (' ~ desired_usb_count | string ~ ' devices).'
+         if usb_config_added is changed
+         else 'USB passthrough already configured.' }}

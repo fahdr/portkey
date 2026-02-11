@@ -571,6 +571,30 @@ The deployment uses a **two-stage install** because direct Bazzite ISO kickstart
 
 After Phase 2, the VM must be **stopped and started** (not rebooted) for PCIe passthrough to take effect. After restart, the GPU becomes the primary display — Proxmox VNC console no longer works, use SSH or Sunshine instead.
 
+### USB Passthrough
+
+USB devices are passed through by **physical port number** (not device ID), so you can plug any device into a dedicated VM port and it works without reconfiguring. The Intel Bluetooth adapter is passed by device ID since it's an internal motherboard header.
+
+#### erebor USB Port Map
+
+| Label | Bus 1 (USB 2.0) | Bus 2 (USB 3.0) | USB Standard | Assigned To |
+|-------|-----------------|-----------------|-------------|-------------|
+| Port A | 1-8 | — | USB 2.0 only | VM |
+| Port B | 1-3 | 2-3 | USB 3.0 | VM |
+| Port C | 1-9 | — | USB 2.0 only | VM |
+| Port D | 1-6 | 2-6 | USB 3.0 | VM |
+| Port E | 1-5 | 2-5 | USB 3.0 | VM |
+| SanDisk port | 1-1 | 2-1 | USB 3.0 | **Host** (reserved for 2.5G Ethernet) |
+| Internal | 1-10 | — | USB 2.0 only | Host (ASUS ITE motherboard) |
+| Internal | 1-14 | — | USB 2.0 only | VM (Intel Bluetooth, by device ID) |
+
+- **USB 3.0 hard drives**: Use ports B, D, or E (USB 3.0 capable)
+- **Mice, keyboards, controllers**: Any VM port works (USB 2.0 is sufficient)
+- **2.5G Ethernet adapter**: Must use the SanDisk/host port (USB 3.0 needed for 2.5 Gbps — USB 2.0 maxes out at 480 Mbps)
+- **Xbox controller**: Pair via Bluetooth, or plug Xbox Wireless Adapter into any VM port
+
+> **Port mapping method**: Bus 1 port N pairs with Bus 2 port N (for N=1-6) on Intel Cannon Lake PCH xHCI. Verified via ACPI `_ADR` values from firmware. Ports 7+ on Bus 1 are USB 2.0 only (no SuperSpeed companion).
+
 ### Automated Kickstart Install
 
 The Fedora Kinoite base install is automated using:
@@ -582,7 +606,7 @@ The Fedora Kinoite base install is automated using:
 
 | Software | Install Method | Service | Port | Notes |
 |----------|---------------|---------|------|-------|
-| Ollama | Official install script (`curl \| sh`) | `ollama.service` (systemd) | 11434 | Auto-detects NVIDIA GPU after passthrough |
+| Ollama | Podman container (`docker.io/ollama/ollama`) | `container-ollama.service` (systemd) | 11434 | `--device nvidia.com/gpu=all` for GPU access |
 | Open WebUI | Podman container (`ghcr.io/open-webui/open-webui:main`) | `container-open-webui.service` (systemd) | 3000 | Connects to Ollama at `127.0.0.1:11434` |
 | Sunshine | Flatpak (`dev.lizardbyte.app.Sunshine`) | Flatpak app | 47990 (web UI) | udev rule for uinput access, flatpak overrides for GPU |
 | Moonlight | Flatpak (`com.moonlight_stream.Moonlight`) | Flatpak app | — | Game streaming client (connects to another Sunshine host) |
@@ -617,9 +641,23 @@ bazzite_vms:
       vm_network_bridge: vmbr0
       gpu_pci_address: "01:00"
       gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"
+
+      # USB passthrough (port-based for external, device-ID for internal)
+      usb_passthrough_devices:
+        - port: "1-3"              # External port B (USB 2.0)
+        - port: "2-3"              # External port B (USB 3.0)
+        - port: "1-5"              # External port E (USB 2.0)
+        - port: "2-5"              # External port E (USB 3.0)
+        - port: "1-6"              # External port D (USB 2.0)
+        - port: "2-6"              # External port D (USB 3.0)
+        - port: "1-8"              # External port A (USB 2.0 only)
+        - port: "1-9"              # External port C (USB 2.0 only)
+        - id: "8087:0aaa"          # Intel Bluetooth (internal header)
 ```
 
 > **Finding GPU PCI address and IDs**: SSH into the Proxmox host and run `lspci -nn | grep -i nvidia`. The PCI address is the first field (e.g., `01:00.0`), use just the bus:device part (`01:00`). The IDs are in brackets (e.g., `[10de:2182]`), collect all functions.
+>
+> **Mapping USB ports**: USB ports are identified by `<bus>-<port>`. Use `lsusb -t` to see which bus/port a device is on, then move it between physical ports to build a map. USB 3.0 ports have two entries: one on Bus 1 (USB 2.0 side) and one on Bus 2 (USB 3.0 side). Both must be passed through for full USB 3.0 speed. Use `port:` for physical port passthrough (any device plugged in works) or `id:` for device-ID passthrough (specific device only).
 
 #### Step 2: Create the VM (Phase 1)
 
@@ -848,6 +886,7 @@ talosctl reboot --nodes 192.168.0.12
 | `vm_network_bridge` | Proxmox bridge name | No | `vmbr0` |
 | `gpu_pci_address` | GPU PCI address (e.g., `01:00`) | Yes | — |
 | `gpu_passthrough_ids` | GPU PCI device IDs for VFIO | Yes | — |
+| `usb_passthrough_devices` | List of USB devices/ports to pass to VM (see [USB Passthrough](#usb-passthrough)) | No | `[]` |
 | `bazzite_password` | User password for kickstart | No | `bazzite` |
 | `bazzite_netmask` | Network mask | No | `255.255.255.0` |
 | `bazzite_gateway` | Default gateway | No | `192.168.0.1` |

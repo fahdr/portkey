@@ -53,6 +53,12 @@
     method: GET
     status_code: [200, 301, 302, 303]
   register: webui_verify
-  retries: 10
-  delay: 5
-  until: webui_verify.status is defined
+  retries: 12
+  delay: 10
+  until: webui_verify.status in [200, 301, 302, 303]
+  failed_when: false
+
+- name: Warn if Open WebUI not responding
+  ansible.builtin.debug:
+    msg: "WARNING: Open WebUI not responding on port {{ open_webui_port }} after 2 minutes. Check 'podman logs open-webui' on the VM."
+  when: webui_verify.status is not defined or webui_verify.status not in [200, 301, 302, 303]

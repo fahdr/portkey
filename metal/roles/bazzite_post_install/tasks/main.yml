@@ -52,11 +52,15 @@
   ansible.builtin.include_tasks: gpu-passthrough.yml
 
 # =====================================================
-# Stop + Start VM to activate GPU passthrough
-# PCIe device assignment requires a full stop+start, not a reboot.
+# Stop + Start VM to activate GPU/USB passthrough
+# PCIe and USB device assignment requires a full stop+start, not a reboot.
 # =====================================================
 
-- name: Stop VM for GPU passthrough activation
+- name: Check if VM restart is needed for device changes
+  ansible.builtin.set_fact:
+    vm_restart_needed: "{{ (gpu_config_added is changed) or (usb_config_added is changed) }}"
+
+- name: Stop VM for device passthrough activation
   ansible.builtin.uri:
     url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/stop"
     method: POST
@@ -65,6 +69,7 @@
     validate_certs: false
     status_code: 200
   delegate_to: localhost
+  when: vm_restart_needed
 
 - name: Wait for VM to fully stop
   ansible.builtin.uri:
@@ -78,8 +83,9 @@
   retries: 30
   delay: 5
   until: vm_stop_status.json.data.status == 'stopped'
+  when: vm_restart_needed
 
-- name: Start VM with GPU passthrough
+- name: Start VM with device passthrough
   ansible.builtin.uri:
     url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
     method: POST
@@ -88,6 +94,7 @@
     validate_certs: false
     status_code: 200
   delegate_to: localhost
+  when: vm_restart_needed
 
 - name: Wait for SSH to come back up
   ansible.builtin.wait_for:
@@ -95,8 +102,9 @@
     port: 22
     delay: 15
     timeout: 300
-    msg: "Waiting for VM to boot with GPU passthrough and SSH to come up"
+    msg: "Waiting for VM to boot with device passthrough and SSH to come up"
   delegate_to: localhost
+  when: vm_restart_needed
 
 # =====================================================
 # Install Ollama + Open WebUI AFTER GPU is available
