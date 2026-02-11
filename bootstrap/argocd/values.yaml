@@ -10,13 +10,34 @@ argo-cd:
       resource.customizations.ignoreResourceUpdates.all: |
         jsonPointers:
           - /status
+      resource.customizations.health.argoproj.io_ApplicationSet: |
+        hs = {}
+        hs.status = "Healthy"
+        hs.message = ""
+        return hs
   server:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
     ingress:
       enabled: true
       ingressClassName: nginx
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-      tls: true
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/name: "ArgoCD"
+        gethomepage.dev/description: "Continuous deployment"
+        gethomepage.dev/group: "Development"
+        gethomepage.dev/icon: "https://cdn.jsdelivr.net/gh/loganmarchione/homelab-svg-assets@latest/assets/argocd.svg"
+        gethomepage.dev/widget.type: "argocd"
+        gethomepage.dev/widget.url: "https://argocd.themainfreak.com"
+      tls:
+        - hosts:
+            - argocd.themainfreak.com
+          secretName: argocd-tls
     metrics: &metrics
       enabled: true
       serviceMonitor:
@@ -24,47 +45,26 @@ argo-cd:
   dex:
     enabled: false
   controller:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
     metrics: *metrics
   repoServer:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
     metrics: *metrics
   redis:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
     metrics: *metrics
-argocd-apps:
-  applicationsets:
-    root:
-      namespace: argocd
-      generators:
-        - git:
-            repoURL: &repoURL https://github.com/fahdr/portkey
-            revision: &revision master
-            directories:
-              - path: system/*
-              - path: platform/*
-              - path: apps/*
-              - path: sites/*
-      template:
-        metadata:
-          name: '{{path.basename}}'
-        spec:
-          destination:
-            name: in-cluster
-            namespace: '{{path.basename}}'
-          project: default  # TODO
-          source:
-            repoURL: *repoURL
-            path: '{{path}}'
-            targetRevision: *revision
-          syncPolicy:
-            automated:
-              prune: true
-              selfHeal: true
-            retry:
-              limit: 10
-              backoff:
-                duration: 1m
-                factor: 2
-                maxDuration: 16m
-            syncOptions:
-              - CreateNamespace=true
-              - ApplyOutOfSyncOnly=true
-              - ServerSideApply=true

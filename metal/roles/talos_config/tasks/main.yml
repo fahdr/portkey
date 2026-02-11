@@ -76,25 +76,181 @@
   run_once: true
   when: not secrets_file.stat.exists
 
-- name: Apply Talos configuration to nodes
+# --- DHCP IP Discovery ---
+# New Talos nodes boot from ISO with a DHCP address, not their static IP.
+# We discover the current IP by getting the VM's MAC from Proxmox,
+# then scanning the subnet for port 50000 (Talos API).
+
+- name: Check if node is already reachable at static IP
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 50000
+    timeout: 5
+    state: started
+  delegate_to: localhost
+  register: static_ip_check
+  failed_when: false
+
+- name: Set Proxmox credentials for MAC lookup
+  ansible.builtin.set_fact:
+    proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+  delegate_to: localhost
+  when: static_ip_check.state is not defined or static_ip_check.state != 'started'
+
+- name: Get VM MAC address from Proxmox
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+  register: vm_config
+  delegate_to: localhost
+  when: static_ip_check.state is not defined or static_ip_check.state != 'started'
+
+- name: Extract MAC address from VM config
+  ansible.builtin.set_fact:
+    vm_mac: "{{ vm_config.json.data.net0 | regex_search('([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})') | lower }}"
+  when: static_ip_check.state is not defined or static_ip_check.state != 'started'
+
+- name: Write DHCP discovery script
+  ansible.builtin.copy:
+    content: |
+      import socket, concurrent.futures, sys
+      known = sys.argv[1].split(',')
+      def check(ip):
+          try:
+              s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+              s.settimeout(0.5)
+              r = s.connect_ex((ip, 50000))
+              s.close()
+              return ip if r == 0 else None
+          except: return None
+      with concurrent.futures.ThreadPoolExecutor(max_workers=50) as ex:
+          found = [r for r in ex.map(check, [f'192.168.0.{i}' for i in range(1, 255)]) if r and r not in known]
+      print(found[0] if found else 'NOTFOUND')
+    dest: /tmp/talos_discover_ip.py
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+  when: static_ip_check.state is not defined or static_ip_check.state != 'started'
+
+- name: Discover DHCP IP by scanning subnet for Talos API
+  ansible.builtin.command:
+    cmd: >-
+      python3 /tmp/talos_discover_ip.py
+      {{ (groups['talos'] | map('extract', hostvars, 'ansible_host') | list + [control_plane_endpoint]) | join(',') }}
+  delegate_to: localhost
+  register: dhcp_scan
+  changed_when: false
+  when: static_ip_check.state is not defined or static_ip_check.state != 'started'
+
+- name: Set apply target IP
+  ansible.builtin.set_fact:
+    apply_ip: >-
+      {%- if static_ip_check.state is defined and static_ip_check.state == 'started' -%}
+        {{ ansible_host }}
+      {%- else -%}
+        {{ dhcp_scan.stdout | trim }}
+      {%- endif -%}
+
+- name: Display discovered IP
+  ansible.builtin.debug:
+    msg: >-
+      Node {{ inventory_hostname }}: applying config to {{ apply_ip }}
+      {{ '(static IP)' if apply_ip == ansible_host else '(DHCP - will switch to ' + ansible_host + ' after reboot)' }}
+
+- name: Fail if DHCP IP not found
+  ansible.builtin.fail:
+    msg: >-
+      Could not discover DHCP IP for {{ inventory_hostname }}.
+      Ensure the VM is booted and has a DHCP address.
+      Known Talos hosts were excluded: {{ groups['talos'] | map('extract', hostvars, 'ansible_host') | list }}
+  when: apply_ip == 'NOTFOUND'
+
+# --- Apply Configuration ---
+
+- name: Extract single-document config (multi-document configs don't support patches)
+  ansible.builtin.shell: >
+    python3 -c "import yaml;
+    docs=list(yaml.safe_load_all(open('{{ talos_config_dir }}/{{ is_master | ternary('controlplane', 'worker') }}.yaml')));
+    yaml.dump(docs[0], open('/tmp/{{ inventory_hostname }}-base.yaml','w'), default_flow_style=False)"
+  delegate_to: localhost
+  changed_when: false
+
+- name: Pre-merge patches into config
   ansible.builtin.command:
     cmd: >
-      talosctl apply-config --insecure
-      --nodes {{ ansible_host }}
-      --file {{ talos_config_dir }}/{{ is_master | ternary('controlplane', 'worker') }}.yaml
-      --config-patch @{{ talos_patches_dir }}/{{ inventory_hostname }}.yaml
+      talosctl machineconfig patch
+      /tmp/{{ inventory_hostname }}-base.yaml
+      --patch @{{ talos_patches_dir }}/common.yaml
+      --patch @{{ talos_patches_dir }}/{{ is_master | ternary('controlplane', 'worker') }}.yaml
+      --patch @{{ talos_patches_dir }}/{{ inventory_hostname }}.yaml
+      --output /tmp/{{ inventory_hostname }}-config.yaml
+  delegate_to: localhost
+
+- name: Apply Talos configuration to node (existing)
+  ansible.builtin.command:
+    cmd: >
+      talosctl apply-config
+      --talosconfig {{ talos_config_dir }}/talosconfig
+      --nodes {{ apply_ip }}
+      --file /tmp/{{ inventory_hostname }}-config.yaml
   delegate_to: localhost
   register: apply_result
   changed_when: "'applied' in apply_result.stdout or apply_result.rc == 0"
-  failed_when: apply_result.rc != 0 and 'already applied' not in apply_result.stderr
+  failed_when: apply_result.rc != 0
+  when: apply_ip == ansible_host
+
+- name: Apply Talos configuration to node (fresh/insecure)
+  ansible.builtin.command:
+    cmd: >
+      talosctl apply-config --insecure
+      --nodes {{ apply_ip }}
+      --file /tmp/{{ inventory_hostname }}-config.yaml
+  delegate_to: localhost
+  register: apply_result
+  changed_when: "'applied' in apply_result.stdout or apply_result.rc == 0"
+  failed_when: apply_result.rc != 0
+  when: apply_ip != ansible_host
 
 - name: Display configuration status
   ansible.builtin.debug:
     msg: |
       Talos configuration applied to {{ inventory_hostname }}:
       - Type: {{ is_master | ternary('Control Plane', 'Worker') }}
-      - IP: {{ ansible_host }}
+      - Applied to: {{ apply_ip }}
+      - Static IP: {{ ansible_host }}
       {% if has_vip %}
       - VIP: {{ control_plane_endpoint }} (assigned)
       {% endif %}
       - Node will reboot to apply configuration
+
+- name: Wait for node to reboot with static IP
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 50000
+    delay: 30
+    timeout: 300
+    state: started
+  delegate_to: localhost
+  when: apply_ip != ansible_host
+
+- name: Verify Talos API at static IP
+  ansible.builtin.command:
+    cmd: >
+      talosctl --talosconfig {{ talos_config_dir }}/talosconfig
+      --nodes {{ ansible_host }} version
+  delegate_to: localhost
+  register: version_check
+  retries: 5
+  delay: 10
+  until: version_check.rc == 0
+  failed_when: false
+
+- name: Display version check result
+  ansible.builtin.debug:
+    msg: "{{ version_check.stdout if version_check.rc == 0 else 'Warning: Could not verify Talos version at ' + ansible_host + ' (node may still be booting)' }}"

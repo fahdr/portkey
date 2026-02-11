@@ -37,28 +37,27 @@
 
 ### ✅ Automation & Documentation (100% Complete)
 
-1. **Ansible Playbooks**
-   - Complete suite for reproducible deployments
-   - 20+ playbooks covering entire workflow
-   - Tested and working end-to-end
+1. **Make-based Deployment Pipeline**
+   - `make` from repo root runs full deployment: metal → bootstrap → external
+   - Ansible playbooks for cluster provisioning and bootstrap
+   - Terraform for external services (Cloudflare, ZeroTier, secrets)
    - See: [metal/README.md](metal/README.md)
 
-2. **Documentation**
-   - [CLUSTER.md](CLUSTER.md) - Cluster architecture
-   - [metal/TALOS-DEPLOYMENT.md](metal/TALOS-DEPLOYMENT.md) - Deployment guide
-   - [metal/README.md](metal/README.md) - Ansible workflows
-   - [docs/opnsense-dns-setup.md](docs/opnsense-dns-setup.md) - Local DNS setup
-   - Migration guides (simplified + rolling)
+2. **Secrets Management**
+   - Ceph + GitHub credentials in Ansible Vault (`bootstrap/vault.yml`)
+   - External secrets (Cloudflare, ZeroTier, ntfy) via Terraform Cloud
+   - App secrets via ExternalSecrets + Vaultwarden
 
-3. **DevContainer**
+3. **Documentation**
+   - [CLUSTER.md](CLUSTER.md) - Cluster architecture
+   - [metal/README.md](metal/README.md) - Deployment workflow and playbooks
+   - [docs/post-migration-audit.md](docs/post-migration-audit.md) - Post-migration fixes
+   - [docs/opnsense-dns-setup.md](docs/opnsense-dns-setup.md) - Local DNS setup
+
+4. **DevContainer**
    - Automated dependency installation
    - Pre-configured kubectl + talosctl
    - Ready for development
-
-4. **DNS Configuration**
-   - OpnSense setup documentation
-   - Helper script for bulk DNS entries
-   - Wildcard and individual host options
 
 ---
 
@@ -118,82 +117,26 @@ talosctl --nodes 192.168.0.11 dashboard
 
 ---
 
-## 📋 Next Steps
+## 📋 Redeploy from Scratch
 
-### Immediate (Today)
+The entire cluster can be redeployed with a single command:
 
-1. **✅ COMPLETED: ArgoCD Issue Fixed**
-   - Resolved API server certificate SANs issue
-   - 9 applications synced and running
-   - 33 applications deploying automatically
+```bash
+cd /workspaces/portkey
+make                    # metal → bootstrap → external
+make post-install       # after apps are running: Kanidm OAuth
+```
 
-2. **Configure Local DNS in OpnSense** ⭐
-   - Run: `bash scripts/generate-opnsense-dns.sh`
-   - Follow guide: [docs/opnsense-dns-setup.md](docs/opnsense-dns-setup.md)
-   - Recommended: Use wildcard DNS (`*.themainfreak.com → 192.168.0.224`)
-   - Verify: `nslookup argocd.themainfreak.com` should return 192.168.0.224
+Or step by step:
 
-3. **Monitor Application Deployment**
-   - Check ArgoCD UI: https://argocd.themainfreak.com
-   - View status: `kubectl get applications -n argocd`
-   - Automated sync will deploy remaining apps over next 10-20 minutes
+```bash
+make metal              # 1. Talos cluster + Cilium + CRDs
+make bootstrap          # 2. Ceph secrets + GitHub creds + ArgoCD + root ApplicationSet
+make external           # 3. Terraform: Cloudflare, ZeroTier, ntfy, Vaultwarden
+make post-install       # 4. Kanidm OAuth setup (needs running pods)
+```
 
-### Short Term (This Week)
-
-3. **Test Storage with Real Workload**
-   ```bash
-   # Test Ceph RBD
-   kubectl apply -f - <<EOF
-   apiVersion: v1
-   kind: PersistentVolumeClaim
-   metadata:
-     name: test-ceph
-   spec:
-     accessModes: [ReadWriteOnce]
-     resources:
-       requests:
-         storage: 1Gi
-     storageClassName: ceph-rbd
-   EOF
-   ```
-
-4. **Deploy First Stateless App** (Homepage recommended)
-   - Test ingress routing
-   - Verify DNS resolution
-   - Confirm TLS certificates
-
-5. **Configure Cloudflare Tunnel** (if not already done)
-   - Update tunnel config for new ingress IP
-   - Test external access
-
-### Medium Term (Next 2 Weeks)
-
-6. **Deploy Stateful Applications**
-   - Start with low-risk apps (ActualBudget, Grocy)
-   - Restore from VolSync backups
-   - Test data integrity
-
-7. **Deploy Critical Apps**
-   - Vaultwarden (password manager)
-   - Home Assistant
-   - Immich, Nextcloud, Jellyfin
-
-8. **Monitoring & Alerting**
-   - Deploy Prometheus + Grafana
-   - Set up alerts for cluster health
-   - Monitor resource usage
-
-### Long Term (Next Month)
-
-9. **Optimize & Tune**
-   - Review resource allocations
-   - Tune Cilium performance
-   - Optimize storage performance
-
-10. **Documentation Updates**
-    - Document app-specific restore procedures
-    - Create runbooks for common operations
-    - Update CLUSTER.md with lessons learned
+See [metal/README.md](metal/README.md) for detailed per-step instructions.
 
 ---
 
@@ -260,12 +203,11 @@ kubectl rollout restart deployment/argocd-server -n argocd
 | File | Purpose |
 |------|---------|
 | [CLUSTER.md](CLUSTER.md) | Cluster architecture and overview |
-| [metal/TALOS-DEPLOYMENT.md](metal/TALOS-DEPLOYMENT.md) | Complete deployment details |
-| [metal/README.md](metal/README.md) | Ansible playbook documentation |
+| [metal/README.md](metal/README.md) | Deployment workflow, playbooks, and bootstrap instructions |
+| [docs/post-migration-audit.md](docs/post-migration-audit.md) | Post-migration audit and config fixes |
 | [docs/opnsense-dns-setup.md](docs/opnsense-dns-setup.md) | Local DNS configuration |
-| [docs/talos-migration-simplified.md](docs/talos-migration-simplified.md) | Simplified migration guide |
-| [docs/k3s-to-talos-migration.md](docs/k3s-to-talos-migration.md) | Production migration guide |
-| [scripts/generate-opnsense-dns.sh](scripts/generate-opnsense-dns.sh) | DNS entry generator |
+| [bootstrap/deploy.yml](bootstrap/deploy.yml) | Ansible playbook: secrets + ArgoCD bootstrap |
+| [bootstrap/vault.yml](bootstrap/vault.yml) | Encrypted Ceph + GitHub credentials |
 
 ---
 
@@ -280,9 +222,9 @@ kubectl rollout restart deployment/argocd-server -n argocd
 | ArgoCD accessible | ✅ | UI and API working |
 | Ingress controller working | ✅ | NGINX responding |
 | Documentation complete | ✅ | All guides written |
-| Automation reproducible | ✅ | Ansible tested |
-| DNS configured | ⏳ | User action required |
-| Apps deployed | ⏳ | Next phase |
+| Automation reproducible | ✅ | `make` deploys everything |
+| Secrets in vault | ✅ | Ceph + GitHub in Ansible Vault |
+| One-step redeploy | ✅ | `make` from repo root |
 
 ---
 
@@ -346,6 +288,6 @@ This migration successfully transitioned the Portkey cluster from K3s on Fedora 
 
 ---
 
-**Status**: 🟢 Ready for Application Deployment
-**Last Updated**: 2026-02-08 17:15 UTC
-**Migration Phase**: Complete (Infrastructure) → Next Phase: Application Deployment
+**Status**: 🟢 Fully Operational
+**Last Updated**: 2026-02-09
+**Migration Phase**: Complete — One-step redeploy via `make`

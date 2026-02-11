@@ -1,0 +1,129 @@
+---
+# Bazzite post-install configuration.
+# 1. Rebase from Fedora Kinoite to Bazzite NVIDIA (+ reboot)
+# 2. Install Ollama, Open WebUI, Sunshine, Moonlight
+# 3. Add GPU passthrough to VM config via Proxmox API
+
+- name: Verify SSH connectivity
+  ansible.builtin.ping:
+
+- name: Wait for rpm-ostree to be idle
+  ansible.builtin.shell: |
+    rpm-ostree status --json | python3 -c "
+    import json, sys
+    d = json.load(sys.stdin)
+    tx = d.get('transaction')
+    if tx is not None:
+        sys.exit(1)
+    "
+  register: ostree_idle
+  retries: 12
+  delay: 10
+  until: ostree_idle.rc == 0
+  changed_when: false
+  failed_when: false
+
+- name: Rebase to Bazzite
+  ansible.builtin.include_tasks: rebase.yml
+
+- name: Wait for rpm-ostree to be idle (post-rebase)
+  ansible.builtin.shell: |
+    rpm-ostree status --json | python3 -c "
+    import json, sys
+    d = json.load(sys.stdin)
+    tx = d.get('transaction')
+    if tx is not None:
+        sys.exit(1)
+    "
+  register: ostree_idle_post
+  retries: 12
+  delay: 10
+  until: ostree_idle_post.rc == 0
+  changed_when: false
+  failed_when: false
+
+- name: Install Sunshine
+  ansible.builtin.include_tasks: sunshine.yml
+
+- name: Install Moonlight
+  ansible.builtin.include_tasks: moonlight.yml
+
+- name: Add GPU passthrough to VM config
+  ansible.builtin.include_tasks: gpu-passthrough.yml
+
+# =====================================================
+# Stop + Start VM to activate GPU passthrough
+# PCIe device assignment requires a full stop+start, not a reboot.
+# =====================================================
+
+- name: Stop VM for GPU passthrough activation
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/stop"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+
+- name: Wait for VM to fully stop
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/current"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+  register: vm_stop_status
+  delegate_to: localhost
+  retries: 30
+  delay: 5
+  until: vm_stop_status.json.data.status == 'stopped'
+
+- name: Start VM with GPU passthrough
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+
+- name: Wait for SSH to come back up
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    delay: 15
+    timeout: 300
+    msg: "Waiting for VM to boot with GPU passthrough and SSH to come up"
+  delegate_to: localhost
+
+# =====================================================
+# Install Ollama + Open WebUI AFTER GPU is available
+# Ollama container needs --device nvidia.com/gpu=all
+# =====================================================
+
+- name: Install Ollama
+  ansible.builtin.include_tasks: ollama.yml
+
+- name: Install Open WebUI
+  ansible.builtin.include_tasks: open-webui.yml
+
+- name: Display completion summary
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Bazzite deployment complete!
+
+      Services:
+        - Ollama API: http://{{ ansible_host }}:11434
+        - Open WebUI: http://{{ ansible_host }}:{{ open_webui_port }}
+        - Sunshine:   https://{{ ansible_host }}:47990 (first-run setup)
+        - Moonlight:  Launch from desktop
+
+      GPU passthrough is active (VM has been stop+started).
+        - nvidia-smi should show GTX 1660 Ti
+        - Ollama will auto-detect the GPU
+        - Proxmox VNC console no longer works
+        - Use SSH or Sunshine for remote access
+      ========================================

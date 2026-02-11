@@ -1,0 +1,103 @@
+---
+# Safely reboot a Proxmox node that runs Kubernetes VMs.
+#
+# Flow:
+#   1. Cordon + drain K8s nodes on the host (graceful pod eviction)
+#   2. Reboot the Proxmox host
+#   3. Wait for host + K8s VMs to come back
+#   4. Uncordon K8s nodes
+#
+# If the host has no K8s VMs (k8s_vm_nodes not defined), it just reboots.
+#
+# ⚠️  If this playbook is interrupted after drain but before uncordon,
+# the K8s nodes will remain cordoned. Run the recovery command:
+#
+#   kubectl uncordon <node-name>
+#
+# Or uncordon all nodes at once:
+#
+#   kubectl get nodes -o name | xargs -I{} kubectl uncordon {}
+#
+# Usage:
+#   cd metal
+#   ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml -l <node>
+#
+# Examples:
+#   # Reboot rohan (will drain metal1 first, uncordon after)
+#   ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml -l rohan
+#
+#   # Reboot erebor with a custom reason
+#   ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml -l erebor -e "reason='BIOS update'"
+#
+#   # Reboot all nodes one at a time (serial: 1)
+#   ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml
+
+- name: Safely reboot Proxmox node(s)
+  hosts: proxmox
+  serial: 1
+  gather_facts: false
+  tasks:
+    - name: Show reboot plan
+      ansible.builtin.debug:
+        msg: |
+          Rebooting {{ inventory_hostname }} ({{ ansible_host }})
+          K8s nodes: {{ k8s_vm_nodes | default([]) | join(', ') | default('none', true) }}
+          Reason: {{ reason | default('manual reboot') }}
+
+          ⚠️  If this playbook is interrupted after drain, run:
+            {% for node in k8s_vm_nodes | default([]) %}
+            kubectl uncordon {{ node }}
+            {% endfor %}
+
+    - name: Drain K8s nodes before reboot
+      ansible.builtin.command:
+        cmd: >-
+          kubectl drain {{ item }}
+          --ignore-daemonsets
+          --delete-emptydir-data
+          --timeout=120s
+          --grace-period=30
+      loop: "{{ k8s_vm_nodes | default([]) }}"
+      delegate_to: localhost
+      when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+    - name: Reboot {{ inventory_hostname }}
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        msg: "{{ reason | default('Ansible-triggered safe reboot') }}"
+
+    - name: Wait for K8s VMs to start
+      ansible.builtin.pause:
+        seconds: 30
+      when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+    - name: Wait for K8s nodes to be Ready
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=Ready node/{{ item }} --timeout=60s
+      loop: "{{ k8s_vm_nodes | default([]) }}"
+      delegate_to: localhost
+      register: k8s_wait
+      retries: 10
+      delay: 15
+      until: k8s_wait.rc == 0
+      when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+    - name: Uncordon K8s nodes
+      ansible.builtin.command:
+        cmd: kubectl uncordon {{ item }}
+      loop: "{{ k8s_vm_nodes | default([]) }}"
+      delegate_to: localhost
+      when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+    - name: Verify cluster health
+      ansible.builtin.command:
+        cmd: kubectl get nodes -o wide
+      delegate_to: localhost
+      register: k8s_status
+      changed_when: false
+      when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
+
+    - name: Cluster status
+      ansible.builtin.debug:
+        msg: "{{ k8s_status.stdout }}"
+      when: k8s_status is defined and k8s_status.stdout is defined

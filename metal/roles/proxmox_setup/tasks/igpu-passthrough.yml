@@ -1,0 +1,113 @@
+---
+# ============================================================
+# Intel iGPU Passthrough Configuration
+# ============================================================
+# Configures the Proxmox host to release its Intel iGPU so it
+# can be passed through to VMs (e.g. Talos nodes running
+# Jellyfin transcoding via i915).
+#
+# Unlike discrete GPU passthrough (NVIDIA), Intel iGPU passthrough
+# works by blacklisting the i915 driver on the host and using
+# ACS override for IOMMU group isolation.  Proxmox binds vfio-pci
+# at VM start time.
+#
+# Set igpu_passthrough: true in inventory to enable.
+#
+# SAFETY: When running against nodes hosting K8s VMs, use
+#   serial: 1  in the playbook to reboot one node at a time.
+
+- name: Check if IOMMU is already enabled
+  ansible.builtin.shell: dmesg | grep -q 'DMAR.*IOMMU enabled'
+  register: iommu_already_enabled
+  failed_when: false
+  changed_when: false
+
+- name: Check if i915 is already blacklisted
+  ansible.builtin.shell: grep -q 'modprobe.blacklist=.*i915' /proc/cmdline
+  register: i915_already_blacklisted
+  failed_when: false
+  changed_when: false
+
+- name: Check if VFIO modules are already loaded
+  ansible.builtin.shell: lsmod | grep -q vfio
+  register: vfio_already_loaded
+  failed_when: false
+  changed_when: false
+
+# Skip everything if already fully configured
+- name: iGPU passthrough already configured
+  ansible.builtin.debug:
+    msg: "IOMMU enabled, i915 blacklisted, VFIO loaded — nothing to do"
+  when:
+    - iommu_already_enabled.rc == 0
+    - i915_already_blacklisted.rc == 0
+    - vfio_already_loaded.rc == 0
+
+# --- Apply configuration only if something is missing ---
+
+- name: Enable IOMMU and iGPU passthrough kernel parameters
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet intel_iommu=on iommu=pt pcie_acs_override=downstream,multifunction initcall_blacklist=sysfb_init video=simplefb:off video=vesafb:off video=efifb:off video=vesa:off disable_vga=1 vfio_iommu_type1.allow_unsafe_interrupts=1 kvm.ignore_msrs=1 modprobe.blacklist=radeon,nouveau,nvidia,nvidiafb,nvidia-gpu,snd_hda_intel,snd_hda_codec_hdmi,i915"'
+  register: grub_config
+  when: iommu_already_enabled.rc != 0 or i915_already_blacklisted.rc != 0
+
+- name: Update GRUB
+  ansible.builtin.command:
+    cmd: update-grub
+  when: grub_config is changed
+
+- name: Ensure VFIO modules load at boot
+  ansible.builtin.lineinfile:
+    path: /etc/modules
+    line: "{{ item }}"
+    create: true
+  loop:
+    - vfio
+    - vfio_iommu_type1
+  register: vfio_modules
+  when: vfio_already_loaded.rc != 0
+
+- name: Update initramfs
+  ansible.builtin.command:
+    cmd: update-initramfs -u -k all
+  when: vfio_modules is changed
+  register: initramfs_updated
+
+- name: Safe reboot to apply iGPU passthrough
+  ansible.builtin.include_tasks: safe-reboot.yml
+  vars:
+    _reboot_reason: "Intel iGPU passthrough configuration"
+  when: grub_config is changed or initramfs_updated is changed
+
+# --- Verification (always runs) ---
+
+- name: Verify IOMMU is enabled
+  ansible.builtin.shell: dmesg | grep -q 'DMAR.*IOMMU enabled'
+  register: iommu_verify
+  failed_when: false
+  changed_when: false
+
+- name: Verify VFIO modules loaded
+  ansible.builtin.shell: lsmod | grep -q vfio
+  register: vfio_mod_verify
+  failed_when: false
+  changed_when: false
+
+- name: Check iGPU driver status
+  ansible.builtin.shell: >
+    lspci -nnk -s {{ igpu_pci_address | default('00:02') }}.0 | grep 'Kernel driver in use'
+  register: igpu_driver
+  failed_when: false
+  changed_when: false
+
+- name: iGPU passthrough status
+  ansible.builtin.debug:
+    msg: |
+      Intel iGPU passthrough on {{ inventory_hostname }}
+      IOMMU: {{ 'ENABLED' if iommu_verify.rc == 0 else 'DISABLED — check BIOS VT-d setting' }}
+      VFIO modules: {{ 'LOADED' if vfio_mod_verify.rc == 0 else 'NOT LOADED' }}
+      iGPU driver: {{ igpu_driver.stdout | default('none (i915 blacklisted — ready for passthrough)') | trim }}
+
+      Add to VM config: qm set <VMID> -hostpci0 {{ igpu_pci_address | default('00:02') }},pcie=1

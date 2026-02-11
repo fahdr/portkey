@@ -1,0 +1,64 @@
+---
+# Ceph repository name (ceph-reef for 18.x, ceph-squid for 19.x)
+ceph_repo: ceph-squid
+
+# Packages to install on all Proxmox nodes
+proxmox_packages:
+  # Editors & shell
+  - vim
+  - tmux
+  - bc
+  - git
+  - tree
+  # Monitoring & diagnostics
+  - htop
+  - iotop
+  - iftop
+  - sysstat
+  - lm-sensors
+  - lsof
+  - psmisc
+  - strace
+  - prometheus-node-exporter
+  # Storage
+  - smartmontools
+  - nvme-cli
+  - hdparm
+  - xfsprogs
+  - nfs-common
+  - smbclient
+  - sqlite3
+  # Networking
+  - net-tools
+  - curl
+  - wget
+  - ethtool
+  - dnsutils
+  - nmap
+  - socat
+  - tcpdump
+  - traceroute
+  - nftables
+  - bridge-utils
+  - inetutils-telnet
+  # System
+  - jq
+  - unzip
+  - time
+  - rsync
+  - chrony
+  - fail2ban
+  - ifupdown2
+
+# Whether to create vmbr1 bridge for VM LAN traffic
+# Nodes where vmbr0 is already the LAN bridge (rivendell, erebor) set this to false
+proxmox_create_vmbr1: true
+
+# Physical NIC for vmbr1 (only used when proxmox_create_vmbr1 is true)
+proxmox_lan_interface: eno1
+
+# Whether to join the Proxmox cluster
+proxmox_join_cluster: false
+
+# Seed node IP for cluster join
+proxmox_cluster_seed: 192.168.0.2

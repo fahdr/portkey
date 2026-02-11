@@ -1,0 +1,188 @@
+---
+- name: Bootstrap ArgoCD and cluster secrets
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vault.yml
+  vars:
+    kubeconfig: "{{ playbook_dir }}/../metal/kubeconfig.yaml"
+  environment:
+    KUBECONFIG: "{{ kubeconfig }}"
+
+  tasks:
+    # ---------------------------------------------------------------
+    # Ceph secrets (must exist before ArgoCD syncs system/rook-ceph)
+    # ---------------------------------------------------------------
+    - name: Create rook-ceph namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: rook-ceph
+        state: present
+
+    - name: Create rook-ceph-mon secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: rook-ceph-mon
+            namespace: rook-ceph
+          stringData:
+            cluster-name: rook-ceph
+            fsid: "{{ ceph_fsid }}"
+            admin-secret: admin-secret
+            ceph-secret: "{{ ceph_admin_key }}"
+            ceph-username: client.admin
+            mon-secret: mon-secret
+
+    - name: Create rook-ceph-config secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: rook-ceph-config
+            namespace: rook-ceph
+          stringData:
+            mon_host: "{{ ceph_mon_host }}"
+            mon_initial_members: "{{ ceph_mon_members }}"
+
+    - name: Create CSI secrets
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ item.name }}"
+            namespace: rook-ceph
+          stringData:
+            userID: "{{ item.user_id }}"
+            userKey: "{{ item.user_key }}"
+      loop:
+        - { name: rook-csi-rbd-node, user_id: csi-rbd-node, user_key: "{{ csi_rbd_node_key }}" }
+        - { name: rook-csi-rbd-provisioner, user_id: csi-rbd-provisioner, user_key: "{{ csi_rbd_provisioner_key }}" }
+        - { name: rook-csi-cephfs-node, user_id: csi-cephfs-node, user_key: "{{ csi_cephfs_node_key }}" }
+        - { name: rook-csi-cephfs-provisioner, user_id: csi-cephfs-provisioner, user_key: "{{ csi_cephfs_provisioner_key }}" }
+      loop_control:
+        label: "{{ item.name }}"
+
+    # ---------------------------------------------------------------
+    # ArgoCD
+    # ---------------------------------------------------------------
+    - name: Create argocd namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: argocd
+        state: present
+
+    - name: Create GitHub repo credentials secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: github-repo-creds
+            namespace: argocd
+            labels:
+              argocd.argoproj.io/secret-type: repo-creds
+          type: Opaque
+          stringData:
+            type: git
+            url: https://github.com/fahdr
+            password: "{{ github_token }}"
+            username: fahdr
+
+    - name: Check if ArgoCD ingress exists (determines seed vs production values)
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        name: argocd-server
+        namespace: argocd
+      register: argocd_ingress
+
+    - name: Set ArgoCD values file
+      ansible.builtin.set_fact:
+        argocd_values: "{{ 'values.yaml' if argocd_ingress.resources | length > 0 else 'values-seed.yaml' }}"
+
+    - name: "Deploying ArgoCD with {{ argocd_values }}"
+      ansible.builtin.debug:
+        msg: "Using {{ argocd_values }} ({{ 'production' if argocd_values == 'values.yaml' else 'seed install' }})"
+
+    - name: Render ArgoCD manifests from Helm chart
+      kubernetes.core.helm_template:
+        chart_ref: "{{ playbook_dir }}/argocd"
+        include_crds: true
+        release_name: argocd
+        release_namespace: argocd
+        dependency_update: true
+        values_files:
+          - "{{ playbook_dir }}/argocd/{{ argocd_values }}"
+      register: argocd_manifests
+
+    - name: Apply ArgoCD manifests
+      kubernetes.core.k8s:
+        resource_definition: "{{ argocd_manifests.stdout }}"
+        apply: true
+        server_side_apply:
+          field_manager: argocd-controller
+          force_conflicts: true
+
+    - name: Wait for ArgoCD CRDs to be established
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: "{{ item }}"
+      register: crd_check
+      until: crd_check.resources | length > 0
+      retries: 30
+      delay: 2
+      loop:
+        - applications.argoproj.io
+        - applicationsets.argoproj.io
+
+    # ---------------------------------------------------------------
+    # Root ApplicationSet (ArgoCD takes over from here)
+    # ---------------------------------------------------------------
+    - name: Render root ApplicationSet manifests
+      kubernetes.core.helm_template:
+        chart_ref: "{{ playbook_dir }}/root"
+        release_name: root
+        release_namespace: argocd
+        values_files:
+          - "{{ playbook_dir }}/root/values.yaml"
+      register: root_manifests
+
+    - name: Apply root ApplicationSet
+      kubernetes.core.k8s:
+        resource_definition: "{{ root_manifests.stdout }}"
+        apply: true
+        server_side_apply:
+          field_manager: argocd-controller
+          force_conflicts: true
+
+    - name: Bootstrap complete
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Bootstrap complete!
+          ========================================
+          - Ceph secrets: created in rook-ceph namespace
+          - GitHub credentials: created in argocd namespace
+          - ArgoCD: deployed ({{ argocd_values }})
+          - Root ApplicationSet: deployed
+            Stacks: bootstrap, system, platform, apps, sites
+
+          Next steps:
+          1. Deploy external secrets:
+             make external
+          2. Monitor ArgoCD sync:
+             kubectl get applications -n argocd -w
+          3. After apps are running, finish setup:
+             make post-install
+          ========================================

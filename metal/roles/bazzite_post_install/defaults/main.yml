@@ -1,0 +1,23 @@
+---
+# Bazzite rebase target (from Fedora Kinoite base)
+bazzite_image: "{{ hostvars[inventory_hostname].bazzite_image | default('ostree-unverified-registry:ghcr.io/ublue-os/bazzite-nvidia-open:stable') }}"
+
+# Ollama (podman container)
+ollama_image: "docker.io/ollama/ollama"
+
+# Open WebUI
+open_webui_image: "ghcr.io/open-webui/open-webui:main"
+open_webui_port: 3000
+open_webui_data_dir: "/var/lib/open-webui"
+
+# Sunshine (game streaming host)
+sunshine_flatpak_id: "dev.lizardbyte.app.Sunshine"
+
+# Moonlight (game streaming client)
+moonlight_flatpak_id: "com.moonlight_stream.Moonlight"
+
+# GPU passthrough (from inventory)
+gpu_pci_address: "{{ hostvars[inventory_hostname].gpu_pci_address }}"
+vm_id: "{{ hostvars[inventory_hostname].vm_id }}"
+proxmox_node: "{{ hostvars[inventory_hostname].proxmox_node }}"
+proxmox_host: "{{ hostvars[inventory_hostname].proxmox_host }}"

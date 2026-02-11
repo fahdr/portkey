@@ -1,0 +1,333 @@
+---
+# Create a Bazzite VM on Proxmox via two-stage install:
+#   Stage 1 (this role): Kickstart Fedora Kinoite as base OS
+#   Stage 2 (post-install): Rebase to Bazzite NVIDIA via rpm-ostree
+#
+# Direct Bazzite ISO kickstart is broken (github.com/ublue-os/bazzite/issues/3418).
+# Fedora Kinoite has proper SELinux labels and proven kickstart support.
+#
+# Idempotent: safe to re-run at any point.
+#   - VM running + SSH up → skips everything (install already done)
+#   - VM running + no SSH → stops, reconfigures, restarts
+#   - VM stopped → reconfigures and starts
+#   - VM doesn't exist → full create + install flow
+
+- name: Set Proxmox credentials from .env
+  ansible.builtin.set_fact:
+    proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+  delegate_to: localhost
+
+# =====================================================
+# 0. Destroy existing VM (if recreate=true)
+# =====================================================
+
+- name: Destroy existing VM
+  when: recreate | default(false) | bool
+  block:
+    - name: Stop VM {{ vm_id }}
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/stop"
+        method: POST
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+        status_code: [200, 500]
+      delegate_to: localhost
+
+    - name: Wait for VM to stop
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Delete VM {{ vm_id }}
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}"
+        method: DELETE
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        validate_certs: false
+        status_code: [200, 500]
+      delegate_to: localhost
+
+    - name: Wait for VM deletion
+      ansible.builtin.pause:
+        seconds: 5
+
+# =====================================================
+# 1. Download Fedora Kinoite ISO (~3.5 GB)
+# =====================================================
+
+- name: Check if Kinoite ISO exists on {{ proxmox_node }}
+  ansible.builtin.stat:
+    path: "{{ iso_dir }}/{{ base_iso }}"
+  register: iso_stat
+  delegate_to: "{{ proxmox_host }}"
+
+- name: Download Fedora Kinoite ISO to {{ proxmox_node }}
+  ansible.builtin.command:
+    cmd: >
+      wget -O {{ iso_dir }}/{{ base_iso }}
+      {{ base_iso_url }}
+    creates: "{{ iso_dir }}/{{ base_iso }}"
+  delegate_to: "{{ proxmox_host }}"
+  when: not iso_stat.stat.exists
+
+# =====================================================
+# 2. Clean up old Bazzite ISO (if present)
+# =====================================================
+
+- name: Remove old Bazzite ISO (no longer needed)
+  ansible.builtin.file:
+    path: "{{ iso_dir }}/bazzite-nvidia-open-stable-amd64.iso"
+    state: absent
+  delegate_to: "{{ proxmox_host }}"
+
+# =====================================================
+# 3. Generate kickstart file and OEMDRV ISO
+#    Anaconda auto-detects kickstart from volumes labeled OEMDRV
+# =====================================================
+
+- name: Generate password hash for kickstart
+  ansible.builtin.command:
+    cmd: python3 -c "import crypt; print(crypt.crypt('{{ bazzite_password }}', crypt.mksalt(crypt.METHOD_SHA512)))"
+  register: password_hash_result
+  delegate_to: localhost
+  changed_when: false
+  no_log: true
+
+- name: Set password hash fact
+  ansible.builtin.set_fact:
+    bazzite_password_hash: "{{ password_hash_result.stdout }}"
+  no_log: true
+
+- name: Create kickstart staging directory
+  ansible.builtin.file:
+    path: /tmp/oemdrv
+    state: directory
+    mode: "0755"
+  delegate_to: "{{ proxmox_host }}"
+
+- name: Template kickstart file
+  ansible.builtin.template:
+    src: ks.cfg.j2
+    dest: /tmp/oemdrv/ks.cfg
+    mode: "0644"
+  delegate_to: "{{ proxmox_host }}"
+  register: ks_template
+
+- name: Create OEMDRV ISO
+  ansible.builtin.command:
+    cmd: genisoimage -V OEMDRV -o {{ iso_dir }}/oemdrv.iso /tmp/oemdrv/
+  delegate_to: "{{ proxmox_host }}"
+  when: ks_template is changed
+
+# =====================================================
+# 4. Check VM state
+# =====================================================
+
+- name: Check if VM {{ vm_id }} already exists
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/current"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: [200, 500]
+  register: vm_check
+  delegate_to: localhost
+
+- name: Set VM state facts
+  ansible.builtin.set_fact:
+    vm_exists: "{{ vm_check.status == 200 }}"
+    vm_running: "{{ vm_check.status == 200 and vm_check.json.data.status | default('') == 'running' }}"
+
+- name: Check if SSH is already available
+  ansible.builtin.wait_for:
+    host: "{{ bazzite_ip }}"
+    port: 22
+    timeout: 5
+  register: ssh_check
+  delegate_to: localhost
+  failed_when: false
+  when: vm_running
+
+- name: Get VM config (to check boot order)
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+  register: vm_config
+  delegate_to: localhost
+  when: vm_exists
+
+- name: Set install state facts
+  ansible.builtin.set_fact:
+    # Boot order has no ISO — install was already done at some point
+    previously_installed: "{{ vm_exists and 'sata0' not in (vm_config.json.data.boot | default('order=sata0')) }}"
+    install_complete: "{{ vm_running and ssh_check.state | default('') == 'started' }}"
+    install_in_progress: "{{ vm_running and ssh_check.state | default('') != 'started' and 'sata0' not in (vm_config.json.data.boot | default('order=sata0')) }}"
+
+- name: Skip — install already complete
+  ansible.builtin.debug:
+    msg: "VM {{ vm_id }} is running and SSH is up at {{ bazzite_ip }}. Nothing to do."
+  when: install_complete
+
+- name: Start previously installed VM (stopped but OS on disk)
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+  when: previously_installed and not vm_running and not install_complete
+
+- name: Skip — install in progress (boot order already set to disk)
+  ansible.builtin.debug:
+    msg: "VM {{ vm_id }} is {{ 'running' if vm_running else 'starting' }}, boot order is disk-first. Waiting for SSH."
+  when: previously_installed and not install_complete
+
+# =====================================================
+# 5. Create VM (if it doesn't exist)
+# =====================================================
+
+- name: Create VM (UEFI + q35 + VGA)
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    body_format: form-urlencoded
+    body:
+      vmid: "{{ vm_id }}"
+      name: "{{ vm_name }}"
+      memory: "{{ vm_memory }}"
+      cores: "{{ vm_cpu_cores }}"
+      cpu: "{{ vm_cpu_type }}"
+      machine: "{{ vm_machine_type }}"
+      bios: "{{ vm_bios }}"
+      efidisk0: "{{ vm_storage }}:1,efitype=4m,pre-enrolled-keys=0"
+      scsihw: virtio-scsi-pci
+      scsi0: "{{ vm_storage }}:{{ vm_disk_size }}"
+      net0: "virtio,bridge={{ vm_network_bridge }},firewall=0"
+      ostype: "{{ vm_ostype }}"
+      agent: "enabled=1"
+      onboot: "1"
+      sata0: "{{ iso_storage }}:iso/{{ base_iso }},media=cdrom"
+      sata1: "{{ iso_storage }}:iso/oemdrv.iso,media=cdrom"
+      boot: "order=sata0;scsi0"
+      vga: std
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+  when: not vm_exists and not install_complete and not previously_installed
+
+- name: Wait for VM creation
+  ansible.builtin.pause:
+    seconds: 5
+  when: not vm_exists and not install_complete and not previously_installed
+
+# =====================================================
+# 6. Stop VM if running with failed install (no SSH)
+# =====================================================
+
+- name: Stop VM for reconfiguration
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/stop"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+  when: vm_running and not install_complete and not install_in_progress and not previously_installed
+
+- name: Wait for VM to stop
+  ansible.builtin.pause:
+    seconds: 10
+  when: vm_running and not install_complete and not install_in_progress and not previously_installed
+
+# =====================================================
+# 7. Ensure OEMDRV is attached (for re-runs on existing VMs)
+# =====================================================
+
+- name: Attach OEMDRV ISO
+  ansible.builtin.command:
+    cmd: qm set {{ vm_id }} -sata1 local:iso/oemdrv.iso,media=cdrom
+  delegate_to: "{{ proxmox_host }}"
+  when: vm_exists and not install_complete and not install_in_progress and not previously_installed
+
+# =====================================================
+# 8. Start VM — Kinoite installer auto-detects OEMDRV kickstart
+# =====================================================
+
+- name: Start VM
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+  when: not install_complete and not install_in_progress and not previously_installed
+
+# Change boot order to disk-first immediately after starting.
+# The VM is already booting from the ISO for this session, but on the
+# post-install reboot (after kickstart completes), it will boot from
+# disk instead of looping back into the installer.
+- name: Set boot order to disk-first (prevent reinstall loop)
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+    method: PUT
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    body_format: form-urlencoded
+    body:
+      boot: "order=scsi0"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+  when: not install_complete and not install_in_progress and not previously_installed
+
+# Kickstart uses 'poweroff' instead of 'reboot' so the VM stops after install.
+# We poll VM status until it's stopped, then cold-start it (picks up disk-first boot order).
+- name: Wait for kickstart install to finish (VM will power off)
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/current"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+  register: install_status
+  delegate_to: localhost
+  retries: 120
+  delay: 15
+  until: install_status.json.data.status == 'stopped'
+  when: not install_complete and not install_in_progress and not previously_installed
+
+- name: Cold-start VM (boots from disk with installed Kinoite)
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
+    method: POST
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+    status_code: 200
+  delegate_to: localhost
+  when: not install_complete and not install_in_progress and not previously_installed
+
+- name: Wait for SSH to come up
+  ansible.builtin.wait_for:
+    host: "{{ bazzite_ip }}"
+    port: 22
+    timeout: 300
+    delay: 15
+    msg: "Waiting for Kinoite to boot and SSH to come up at {{ bazzite_ip }}:22"
+  delegate_to: localhost
+  when: not install_complete

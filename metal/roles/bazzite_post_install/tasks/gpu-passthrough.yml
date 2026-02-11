@@ -1,0 +1,62 @@
+---
+# Add GPU passthrough and clean up install artifacts via qm set (SSH).
+# The API token can't assign raw PCI devices — requires root or a Proxmox resource mapping.
+#
+# Changes:
+#   - Remove direct kernel boot args (install-time only)
+#   - Remove OEMDRV CDROM (sata1) and installer ISO (sata0)
+#   - Add NVIDIA GPU as hostpci0
+#   - Switch VGA to none (GPU becomes primary display)
+#   - Set boot order to disk only
+#
+# Must be followed by stop+start (not reboot) for PCIe changes to take effect.
+# The calling playbook (main.yml) handles the stop+start after this task.
+
+- name: Set Proxmox credentials from .env
+  ansible.builtin.set_fact:
+    proxmox_api_host: "{{ lookup('ini', 'PROXMOX_HOST type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_user: "{{ lookup('ini', 'PROXMOX_USER type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_id: "{{ lookup('ini', 'PROXMOX_TOKEN_ID type=properties file=' + playbook_dir + '/../.env') }}"
+    proxmox_token_secret: "{{ lookup('ini', 'PROXMOX_TOKEN_SECRET type=properties file=' + playbook_dir + '/../.env') }}"
+  delegate_to: localhost
+
+- name: Get current VM config
+  ansible.builtin.uri:
+    url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+    method: GET
+    headers:
+      Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+    validate_certs: false
+  register: current_config
+  delegate_to: localhost
+
+- name: Check if GPU passthrough is already configured
+  ansible.builtin.set_fact:
+    gpu_already_added: "{{ current_config.json.data.hostpci0 is defined }}"
+
+- name: Remove direct kernel boot args (install-time only)
+  ansible.builtin.command:
+    cmd: qm set {{ vm_id }} -delete args
+  delegate_to: "{{ proxmox_host }}"
+  when: current_config.json.data.args is defined
+  failed_when: false
+
+# Use qm set via SSH instead of the API — the API token can't assign
+# raw PCI devices (requires root or a Proxmox resource mapping).
+- name: Apply GPU passthrough and clean up install media
+  ansible.builtin.command: >
+    qm set {{ vm_id }}
+    -hostpci0 {{ gpu_pci_address }},pcie=1,x-vga=1
+    -vga none
+    -boot order=scsi0
+    -delete sata0,sata1
+  delegate_to: "{{ proxmox_host }}"
+  when: not gpu_already_added
+  register: gpu_config_added
+
+- name: GPU passthrough status
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'GPU passthrough added and install artifacts cleaned up on VM ' ~ vm_id | string ~ '.'
+         if gpu_config_added is not skipped
+         else 'GPU passthrough already configured on VM ' ~ vm_id | string ~ '.' }}

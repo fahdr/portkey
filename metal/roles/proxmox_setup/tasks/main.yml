@@ -1,0 +1,307 @@
+---
+# ============================================================
+# Proxmox VE node setup: repos, packages, tuning, networking
+# ============================================================
+
+# --- Repository Configuration ---
+
+- name: Check for PVE enterprise repository
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/pve-enterprise.list
+  register: pve_enterprise_file
+
+- name: Disable PVE enterprise repository
+  ansible.builtin.lineinfile:
+    path: /etc/apt/sources.list.d/pve-enterprise.list
+    regexp: '^deb'
+    line: '# deb https://enterprise.proxmox.com/debian/pve bookworm pve-enterprise'
+    create: false
+  when: pve_enterprise_file.stat.exists
+  register: pve_repo
+
+- name: Check for Ceph enterprise repository
+  ansible.builtin.stat:
+    path: /etc/apt/sources.list.d/ceph.list
+  register: ceph_enterprise_file
+
+- name: Disable Ceph enterprise repository
+  ansible.builtin.lineinfile:
+    path: /etc/apt/sources.list.d/ceph.list
+    regexp: '^deb.*enterprise'
+    line: '# deb https://enterprise.proxmox.com/debian/ceph-squid bookworm enterprise'
+    create: false
+  when: ceph_enterprise_file.stat.exists
+
+- name: Add PVE no-subscription repository
+  ansible.builtin.copy:
+    content: "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription\n"
+    dest: /etc/apt/sources.list.d/pve-no-subscription.list
+    mode: "0644"
+
+- name: Add Ceph no-subscription repository
+  ansible.builtin.copy:
+    content: "deb http://download.proxmox.com/debian/{{ ceph_repo }} bookworm no-subscription\n"
+    dest: /etc/apt/sources.list.d/ceph-no-subscription.list
+    mode: "0644"
+
+# --- Subscription Nag Removal ---
+
+- name: Remove subscription nag (persistent dpkg hook)
+  ansible.builtin.copy:
+    content: |
+      DPkg::Post-Invoke { "dpkg -V proxmox-widget-toolkit | grep -q '/proxmoxlib\.js$'; if [ $? -eq 1 ]; then { echo 'Removing subscription nag from UI...'; sed -i '/.*res\.data\.status.*/{s/\!//;s/active/NoMoreNagging/}' /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js; }; fi"; };
+    dest: /etc/apt/apt.conf.d/no-nag-script
+    mode: "0644"
+
+- name: Apply subscription nag removal now
+  ansible.builtin.shell: >
+    sed -i '/.*res\.data\.status.*/{s/\!//;s/active/NoMoreNagging/}'
+    /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+  changed_when: false
+
+- name: Restart pveproxy to apply nag removal
+  ansible.builtin.systemd:
+    name: pveproxy
+    state: restarted
+
+# --- System Update ---
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+
+- name: Full system upgrade
+  ansible.builtin.apt:
+    upgrade: full
+    autoremove: true
+  register: apt_upgrade
+
+- name: Display upgrade results
+  ansible.builtin.debug:
+    msg: "{{ 'Packages upgraded' if apt_upgrade.changed else 'System already up to date' }}"
+
+# --- Package Installation ---
+
+- name: Install essential packages
+  ansible.builtin.apt:
+    name: "{{ proxmox_packages }}"
+    state: present
+
+# --- Ceph Packages ---
+
+- name: Install Ceph packages via pveceph
+  ansible.builtin.shell: >
+    echo "y" | pveceph install --version squid --repository no-subscription
+  register: ceph_install
+  changed_when: "'is already the newest version' not in ceph_install.stdout"
+  failed_when: ceph_install.rc != 0
+
+# --- Sysctl Tuning ---
+
+- name: Apply sysctl performance and security tweaks
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-proxmox-tweaks.conf
+    reload: true
+  loop:
+    # Network performance
+    - {name: "net.core.somaxconn", value: "65535"}
+    - {name: "net.core.netdev_max_backlog", value: "50000"}
+    - {name: "net.ipv4.tcp_max_syn_backlog", value: "40000"}
+    - {name: "net.ipv4.tcp_syncookies", value: "1"}
+    - {name: "net.ipv4.tcp_fin_timeout", value: "10"}
+    - {name: "net.ipv4.tcp_tw_reuse", value: "1"}
+    - {name: "net.ipv4.ip_local_port_range", value: "10000 60000"}
+    # BBR congestion control
+    - {name: "net.core.default_qdisc", value: "fq"}
+    - {name: "net.ipv4.tcp_congestion_control", value: "bbr"}
+    # Memory
+    - {name: "vm.swappiness", value: "10"}
+    - {name: "vm.dirty_background_ratio", value: "5"}
+    - {name: "vm.dirty_ratio", value: "10"}
+    # inotify (needed for containers and monitoring)
+    - {name: "fs.inotify.max_user_instances", value: "8192"}
+    - {name: "fs.inotify.max_user_watches", value: "524288"}
+    - {name: "fs.inotify.max_queued_events", value: "32000"}
+    # Security
+    - {name: "kernel.unprivileged_bpf_disabled", value: "1"}
+    - {name: "net.ipv4.conf.all.rp_filter", value: "1"}
+    - {name: "net.ipv4.conf.default.rp_filter", value: "1"}
+    - {name: "net.ipv4.conf.all.accept_redirects", value: "0"}
+    - {name: "net.ipv4.conf.default.accept_redirects", value: "0"}
+    - {name: "net.ipv4.conf.all.send_redirects", value: "0"}
+    - {name: "net.ipv4.conf.default.send_redirects", value: "0"}
+
+# --- SSH Key ---
+
+- name: Ensure SSH authorized key is present
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+    state: present
+
+# --- Network Configuration (vmbr1 for K8s VMs) ---
+# Some nodes use vmbr0 directly for LAN (rivendell, erebor).
+# Others route through OPNsense and need vmbr1 (mirkwood, rohan, gondor).
+# Set proxmox_create_vmbr1: false in inventory to skip.
+
+- name: Check if vmbr1 already exists
+  ansible.builtin.command:
+    cmd: ip link show vmbr1
+  register: vmbr1_check
+  failed_when: false
+  changed_when: false
+  when: proxmox_create_vmbr1 | default(true)
+
+- name: Create vmbr1 bridge for VM LAN traffic
+  ansible.builtin.blockinfile:
+    path: /etc/network/interfaces
+    marker: "# {mark} ANSIBLE MANAGED - vmbr1 LAN bridge"
+    block: |
+      auto vmbr1
+      iface vmbr1 inet manual
+              bridge-ports {{ proxmox_lan_interface }}
+              bridge-stp off
+              bridge-fd 0
+  when:
+    - proxmox_create_vmbr1 | default(true)
+    - vmbr1_check.rc != 0
+  register: vmbr1_created
+
+- name: Apply network configuration
+  ansible.builtin.command:
+    cmd: ifreload -a
+  when: vmbr1_created is changed
+
+- name: Display network bridge info
+  ansible.builtin.debug:
+    msg: "{{ 'vmbr1 created' if (vmbr1_created is changed) else ('vmbr1 skipped — VMs will use vmbr0' if not (proxmox_create_vmbr1 | default(true)) else 'vmbr1 already exists') }}"
+
+# --- Fail2Ban ---
+
+- name: Create Proxmox fail2ban filter
+  ansible.builtin.copy:
+    content: |
+      [Definition]
+      failregex = pvedaemon\[.*authentication failure; rhost=<HOST> user=.* msg=.*
+      ignoreregex =
+    dest: /etc/fail2ban/filter.d/proxmox.conf
+    mode: "0644"
+
+- name: Disable default sshd jail (no /var/log/auth.log on Proxmox)
+  ansible.builtin.copy:
+    content: |
+      [sshd]
+      enabled = false
+    dest: /etc/fail2ban/jail.d/sshd.conf
+    mode: "0644"
+
+- name: Create Proxmox fail2ban jail
+  ansible.builtin.copy:
+    content: |
+      [proxmox]
+      enabled = true
+      port = https,http,8006
+      filter = proxmox
+      backend = systemd
+      maxretry = 3
+      findtime = 2d
+      bantime = 1h
+    dest: /etc/fail2ban/jail.d/proxmox.conf
+    mode: "0644"
+  notify: restart fail2ban
+
+- name: Ensure fail2ban is enabled and started
+  ansible.builtin.systemd:
+    name: fail2ban
+    state: started
+    enabled: true
+
+# --- Cluster Join ---
+# pvecm add SSHes to the seed node and prompts for its root password.
+# We use ansible.builtin.expect to feed the password via a proper PTY.
+# Store proxmox_root_password in metal/vault.yml (ansible-vault encrypted).
+
+- name: Check cluster membership
+  ansible.builtin.command:
+    cmd: pvecm status
+  register: cluster_status
+  failed_when: false
+  changed_when: false
+
+- name: Display cluster status
+  ansible.builtin.debug:
+    msg: "{{ cluster_status.stdout if cluster_status.rc == 0 else 'Not in a cluster yet' }}"
+
+- name: Add seed node SSH host key to known_hosts
+  ansible.builtin.shell: >
+    ssh-keyscan -H {{ proxmox_cluster_seed }} >> /root/.ssh/known_hosts 2>/dev/null
+  when:
+    - proxmox_join_cluster | default(false)
+    - cluster_status.rc != 0
+    - proxmox_root_password is defined
+  changed_when: false
+
+- name: Install pexpect for automated cluster join
+  ansible.builtin.apt:
+    name: python3-pexpect
+    state: present
+  when:
+    - proxmox_join_cluster | default(false)
+    - cluster_status.rc != 0
+    - proxmox_root_password is defined
+
+- name: Join Proxmox cluster
+  ansible.builtin.expect:
+    command: pvecm add {{ proxmox_cluster_seed }}
+    responses:
+      "(?i)password": "{{ proxmox_root_password }}"
+      "(?i)fingerprint.*yes/no": "yes"
+      "(?i)Are you sure.*yes/no": "yes"
+    timeout: 120
+  when:
+    - proxmox_join_cluster | default(false)
+    - cluster_status.rc != 0
+    - proxmox_root_password is defined
+  register: cluster_join
+
+- name: Remind to join cluster manually (no password provided)
+  ansible.builtin.debug:
+    msg: >-
+      Node is NOT in the Proxmox cluster yet and no proxmox_root_password was provided.
+      Either add it to metal/vault.yml and re-run with --ask-vault-pass,
+      or SSH into {{ inventory_hostname }} and run:  pvecm add {{ proxmox_cluster_seed }}
+  when:
+    - proxmox_join_cluster | default(false)
+    - cluster_status.rc != 0
+    - proxmox_root_password is not defined
+
+- name: Verify cluster membership
+  ansible.builtin.command:
+    cmd: pvecm status
+  register: cluster_status_post
+  changed_when: false
+  when: cluster_join is changed
+
+- name: Display final cluster status
+  ansible.builtin.debug:
+    msg: "{{ cluster_status_post.stdout }}"
+  when: cluster_join is changed
+
+# --- Root LV Resize (optional) ---
+
+- name: Resize root LV
+  ansible.builtin.include_tasks: resize-root.yml
+  when: proxmox_root_size is defined
+
+# --- GPU Passthrough (optional) ---
+
+- name: Configure discrete GPU passthrough (NVIDIA)
+  ansible.builtin.include_tasks: gpu-passthrough.yml
+  when: gpu_passthrough_ids is defined
+
+- name: Configure Intel iGPU passthrough
+  ansible.builtin.include_tasks: igpu-passthrough.yml
+  when: igpu_passthrough | default(false)

@@ -1,0 +1,60 @@
+---
+# Run Ollama as a Podman container with NVIDIA GPU support.
+# Bazzite is an immutable OS — /usr is read-only, so the standard
+# install script fails. Podman container is the correct approach.
+
+- name: Check if Ollama container exists
+  ansible.builtin.command: podman container inspect ollama
+  register: ollama_exists
+  failed_when: false
+  changed_when: false
+
+- name: Pull Ollama image
+  ansible.builtin.command: podman pull {{ ollama_image }}
+  when: ollama_exists.rc != 0
+
+- name: Create Ollama data directory
+  ansible.builtin.file:
+    path: /var/lib/ollama
+    state: directory
+    mode: "0755"
+
+- name: Create Ollama container with GPU access
+  ansible.builtin.command: >
+    podman create
+    --name ollama
+    --network host
+    --device nvidia.com/gpu=all
+    --security-opt=label=disable
+    -v /var/lib/ollama:/root/.ollama:Z
+    -e OLLAMA_HOST=0.0.0.0
+    {{ ollama_image }}
+  when: ollama_exists.rc != 0
+
+- name: Generate systemd unit for Ollama
+  ansible.builtin.command: podman generate systemd --new --name ollama
+  register: ollama_systemd
+  changed_when: false
+
+- name: Install Ollama systemd unit
+  ansible.builtin.copy:
+    content: "{{ ollama_systemd.stdout }}"
+    dest: /etc/systemd/system/container-ollama.service
+    mode: "0644"
+
+- name: Enable and start Ollama service
+  ansible.builtin.systemd:
+    name: container-ollama
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Verify Ollama is responding
+  ansible.builtin.uri:
+    url: "http://localhost:11434/api/tags"
+    method: GET
+    status_code: 200
+  register: ollama_verify
+  retries: 10
+  delay: 5
+  until: ollama_verify.status == 200

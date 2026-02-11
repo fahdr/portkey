@@ -11,6 +11,5 @@
         - cloudflared
         - external-dns
         - global-secrets
-        - k8up-operator
         - monitoring-system
         - zerotier

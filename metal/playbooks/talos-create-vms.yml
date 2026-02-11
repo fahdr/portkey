@@ -13,7 +13,7 @@
     iso_storage: local
     vm_storage: local-lvm
     vm_disk_size: 50
-    vm_network_bridge: vmbr1
+    vm_network_bridge: "{{ hostvars[inventory_hostname].vm_network_bridge | default('vmbr1') }}"
     vm_cpu_type: host
     vm_ostype: l26
 
@@ -69,9 +69,39 @@
       when: vm_exists.status == 500
       register: vm_created
 
-    - name: Display VM creation result
+    - name: Wait for VM creation to complete
+      ansible.builtin.pause:
+        seconds: 5
+        prompt: "Waiting for Proxmox to finish creating {{ inventory_hostname }}..."
+      when: vm_created is changed
+
+    - name: Check current VM config for iGPU passthrough
+      ansible.builtin.command:
+        cmd: >-
+          ssh -o StrictHostKeyChecking=no root@{{ proxmox_host }}
+          qm config {{ vm_id }}
+      delegate_to: localhost
+      register: vm_config
+      changed_when: false
+      when: igpu_passthrough | default(false)
+
+    - name: Add iGPU passthrough to VM
+      ansible.builtin.command:
+        cmd: >-
+          ssh -o StrictHostKeyChecking=no root@{{ proxmox_host }}
+          qm set {{ vm_id }} -hostpci0 0000:{{ igpu_pci_address }}.0
+      delegate_to: localhost
+      register: igpu_result
+      when:
+        - igpu_passthrough | default(false)
+        - "'hostpci0' not in (vm_config.stdout | default(''))"
+
+    - name: Display iGPU passthrough status
       ansible.builtin.debug:
-        msg: "{{ 'Created VM ' + inventory_hostname + ' (ID: ' + (vm_id | string) + ') on ' + proxmox_node if vm_created is changed else 'VM ' + inventory_hostname + ' already exists' }}"
+        msg: >-
+          {{ 'Added' if igpu_result is changed else 'Already configured:' }}
+          iGPU passthrough ({{ igpu_pci_address }}) on {{ inventory_hostname }}
+      when: igpu_passthrough | default(false)
 
     - name: Start VM
       ansible.builtin.uri:
@@ -83,23 +113,29 @@
         status_code: 200
       delegate_to: localhost
 
-    - name: Wait for VM to boot
-      ansible.builtin.pause:
-        seconds: 30
-        prompt: "Waiting for {{ inventory_hostname }} to boot into Talos..."
-
-    - name: Wait for Talos API to be ready
-      ansible.builtin.wait_for:
-        host: "{{ ansible_host }}"
-        port: 50000
-        delay: 10
-        timeout: 300
-        state: started
+    # VM is already booting from the ISO for this session.
+    # Change boot order to disk-first so that after Talos installs
+    # and reboots, it boots from disk instead of the ISO again.
+    - name: Set boot order to disk-first (prevent reinstall loop)
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          boot: "order=scsi0"
+        validate_certs: false
+        status_code: 200
       delegate_to: localhost
+      when: vm_created is changed
 
-    - name: Display VM boot status
+    - name: Display VM status
       ansible.builtin.debug:
-        msg: "VM {{ inventory_hostname }} (ID: {{ vm_id }}) booted successfully on {{ proxmox_node }}"
+        msg: >-
+          {{ 'Created and started' if vm_created is changed else 'Started existing' }}
+          VM {{ inventory_hostname }} (ID: {{ vm_id }}) on {{ proxmox_node }}
+          with bridge {{ vm_network_bridge }}
 
 - name: Summary
   hosts: localhost
@@ -109,10 +145,13 @@
       ansible.builtin.debug:
         msg: |
           ========================================
-          All Talos VMs created and booted!
+          All Talos VMs created and started!
+
+          VMs boot from Talos ISO and get a DHCP address.
+          The apply-configs playbook will discover the DHCP IP
+          and apply the Talos config with the correct static IP.
 
           Next steps:
-          1. Apply machine configs: cd metal && ansible-playbook playbooks/talos-apply-configs.yml
-          2. Bootstrap cluster: talosctl bootstrap --nodes 192.168.0.11
-          3. Get kubeconfig: talosctl kubeconfig
+          1. Wait ~60s for VMs to boot and get DHCP
+          2. Apply configs: ansible-playbook -i inventories/talos.yml playbooks/talos-apply-configs.yml -l <node>
           ========================================

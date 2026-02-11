@@ -1,0 +1,20 @@
+---
+# Bazzite post-install — Phase 2 of automated deployment.
+# Normally called by bazzite-create-vm.yml, but can be run standalone.
+#
+# Steps:
+#   1. Rebase from Fedora Kinoite to Bazzite NVIDIA Open (+ reboot)
+#   2. Install Sunshine + Moonlight (flatpaks)
+#   3. Add GPU passthrough to VM config
+#   4. Stop + start VM to activate GPU passthrough
+#   5. Install Ollama + Open WebUI (podman containers, GPU available)
+#
+# Usage (standalone):
+#   cd metal
+#   ansible-playbook -i inventories/bazzite.yml playbooks/bazzite-post-install.yml
+
+- name: Configure Bazzite VM
+  hosts: bazzite_vms
+  gather_facts: true
+  roles:
+    - bazzite_post_install

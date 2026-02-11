@@ -1,23 +1,24 @@
 .POSIX:
 
-env ?= prod
 export KUBECONFIG = $(shell pwd)/kubeconfig.yaml
+export TALOSCONFIG = $(shell pwd)/talos-configs/talosconfig
+INVENTORY = inventories/talos.yml
 
-default: boot cluster
+default: cluster
 
-~/.ssh/id_ed25519:
-	ssh-keygen -t ed25519 -P '' -f "$@"
+cluster: apply-configs talos-bootstrap post-bootstrap
 
-boot: ~/.ssh/id_ed25519
-	ansible-playbook \
-		--inventory inventories/${env}.yml \
-		boot.yml -vv
+apply-configs:
+	ansible-playbook -i $(INVENTORY) playbooks/talos-apply-configs.yml
 
-cluster:
-	ansible-playbook \
-		--inventory inventories/${env}.yml \
-		cluster.yml -vv
+talos-bootstrap:
+	talosctl --talosconfig talos-configs/talosconfig bootstrap --nodes 192.168.0.11
 
-console:
-	ansible-console \
-		--inventory inventories/${env}.yml
+post-bootstrap:
+	ansible-playbook playbooks/talos-post-bootstrap.yml
+
+create-vms:
+	ansible-playbook -i $(INVENTORY) playbooks/talos-create-vms.yml
+
+upgrade:
+	ansible-playbook -i $(INVENTORY) playbooks/talos-upgrade.yml
