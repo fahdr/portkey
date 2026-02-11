@@ -1,0 +1,31 @@
+---
+# Deploy a Bazzite gaming VM on Proxmox — fully automated.
+#
+# Two-stage install:
+#   1. Create VM + kickstart Fedora Kinoite (automated, no VNC needed)
+#   2. Rebase to Bazzite NVIDIA Open + install Ollama, Open WebUI, Sunshine, Moonlight
+#   3. Add GPU passthrough to VM config
+#
+# After completion, stop and start (not reboot) the VM for GPU passthrough:
+#   ssh bazzite@192.168.0.15 'sudo shutdown now'
+#   Then start VM 120 from Proxmox UI on erebor
+#
+# To destroy an existing VM and start fresh:
+#   ansible-playbook -i inventories/bazzite.yml playbooks/bazzite-create-vm.yml -e recreate=true
+#
+# Usage:
+#   cd metal
+#   ansible-playbook -i inventories/bazzite.yml playbooks/bazzite-create-vm.yml
+
+- name: Create Bazzite VM
+  hosts: bazzite_vms
+  gather_facts: false
+  serial: 1
+  roles:
+    - bazzite_vm
+
+- name: Configure Bazzite VM
+  hosts: bazzite_vms
+  gather_facts: true
+  roles:
+    - bazzite_post_install

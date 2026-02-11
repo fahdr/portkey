@@ -1,0 +1,56 @@
+---
+# Rebase from Fedora Kinoite to Bazzite NVIDIA Open.
+# This replaces the entire OS image with Bazzite while preserving user data.
+# Requires a reboot to complete — the role handles this automatically.
+
+- name: Check current deployment
+  ansible.builtin.command: rpm-ostree status --json
+  register: ostree_status
+  changed_when: false
+
+- name: Check if already on Bazzite
+  ansible.builtin.set_fact:
+    already_bazzite: "{{ 'bazzite' in (ostree_status.stdout | from_json).deployments[0].get('container-image-reference', '') }}"
+
+- name: Rebase to Bazzite NVIDIA Open
+  ansible.builtin.command: rpm-ostree rebase {{ bazzite_image }}
+  when: not already_bazzite
+  register: rebase_result
+
+# Fire-and-forget reboot — the long rpm-ostree rebase can cause SSH
+# sessions to go stale, making ansible.builtin.reboot fail to connect.
+# Instead, send the reboot command async and handle reconnection ourselves.
+- name: Reboot into Bazzite
+  ansible.builtin.shell: sleep 2 && systemctl reboot
+  async: 1
+  poll: 0
+  when: rebase_result is changed
+  ignore_errors: true
+
+- name: Wait for SSH to go down
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 22
+    state: stopped
+    delay: 5
+    timeout: 60
+  delegate_to: localhost
+  when: rebase_result is changed
+
+- name: Wait for SSH to come back up after reboot
+  ansible.builtin.wait_for_connection:
+    delay: 15
+    timeout: 300
+  when: rebase_result is changed
+
+- name: Verify Bazzite deployment
+  ansible.builtin.command: rpm-ostree status --json
+  register: bazzite_verify
+  changed_when: false
+
+- name: Confirm Bazzite is active
+  ansible.builtin.assert:
+    that:
+      - "'bazzite' in (bazzite_verify.stdout | from_json).deployments[0].get('container-image-reference', '')"
+    fail_msg: "Rebase to Bazzite failed — current image does not contain 'bazzite'"
+    success_msg: "Running Bazzite NVIDIA Open"

@@ -75,6 +75,34 @@
         prompt: "Waiting for Proxmox to finish creating {{ inventory_hostname }}..."
       when: vm_created is changed
 
+    - name: Check current VM config for iGPU passthrough
+      ansible.builtin.command:
+        cmd: >-
+          ssh -o StrictHostKeyChecking=no root@{{ proxmox_host }}
+          qm config {{ vm_id }}
+      delegate_to: localhost
+      register: vm_config
+      changed_when: false
+      when: igpu_passthrough | default(false)
+
+    - name: Add iGPU passthrough to VM
+      ansible.builtin.command:
+        cmd: >-
+          ssh -o StrictHostKeyChecking=no root@{{ proxmox_host }}
+          qm set {{ vm_id }} -hostpci0 0000:{{ igpu_pci_address }}.0
+      delegate_to: localhost
+      register: igpu_result
+      when:
+        - igpu_passthrough | default(false)
+        - "'hostpci0' not in (vm_config.stdout | default(''))"
+
+    - name: Display iGPU passthrough status
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'Added' if igpu_result is changed else 'Already configured:' }}
+          iGPU passthrough ({{ igpu_pci_address }}) on {{ inventory_hostname }}
+      when: igpu_passthrough | default(false)
+
     - name: Start VM
       ansible.builtin.uri:
         url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/status/start"
@@ -84,6 +112,23 @@
         validate_certs: false
         status_code: 200
       delegate_to: localhost
+
+    # VM is already booting from the ISO for this session.
+    # Change boot order to disk-first so that after Talos installs
+    # and reboots, it boots from disk instead of the ISO again.
+    - name: Set boot order to disk-first (prevent reinstall loop)
+      ansible.builtin.uri:
+        url: "https://{{ proxmox_api_host }}:8006/api2/json/nodes/{{ proxmox_node }}/qemu/{{ vm_id }}/config"
+        method: PUT
+        headers:
+          Authorization: "PVEAPIToken={{ proxmox_user }}!{{ proxmox_token_id }}={{ proxmox_token_secret }}"
+        body_format: form-urlencoded
+        body:
+          boot: "order=scsi0"
+        validate_certs: false
+        status_code: 200
+      delegate_to: localhost
+      when: vm_created is changed
 
     - name: Display VM status
       ansible.builtin.debug:

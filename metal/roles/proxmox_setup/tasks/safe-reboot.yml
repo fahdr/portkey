@@ -20,7 +20,19 @@
 #   rohan:
 #     k8s_vm_nodes: [metal1]
 
-# --- Pre-reboot: drain K8s nodes ---
+# --- Pre-reboot: warn about uncordon, then drain K8s nodes ---
+
+- name: "Recovery reminder — if interrupted, nodes stay cordoned"
+  ansible.builtin.debug:
+    msg: |
+      Draining K8s nodes: {{ k8s_vm_nodes | join(', ') }}
+      Reason: {{ _reboot_reason | default('configuration change') }}
+
+      If this playbook is interrupted after drain but before uncordon, run:
+      {% for node in k8s_vm_nodes %}
+        kubectl uncordon {{ node }}
+      {% endfor %}
+  when: k8s_vm_nodes is defined and k8s_vm_nodes | length > 0
 
 - name: "Drain K8s nodes before reboot ({{ _reboot_reason | default('configuration change') }})"
   ansible.builtin.command:

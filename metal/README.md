@@ -1,12 +1,12 @@
-# Talos Linux Cluster Automation
+# Talos Linux Cluster & Bazzite VM Automation
 
-Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster on Proxmox.
+Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster and Bazzite gaming VMs on Proxmox.
 
 ## Cluster Overview
 
 - **OS**: Talos Linux v1.12.3 (Image Factory with i915-ucode extension)
 - **Kubernetes**: v1.35.0
-- **Nodes**: 3 control plane + worker nodes
+- **Nodes**: 3 control plane + 3 worker nodes
 - **Networking**: Cilium 1.17.4 CNI with kube-proxy replacement
 - **Storage**: Rook Ceph (external cluster), NFS CSI
 - **GPU**: Intel i915 via Talos system extension + intel-device-plugins-operator
@@ -16,21 +16,29 @@ Ansible playbooks for deploying and managing a Talos Linux Kubernetes cluster on
 | Host | IP | Role | Notes |
 |------|-----|------|-------|
 | shire | 192.168.0.2 | Cluster seed, OPNsense, NFS | 8-disk ZFS, NFS/Samba via LXC |
-| rivendell | 192.168.0.202 | K8s worker host | LAN on vmbr0 |
-| isengard | 192.168.0.102 | Ceph MON | |
+| rivendell | 192.168.0.202 | K8s worker host | Intel HD 530 iGPU, LAN on vmbr0 |
+| isengard | 192.168.0.102 | K8s worker host | Intel HD 630 iGPU, LAN on vmbr0 |
 | mirkwood | 192.168.0.8 | K8s CP host (metal0) | AMD Ryzen, LAN on vmbr1 |
 | rohan | 192.168.0.7 | K8s CP host (metal1) | Intel, LAN on vmbr1 |
 | gondor | 192.168.0.6 | K8s CP host (metal2) | Intel, LAN on vmbr1 |
-| erebor | 192.168.0.101 | K8s host | NVIDIA GTX 1660 Ti, LAN on vmbr0 |
+| erebor | 192.168.0.101 | K8s + Bazzite host | NVIDIA GTX 1660 Ti, LAN on vmbr0 |
 
 ### Kubernetes Nodes (Talos VMs)
 
-| Node | IP | VM ID | Proxmox Host | Bridge | Role | CPU | RAM |
-|------|-----|-------|--------------|--------|------|-----|-----|
-| metal0 | 192.168.0.11 | 106 | mirkwood | vmbr1 | Control Plane | 4 | 44GB |
-| metal1 | 192.168.0.12 | 107 | rohan | vmbr1 | Control Plane | 4 | 27GB |
-| metal2 | 192.168.0.13 | 104 | gondor | vmbr1 | Control Plane | 4 | 27GB |
-| metal3 | 192.168.0.14 | 114 | rivendell | vmbr0 | Worker | 4 | 10GB |
+| Node | IP | VM ID | Proxmox Host | Bridge | Role | CPU | RAM | GPU |
+|------|-----|-------|--------------|--------|------|-----|-----|-----|
+| metal0 | 192.168.0.11 | 106 | mirkwood | vmbr1 | Control Plane | 4 | 44GB | — |
+| metal1 | 192.168.0.12 | 107 | rohan | vmbr1 | Control Plane | 4 | 27GB | — |
+| metal2 | 192.168.0.13 | 104 | gondor | vmbr1 | Control Plane | 4 | 27GB | — |
+| metal3 | 192.168.0.14 | 114 | rivendell | vmbr0 | Worker | 4 | 10GB | Intel HD 530 |
+| metal4 | 192.168.0.16 | 116 | isengard | vmbr0 | Worker | 4 | 10GB | Intel HD 630 |
+| metal5 | 192.168.0.17 | 117 | erebor | vmbr0 | Worker | 6 | 5GB | — |
+
+### Other VMs
+
+| VM | IP | VM ID | Proxmox Host | Bridge | Purpose | CPU | RAM | Disk |
+|----|-----|-------|--------------|--------|---------|-----|-----|------|
+| bazzite | 192.168.0.15 | 120 | erebor | vmbr0 | Gaming + AI (GPU passthrough) | 4 | 10GB | 128GB |
 
 > **Note on bridges**: mirkwood/rohan/gondor use `vmbr1` for LAN (vmbr0 = WAN via OPNsense). rivendell/erebor use `vmbr0` for LAN directly. Set `vm_network_bridge` per-node in the inventory.
 
@@ -83,8 +91,11 @@ metal/
   inventories/
     proxmox.yml                 # Proxmox host inventory (physical nodes)
     talos.yml                   # Talos node inventory (K8s VMs)
+    bazzite.yml                 # Bazzite gaming VM inventory
   playbooks/
     proxmox-setup-node.yml      # Setup Proxmox nodes (repos, packages, GPU, cluster join)
+    bazzite-create-vm.yml       # Create Bazzite gaming VM with automated kickstart install
+    bazzite-post-install.yml    # Post-install: Ollama, Open WebUI, Sunshine, Moonlight, GPU
     talos-create-vms.yml        # Create VMs on Proxmox from Talos ISO
     talos-add-node.yml          # Add a node to an existing cluster
     talos-apply-configs.yml     # Apply Talos configs to all nodes
@@ -101,6 +112,19 @@ metal/
         resize-root.yml         # Shrink root LV via initramfs (free space for thin pool)
         safe-reboot.yml         # K8s-aware reboot (drain, reboot, wait, uncordon)
       handlers/main.yml         # Service restart handlers
+    bazzite_vm/
+      defaults/main.yml         # VM specs, ISO URL, kickstart defaults
+      tasks/main.yml            # ISO download, kickstart, OEMDRV, VM create, boot
+      templates/ks.cfg.j2       # Kickstart template (user, network, disk, ostree)
+    bazzite_post_install/
+      defaults/main.yml         # Software versions (Ollama, Open WebUI, flatpaks)
+      tasks/
+        main.yml                # Orchestrator
+        ollama.yml              # Ollama install + systemd
+        open-webui.yml          # Open WebUI podman container + systemd
+        sunshine.yml            # Sunshine flatpak + udev config
+        moonlight.yml           # Moonlight flatpak
+        gpu-passthrough.yml     # Add GPU, clean up install artifacts
     talos_config/
       defaults/main.yml         # Cluster settings (CIDRs, extensions, cert SANs)
       tasks/main.yml            # Config generation + DHCP discovery + apply
@@ -290,6 +314,43 @@ All reboot-triggering tasks (GPU passthrough, root resize) use `safe-reboot.yml`
 4. **Uncordon**: `kubectl uncordon` to allow scheduling again
 5. **Verify**: Print cluster node status
 
+#### Standalone Reboot Playbook
+
+To reboot a node on-demand (e.g., after BIOS changes, kernel updates):
+
+```bash
+# Reboot a single node (drains K8s first, uncordons after)
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml -l rohan
+
+# Reboot with a reason (logged in the reboot message)
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml -l erebor -e "reason='Enable VT-d in BIOS'"
+
+# Reboot ALL nodes one at a time (serial: 1 ensures cluster quorum)
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-reboot-node.yml
+```
+
+#### Recovery: Interrupted Reboot
+
+If the playbook is interrupted after draining but before uncordoning (e.g., Ctrl+C, SSH drop, terminal crash), the K8s nodes will remain **cordoned** — no new pods will be scheduled on them.
+
+Check for cordoned nodes:
+```bash
+kubectl get nodes
+# Look for "SchedulingDisabled" in STATUS column
+```
+
+Uncordon specific nodes:
+```bash
+kubectl uncordon metal1
+```
+
+Uncordon all cordoned nodes at once:
+```bash
+kubectl get nodes -o name | xargs -I{} kubectl uncordon {}
+```
+
+#### Inventory Configuration
+
 This requires `k8s_vm_nodes` in the inventory to map Proxmox hosts to their K8s VMs:
 
 ```yaml
@@ -298,6 +359,8 @@ rohan:
   k8s_vm_nodes: [metal1]     # K8s nodes running on this Proxmox host
 gondor:
   k8s_vm_nodes: [metal2]
+erebor:
+  k8s_vm_nodes: [metal5]
 ```
 
 If `k8s_vm_nodes` is not defined for a host, it reboots normally without drain/uncordon.
@@ -355,51 +418,83 @@ Edit `inventories/talos.yml` and add the node under `talos_workers.hosts`:
 ```yaml
 talos_workers:
   hosts:
-    metal3:
-      ansible_host: 192.168.0.14       # Target static IP
-      proxmox_node: rivendell           # Proxmox host to create VM on
-      proxmox_host: 192.168.0.202      # Proxmox host IP (for API)
-      vm_id: 114                        # Proxmox VM ID
+    metal4:
+      ansible_host: 192.168.0.16       # Target static IP
+      proxmox_node: isengard            # Proxmox host to create VM on
+      proxmox_host: 192.168.0.102      # Proxmox host IP (for API + SSH)
+      vm_id: 116                        # Proxmox VM ID
       cpu: 4
       memory: 10240                     # RAM in MB
       disk_size: 50                     # Disk in GB
       network_interface: ens18          # NIC name inside Talos VM
       vm_network_bridge: vmbr0          # Proxmox bridge (vmbr0 or vmbr1)
+      # Optional: Intel iGPU passthrough (host must have igpu_passthrough configured)
+      igpu_passthrough: true
+      igpu_pci_address: "00:02"
 ```
 
-### Step 2: Create the VM
+Also update `inventories/proxmox.yml` to add `k8s_vm_nodes` to the Proxmox host so safe-reboot logic knows which K8s nodes live there:
+
+```yaml
+isengard:
+  k8s_vm_nodes: [metal4]    # Enables drain/uncordon during Proxmox host reboots
+```
+
+### Step 2: Upload Talos ISO
+
+Ensure the Talos ISO is on the Proxmox node's local storage. Add the node to `proxmox_nodes` in `talos-upload-iso.yml` if not already listed, then:
 
 ```bash
 cd metal
-ansible-playbook -i inventories/talos.yml playbooks/talos-create-vms.yml -l metal3
+ansible-playbook -i inventories/proxmox.yml playbooks/talos-upload-iso.yml
 ```
 
-This creates the VM on Proxmox, attaches the Talos ISO, and starts it. The VM will boot into Talos maintenance mode with a DHCP address.
+### Step 3: Create the VM
 
-### Step 3: Apply Config and Join Cluster
+```bash
+ansible-playbook -i inventories/talos.yml playbooks/talos-create-vms.yml -l metal4
+```
+
+This creates the VM on Proxmox, attaches the Talos ISO, adds iGPU passthrough if configured (`igpu_passthrough: true`), and starts it. The VM boots into Talos maintenance mode with a DHCP address.
+
+> **iGPU passthrough**: The playbook checks the VM config via SSH and adds `hostpci0` if not already set. This requires the Proxmox host to have iGPU passthrough configured (i915 blacklisted, VFIO loaded — done by `proxmox-setup-node.yml`). The PCI device is added before the first boot, so no stop/start cycle is needed.
+
+### Step 4: Apply Config and Join Cluster
 
 Wait ~60 seconds for the VM to boot, then:
 
 ```bash
-ansible-playbook -i inventories/talos.yml playbooks/talos-add-node.yml -l metal3
+ansible-playbook -i inventories/talos.yml playbooks/talos-add-node.yml -l metal4
 ```
 
 This will:
-1. Template all patch files from inventory
-2. Discover the VM's DHCP IP (automatic subnet scan)
-3. Merge patches into the base worker config
-4. Apply the merged config to the DHCP IP
+1. Template all patch files from inventory variables
+2. Discover the VM's DHCP IP (automatic subnet scan, excludes all known Talos nodes)
+3. Merge patches into the base worker config (common + worker + node-specific)
+4. Apply the merged config to the DHCP IP via `talosctl apply-config --insecure`
 5. Wait for the node to reboot with its static IP
-6. Verify the node joined the Kubernetes cluster
+6. Verify the node joined the Kubernetes cluster as Ready
 
-### Step 4: Verify
+### Step 5: Verify
 
 ```bash
 kubectl get nodes -o wide
-# metal3 should appear as Ready within ~60 seconds
+# metal4 should appear as Ready within ~2 minutes
 ```
 
 > **Kubelet serving certificates**: New nodes need their kubelet serving cert CSRs approved for metrics-server and Prometheus to scrape them. The `kubelet-csr-approver` controller (deployed via `system/kubelet-csr-approver/`) handles this automatically. If it's not yet deployed, approve manually: `kubectl certificate approve $(kubectl get csr -o name)`
+
+### Adding Multiple Nodes at Once
+
+Multiple workers can be added in one command — the playbook processes nodes one at a time (`serial: 1`) to avoid DHCP discovery collisions:
+
+```bash
+# Create VMs
+ansible-playbook -i inventories/talos.yml playbooks/talos-create-vms.yml -l metal4,metal5
+
+# Wait ~60s for boot, then join
+ansible-playbook -i inventories/talos.yml playbooks/talos-add-node.yml -l metal4,metal5
+```
 
 ## Complete Deployment Workflow (Fresh Cluster)
 
@@ -463,6 +558,131 @@ make          # metal + bootstrap + external
 make post-install  # Kanidm OAuth setup (needs running pods)
 ```
 
+## Bazzite Gaming VM
+
+Bazzite is a Fedora Atomic (rpm-ostree) gaming distro deployed on erebor with NVIDIA GTX 1660 Ti GPU passthrough. The VM runs Ollama + Open WebUI for AI inference and Sunshine + Moonlight for game streaming.
+
+### Architecture
+
+The deployment uses a **two-stage install** because direct Bazzite ISO kickstart is broken ([ublue-os/bazzite#3418](https://github.com/ublue-os/bazzite/issues/3418) — missing SELinux labels cause Anaconda D-Bus crashes):
+
+1. **Phase 1** (`bazzite-create-vm.yml`): Kickstart installs **Fedora Kinoite** as a base OS (proven kickstart support, proper SELinux labels). Downloads the Kinoite ISO (~3.5 GB), generates kickstart + OEMDRV, creates VM, boots installer.
+2. **Phase 2** (`bazzite-post-install.yml`): Rebases from Kinoite to **Bazzite NVIDIA Open** via `rpm-ostree rebase`, reboots, then installs Ollama, Open WebUI, Sunshine, Moonlight, and adds GPU passthrough.
+
+After Phase 2, the VM must be **stopped and started** (not rebooted) for PCIe passthrough to take effect. After restart, the GPU becomes the primary display — Proxmox VNC console no longer works, use SSH or Sunshine instead.
+
+### Automated Kickstart Install
+
+The Fedora Kinoite base install is automated using:
+
+- **Kickstart file** (`ks.cfg.j2`): Configures language, keyboard, timezone, static networking, user account, disk partitioning, and `ostreesetup` for Fedora Kinoite deployment
+- **OEMDRV ISO**: Anaconda auto-detects kickstart files on volumes labeled `OEMDRV`. The playbook creates a small ISO containing `ks.cfg` and attaches it as a SATA CDROM
+
+### Software Stack
+
+| Software | Install Method | Service | Port | Notes |
+|----------|---------------|---------|------|-------|
+| Ollama | Official install script (`curl \| sh`) | `ollama.service` (systemd) | 11434 | Auto-detects NVIDIA GPU after passthrough |
+| Open WebUI | Podman container (`ghcr.io/open-webui/open-webui:main`) | `container-open-webui.service` (systemd) | 3000 | Connects to Ollama at `127.0.0.1:11434` |
+| Sunshine | Flatpak (`dev.lizardbyte.app.Sunshine`) | Flatpak app | 47990 (web UI) | udev rule for uinput access, flatpak overrides for GPU |
+| Moonlight | Flatpak (`com.moonlight_stream.Moonlight`) | Flatpak app | — | Game streaming client (connects to another Sunshine host) |
+
+### Creating a Bazzite VM from Scratch
+
+#### Prerequisites
+
+1. Proxmox node set up with GPU passthrough configured (see [GPU Passthrough](#gpu-passthrough))
+2. `.env` file with Proxmox API credentials
+3. SSH access to the Proxmox node (for ISO download via wget)
+
+#### Step 1: Add to Inventory
+
+Edit `inventories/bazzite.yml` (or create it from the existing one):
+
+```yaml
+bazzite_vms:
+  hosts:
+    bazzite-erebor:
+      ansible_host: 192.168.0.15
+      ansible_user: bazzite
+      ansible_become: true
+      proxmox_node: erebor
+      proxmox_host: 192.168.0.101
+      vm_id: 120
+      vm_name: bazzite
+      cpu: 4
+      memory: 10240
+      disk_size: 128
+      vm_storage: local-lvm
+      vm_network_bridge: vmbr0
+      gpu_pci_address: "01:00"
+      gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"
+```
+
+> **Finding GPU PCI address and IDs**: SSH into the Proxmox host and run `lspci -nn | grep -i nvidia`. The PCI address is the first field (e.g., `01:00.0`), use just the bus:device part (`01:00`). The IDs are in brackets (e.g., `[10de:2182]`), collect all functions.
+
+#### Step 2: Create the VM (Phase 1)
+
+```bash
+cd metal
+ansible-playbook -i inventories/bazzite.yml playbooks/bazzite-create-vm.yml
+```
+
+This will:
+1. Download the Fedora Kinoite ISO to the Proxmox node (~3.5 GB)
+2. Remove any old Bazzite ISO (no longer needed)
+3. Generate a kickstart file and OEMDRV ISO
+4. Create the VM (UEFI/q35/VGA) and attach both ISOs
+5. Start the VM — Anaconda auto-detects OEMDRV kickstart
+6. Wait for SSH to come up (up to 20 minutes)
+
+The playbook finishes when the Kinoite install completes and SSH is available.
+
+The combined playbook continues automatically into Phase 2:
+
+1. Verify SSH connectivity
+2. Wait for rpm-ostree to be idle
+3. **Rebase to Bazzite NVIDIA Open** (`rpm-ostree rebase`) and reboot
+4. Install Sunshine and Moonlight via Flatpak
+5. Add GPU passthrough to VM config (removes install artifacts, adds `hostpci0`)
+6. **Stop + start** the VM to activate PCIe passthrough
+7. Install Ollama (podman container with NVIDIA GPU) and verify API
+8. Deploy Open WebUI as a Podman container with systemd unit
+9. Print a summary with service URLs
+
+#### Step 3: Verify
+
+```bash
+# Check GPU is visible inside the VM
+ssh bazzite@192.168.0.15 nvidia-smi
+
+# Check Ollama (will now use GPU)
+curl http://192.168.0.15:11434/api/tags
+
+# Access Open WebUI
+# Browser: http://192.168.0.15:3000
+
+# Access Sunshine web UI (first-run setup)
+# Browser: https://192.168.0.15:47990
+```
+
+### Recreating the VM
+
+If erebor is rebuilt or the VM needs to be recreated from scratch:
+
+```bash
+cd metal
+
+# 1. Setup Proxmox node (if rebuilt)
+ansible-playbook -i inventories/proxmox.yml playbooks/proxmox-setup-node.yml \
+  -l erebor --ask-vault-pass
+
+# 2. Create VM + full deployment (destroy existing, then install everything)
+ansible-playbook -i inventories/bazzite.yml playbooks/bazzite-create-vm.yml -e recreate=true
+```
+
+The single command handles everything: kickstart install, rebase to Bazzite, software install, GPU passthrough, and stop+start.
+
 ## Common Operations
 
 ### Access the Cluster
@@ -519,6 +739,7 @@ talosctl reboot --nodes 192.168.0.12
 | Playbook | Inventory | Purpose | Usage |
 |----------|-----------|---------|-------|
 | `proxmox-setup-node.yml` | `proxmox.yml` | Setup Proxmox node (repos, packages, GPU, resize, cluster join). Runs `serial: 1`. | `-l <node> --ask-vault-pass` |
+| `proxmox-reboot-node.yml` | `proxmox.yml` | Safely reboot a node (drain K8s, reboot, uncordon). Runs `serial: 1`. | `-l <node>` required |
 | `talos-create-vms.yml` | `talos.yml` | Create VMs on Proxmox from Talos ISO | `-l <node>` to target specific nodes |
 | `talos-add-node.yml` | `talos.yml` | Add node to existing cluster (discover IP, apply config, verify) | `-l <node>` required |
 | `talos-apply-configs.yml` | `talos.yml` | Apply machine configs (for fresh deploy, all nodes) | Optional `-l <node>` |
@@ -531,6 +752,8 @@ talosctl reboot --nodes 192.168.0.12
 | `talos-deploy-ingress.yml` | `talos.yml` | Deploy NGINX Ingress Controller | |
 | `talos-upgrade.yml` | `talos.yml` | Rolling upgrade of all nodes (one at a time) | |
 | `talos-upload-iso.yml` | `talos.yml` | Upload Talos ISO to Proxmox nodes | |
+| `bazzite-create-vm.yml` | `bazzite.yml` | Full Bazzite deployment (Kinoite kickstart + rebase + software + GPU). Use `-e recreate=true` to destroy existing. | |
+| `bazzite-post-install.yml` | `bazzite.yml` | Post-install only (rebase, software, GPU). Normally called by bazzite-create-vm. | |
 
 ## Inventory Variables Reference
 
@@ -583,6 +806,8 @@ talosctl reboot --nodes 192.168.0.12
 | `network_interface` | NIC name in Talos (ens18, eth0) | Yes |
 | `vm_network_bridge` | Proxmox bridge name | No (default: vmbr1) |
 | `talos_vip_enabled` | Assign VIP to this node | No (default: false) |
+| `igpu_passthrough` | Add Intel iGPU passthrough to VM | No (default: false) |
+| `igpu_pci_address` | PCI address of Intel iGPU | No (default: `00:02`) |
 
 ### Role Defaults (`talos_config/defaults/main.yml`)
 
@@ -594,6 +819,43 @@ talosctl reboot --nodes 192.168.0.12
 | `cert_sans` | API server certificate SANs |
 | `talos_image_factory_schematic` | Image Factory schematic ID for extensions |
 | `kernel_modules` | Kernel modules to load (i915) |
+
+### Bazzite Inventory (`inventories/bazzite.yml`)
+
+#### Global Variables (`all.vars`)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `proxmox_api_host` | Proxmox API endpoint IP | From `PROXMOX_HOST` env var |
+| `proxmox_user` | Proxmox API user | From `PROXMOX_USER` env var |
+| `proxmox_token_id` | Proxmox API token ID | From `PROXMOX_TOKEN_ID` env var |
+| `proxmox_token_secret` | Proxmox API token secret | From `PROXMOX_TOKEN_SECRET` env var |
+
+#### Per-Host Variables (`bazzite_vms.hosts`)
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `ansible_host` | VM static IP address | Yes | — |
+| `ansible_user` | SSH user for the VM | No | `bazzite` |
+| `proxmox_node` | Proxmox host name | Yes | — |
+| `proxmox_host` | Proxmox host IP | Yes | — |
+| `vm_id` | Proxmox VM ID | Yes | — |
+| `vm_name` | VM name in Proxmox | No | inventory hostname |
+| `cpu` | Number of CPU cores | No | `4` |
+| `memory` | RAM in MB | No | `10240` |
+| `disk_size` | Disk size in GB | No | `128` |
+| `vm_storage` | Proxmox storage for disk | No | `local-lvm` |
+| `vm_network_bridge` | Proxmox bridge name | No | `vmbr0` |
+| `gpu_pci_address` | GPU PCI address (e.g., `01:00`) | Yes | — |
+| `gpu_passthrough_ids` | GPU PCI device IDs for VFIO | Yes | — |
+| `bazzite_password` | User password for kickstart | No | `bazzite` |
+| `bazzite_netmask` | Network mask | No | `255.255.255.0` |
+| `bazzite_gateway` | Default gateway | No | `192.168.0.1` |
+| `bazzite_dns` | DNS servers (comma-separated) | No | `192.168.0.1,8.8.8.8` |
+| `base_iso` | Fedora Kinoite ISO filename | No | `Fedora-Kinoite-ostree-x86_64-42-1.1.iso` |
+| `base_iso_url` | Kinoite ISO download URL | No | Fedora mirror URL |
+| `bazzite_image` | Bazzite container image for rebase | No | `ostree-unverified-registry:ghcr.io/ublue-os/bazzite-nvidia-open:stable` |
+| `iso_storage` | Proxmox storage for ISOs | No | `local` |
 
 ## Troubleshooting
 
@@ -676,6 +938,64 @@ talosctl machineconfig patch /tmp/worker-single.yaml \
 talosctl apply-config --insecure --nodes <DHCP-IP> --file /tmp/metal3-config.yaml
 ```
 
+### Bazzite kickstart install hangs or fails
+
+If the Kinoite kickstart install doesn't complete (VM doesn't power off):
+
+1. Check the Proxmox VNC console (Proxmox UI > erebor > VM 120 > Console)
+2. Common issues:
+   - **"No OEMDRV found"**: The OEMDRV ISO wasn't attached. Check `qm config 120` for `sata1`
+   - **Reinstall loop**: Boot order still has ISO first. Check `qm config 120` for `boot:` — should be `order=scsi0` after first start
+   - **Network timeout**: Verify the static IP and gateway are correct in the inventory
+3. Destroy and retry: `ansible-playbook -i inventories/bazzite.yml playbooks/bazzite-create-vm.yml -e recreate=true`
+
+### Bazzite VM no display after GPU passthrough
+
+After GPU passthrough is enabled (`vga: none`), the Proxmox VNC console shows a blank screen. This is expected. Access the VM via:
+
+```bash
+# SSH
+ssh bazzite@192.168.0.15
+
+# Sunshine web UI (after first-run setup)
+# Browser: https://192.168.0.15:47990
+```
+
+### Ollama not using GPU
+
+If `nvidia-smi` works but Ollama doesn't use the GPU:
+
+```bash
+ssh bazzite@192.168.0.15
+
+# Check Ollama sees the GPU
+curl http://localhost:11434/api/tags
+ollama run llama3 --verbose  # Check for GPU info in output
+
+# Restart Ollama to re-detect
+sudo systemctl restart ollama
+```
+
+Ollama auto-detects NVIDIA GPUs on startup. If the GPU was added after Ollama was installed (before the stop+start cycle), a restart is needed.
+
+### Open WebUI not connecting to Ollama
+
+Open WebUI runs with `--network host` and connects to `http://127.0.0.1:11434`. If it can't reach Ollama:
+
+```bash
+ssh bazzite@192.168.0.15
+
+# Check both services are running
+sudo systemctl status ollama
+sudo systemctl status container-open-webui
+
+# Check Ollama is listening
+curl http://127.0.0.1:11434/api/tags
+
+# Restart Open WebUI
+sudo systemctl restart container-open-webui
+```
+
 ## System Extensions (Image Factory)
 
 Talos uses an immutable root filesystem. Kernel modules like i915 (Intel GPU) are added via [Talos Image Factory](https://factory.talos.dev).
@@ -711,5 +1031,5 @@ talosctl -n 192.168.0.11 ls /dev/dri/
 
 ---
 
-**Last Updated**: 2026-02-10
-**Status**: 7-node Proxmox cluster, 4-node K8s cluster (3 CP + 1 worker) running Talos v1.12.3 / K8s v1.35.0
+**Last Updated**: 2026-02-11
+**Status**: 7-node Proxmox cluster, 6-node K8s cluster (3 CP + 3 workers) running Talos v1.12.3 / K8s v1.35.0, Bazzite gaming VM on erebor

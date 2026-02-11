@@ -17,6 +17,8 @@
       - rohan
       - gondor
       - rivendell
+      - isengard
+      - erebor
 
   tasks:
     - name: Create download directory

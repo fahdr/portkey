@@ -1,0 +1,48 @@
+---
+# Bazzite VM defaults
+#
+# Two-stage install: Fedora Kinoite kickstart → rebase to Bazzite NVIDIA.
+# Direct Bazzite ISO kickstart is broken (missing SELinux labels, Anaconda D-Bus errors).
+
+vm_id: "{{ hostvars[inventory_hostname].vm_id }}"
+vm_name: "{{ hostvars[inventory_hostname].vm_name | default(inventory_hostname) }}"
+vm_cpu_cores: "{{ hostvars[inventory_hostname].cpu | default(4) }}"
+vm_memory: "{{ hostvars[inventory_hostname].memory | default(10240) }}"
+vm_disk_size: "{{ hostvars[inventory_hostname].disk_size | default(128) }}"
+vm_storage: "{{ hostvars[inventory_hostname].vm_storage | default('local-lvm') }}"
+vm_network_bridge: "{{ hostvars[inventory_hostname].vm_network_bridge | default('vmbr0') }}"
+
+# Fedora Kinoite ISO (stage 1 — base install)
+base_iso: "{{ hostvars[inventory_hostname].base_iso | default('Fedora-Kinoite-ostree-x86_64-42-1.1.iso') }}"
+base_iso_url: "{{ hostvars[inventory_hostname].base_iso_url | default('https://dl.fedoraproject.org/pub/fedora/linux/releases/42/Kinoite/x86_64/iso/Fedora-Kinoite-ostree-x86_64-42-1.1.iso') }}"
+iso_storage: "{{ hostvars[inventory_hostname].iso_storage | default('local') }}"
+
+# Bazzite rebase target (stage 2 — post-install)
+bazzite_image: "{{ hostvars[inventory_hostname].bazzite_image | default('ostree-unverified-registry:ghcr.io/ublue-os/bazzite-nvidia-open:stable') }}"
+
+# q35 machine type required for PCIe passthrough
+vm_machine_type: q35
+
+# OVMF/UEFI required for GPU passthrough
+vm_bios: ovmf
+
+# CPU type: host for full feature passthrough
+vm_cpu_type: host
+vm_ostype: l26
+
+# Kickstart config
+bazzite_user: "{{ hostvars[inventory_hostname].ansible_user | default('bazzite') }}"
+bazzite_password: "{{ hostvars[inventory_hostname].bazzite_password | default('bazzite') }}"
+bazzite_ip: "{{ hostvars[inventory_hostname].ansible_host }}"
+bazzite_netmask: "{{ hostvars[inventory_hostname].bazzite_netmask | default('255.255.255.0') }}"
+bazzite_gateway: "{{ hostvars[inventory_hostname].bazzite_gateway | default('192.168.0.1') }}"
+bazzite_dns: "{{ hostvars[inventory_hostname].bazzite_dns | default('192.168.0.1,8.8.8.8') }}"
+bazzite_ssh_pubkey: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+
+# Proxmox node
+proxmox_node: "{{ hostvars[inventory_hostname].proxmox_node }}"
+proxmox_host: "{{ hostvars[inventory_hostname].proxmox_host }}"
+
+# Paths on the Proxmox host
+iso_dir: /var/lib/vz/template/iso
+snippets_dir: /var/lib/vz/snippets

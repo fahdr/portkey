@@ -23,7 +23,8 @@ proxmox:
           proxmox_create_vmbr1: false
         isengard:
           ansible_host: 192.168.0.102
-          # Intel HD 630 (Kaby Lake) iGPU — for future K8s VM passthrough
+          k8s_vm_nodes: [metal4]
+          # Intel HD 630 (Kaby Lake) iGPU — passed through to K8s VM
           igpu_passthrough: true
           igpu_pci_address: "00:02"
           # vmbr0 is LAN on this node (no vmbr1 needed)
@@ -31,6 +32,8 @@ proxmox:
         mirkwood:
           ansible_host: 192.168.0.8
           k8s_vm_nodes: [metal0]
+          # vmbr1 already configured manually (internal bridge, no physical port)
+          proxmox_create_vmbr1: false
         rohan:
           ansible_host: 192.168.0.7
           k8s_vm_nodes: [metal1]
@@ -52,6 +55,7 @@ proxmox:
       hosts:
         erebor:
           ansible_host: 192.168.0.101
+          k8s_vm_nodes: [metal5]
           # Set false to skip cluster join (if already joined)
           proxmox_join_cluster: true
           # eno2 already bridged as vmbr0 (LAN) — same as rivendell

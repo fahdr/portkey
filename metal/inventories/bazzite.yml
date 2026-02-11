@@ -1,0 +1,37 @@
+---
+all:
+  vars:
+    proxmox_api_host: "{{ lookup('env', 'PROXMOX_HOST') | default('192.168.0.2') }}"
+    proxmox_user: "{{ lookup('env', 'PROXMOX_USER') | default('root@pam') }}"
+    proxmox_token_id: "{{ lookup('env', 'PROXMOX_TOKEN_ID') | default('') }}"
+    proxmox_token_secret: "{{ lookup('env', 'PROXMOX_TOKEN_SECRET') | default('') }}"
+
+bazzite_vms:
+  hosts:
+    bazzite-erebor:
+      # SSH connection
+      ansible_host: 192.168.0.15
+      ansible_user: bazzite
+      ansible_become: true
+
+      # Proxmox node
+      proxmox_node: erebor
+      proxmox_host: 192.168.0.101
+
+      # VM specs
+      vm_id: 120
+      vm_name: bazzite
+      cpu: 4
+      memory: 10240  # 10GB — leaves 4GB for K8s worker + Proxmox
+      disk_size: 128  # GB
+      vm_storage: local-lvm
+      vm_network_bridge: vmbr0  # erebor uses vmbr0 for LAN
+
+      # NVIDIA GTX 1660 Ti passthrough (matches proxmox.yml erebor config)
+      gpu_pci_address: "01:00"
+      gpu_passthrough_ids: "10de:2182,10de:1aeb,10de:1aec,10de:1aed"
+
+      # Fedora Kinoite ISO (base install, then rebase to Bazzite)
+      base_iso: "Fedora-Kinoite-ostree-x86_64-42-1.1.iso"
+      base_iso_url: "https://dl.fedoraproject.org/pub/fedora/linux/releases/42/Kinoite/x86_64/iso/Fedora-Kinoite-ostree-x86_64-42-1.1.iso"
+      iso_storage: local

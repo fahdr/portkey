@@ -63,3 +63,31 @@ talos:
           disk_size: 50
           network_interface: ens18
           vm_network_bridge: vmbr0  # rivendell uses vmbr0 for LAN (no vmbr1)
+          # Intel HD 530 (Skylake) iGPU passthrough from rivendell
+          igpu_passthrough: true
+          igpu_pci_address: "00:02"
+
+        metal4:
+          ansible_host: 192.168.0.16
+          proxmox_node: isengard
+          proxmox_host: 192.168.0.102  # isengard IP
+          vm_id: 116
+          cpu: 4
+          memory: 10240  # 10GB in MB
+          disk_size: 50
+          network_interface: ens18
+          vm_network_bridge: vmbr0  # isengard uses vmbr0 for LAN (no vmbr1)
+          # Intel HD 630 (Kaby Lake) iGPU passthrough from isengard
+          igpu_passthrough: true
+          igpu_pci_address: "00:02"
+
+        metal5:
+          ansible_host: 192.168.0.17
+          proxmox_node: erebor
+          proxmox_host: 192.168.0.101  # erebor IP
+          vm_id: 117
+          cpu: 6
+          memory: 5120  # 5GB in MB
+          disk_size: 50
+          network_interface: ens18
+          vm_network_bridge: vmbr0  # erebor uses vmbr0 for LAN (no vmbr1)

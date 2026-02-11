@@ -1,0 +1,12 @@
+---
+# Install Moonlight game streaming client via Flatpak.
+
+- name: Check if Moonlight is already installed
+  ansible.builtin.command: flatpak info {{ moonlight_flatpak_id }}
+  register: moonlight_check
+  failed_when: false
+  changed_when: false
+
+- name: Install Moonlight via Flatpak
+  ansible.builtin.command: flatpak install -y flathub {{ moonlight_flatpak_id }}
+  when: moonlight_check.rc != 0

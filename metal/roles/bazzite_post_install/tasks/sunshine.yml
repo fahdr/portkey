@@ -1,0 +1,37 @@
+---
+# Install Sunshine game streaming host via Flatpak.
+# Bazzite has Flathub pre-configured.
+
+- name: Check if Sunshine is already installed
+  ansible.builtin.command: flatpak info {{ sunshine_flatpak_id }}
+  register: sunshine_check
+  failed_when: false
+  changed_when: false
+
+- name: Install Sunshine via Flatpak
+  ansible.builtin.command: flatpak install -y flathub {{ sunshine_flatpak_id }}
+  when: sunshine_check.rc != 0
+
+# Sunshine needs uinput access for remote input
+- name: Configure uinput access for Sunshine
+  ansible.builtin.copy:
+    content: |
+      KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"
+    dest: /etc/udev/rules.d/60-sunshine.rules
+    mode: "0644"
+  register: udev_sunshine
+
+- name: Reload udev rules
+  ansible.builtin.command: udevadm control --reload-rules
+  when: udev_sunshine is changed
+
+- name: Trigger udev
+  ansible.builtin.command: udevadm trigger
+  when: udev_sunshine is changed
+
+# Grant Sunshine GPU and input device access
+- name: Set Flatpak overrides for Sunshine
+  ansible.builtin.command: >
+    flatpak override --device=all --socket=session-bus
+    {{ sunshine_flatpak_id }}
+  changed_when: false

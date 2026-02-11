@@ -14,7 +14,7 @@
       kubernetes.core.k8s_info:
         kind: Node
         name: "{{ inventory_hostname }}"
-        kubeconfig: "{{ playbook_dir }}/../kubeconfig-talos.yaml"
+        kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
       delegate_to: localhost
       register: node_status
       retries: 30
@@ -65,7 +65,7 @@
     - name: Get all cluster nodes
       kubernetes.core.k8s_info:
         kind: Node
-        kubeconfig: "{{ playbook_dir }}/../kubeconfig-talos.yaml"
+        kubeconfig: "{{ playbook_dir }}/../kubeconfig.yaml"
       register: all_nodes
 
     - name: Display cluster summary

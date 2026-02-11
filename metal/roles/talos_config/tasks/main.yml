@@ -142,7 +142,7 @@
   ansible.builtin.command:
     cmd: >-
       python3 /tmp/talos_discover_ip.py
-      {{ (groups['talos_masters'] | map('extract', hostvars, 'ansible_host') | list + [ansible_host, control_plane_endpoint]) | join(',') }}
+      {{ (groups['talos'] | map('extract', hostvars, 'ansible_host') | list + [control_plane_endpoint]) | join(',') }}
   delegate_to: localhost
   register: dhcp_scan
   changed_when: false
@@ -168,7 +168,7 @@
     msg: >-
       Could not discover DHCP IP for {{ inventory_hostname }}.
       Ensure the VM is booted and has a DHCP address.
-      Known Talos hosts were excluded: {{ groups['talos_masters'] | map('extract', hostvars, 'ansible_host') | list }}
+      Known Talos hosts were excluded: {{ groups['talos'] | map('extract', hostvars, 'ansible_host') | list }}
   when: apply_ip == 'NOTFOUND'
 
 # --- Apply Configuration ---
@@ -192,7 +192,20 @@
       --output /tmp/{{ inventory_hostname }}-config.yaml
   delegate_to: localhost
 
-- name: Apply Talos configuration to node
+- name: Apply Talos configuration to node (existing)
+  ansible.builtin.command:
+    cmd: >
+      talosctl apply-config
+      --talosconfig {{ talos_config_dir }}/talosconfig
+      --nodes {{ apply_ip }}
+      --file /tmp/{{ inventory_hostname }}-config.yaml
+  delegate_to: localhost
+  register: apply_result
+  changed_when: "'applied' in apply_result.stdout or apply_result.rc == 0"
+  failed_when: apply_result.rc != 0
+  when: apply_ip == ansible_host
+
+- name: Apply Talos configuration to node (fresh/insecure)
   ansible.builtin.command:
     cmd: >
       talosctl apply-config --insecure
@@ -201,7 +214,8 @@
   delegate_to: localhost
   register: apply_result
   changed_when: "'applied' in apply_result.stdout or apply_result.rc == 0"
-  failed_when: apply_result.rc != 0 and 'already applied' not in apply_result.stderr
+  failed_when: apply_result.rc != 0
+  when: apply_ip != ansible_host
 
 - name: Display configuration status
   ansible.builtin.debug:
