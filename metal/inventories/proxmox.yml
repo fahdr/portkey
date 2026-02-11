@@ -16,7 +16,18 @@ proxmox:
         rivendell:
           ansible_host: 192.168.0.202
           k8s_vm_nodes: [metal3]
-        isengard: {ansible_host: 192.168.0.102}
+          # Intel HD 530 (Skylake) iGPU — passed through to K8s VM
+          igpu_passthrough: true
+          igpu_pci_address: "00:02"
+          # vmbr0 is LAN on this node (no vmbr1 needed)
+          proxmox_create_vmbr1: false
+        isengard:
+          ansible_host: 192.168.0.102
+          # Intel HD 630 (Kaby Lake) iGPU — for future K8s VM passthrough
+          igpu_passthrough: true
+          igpu_pci_address: "00:02"
+          # vmbr0 is LAN on this node (no vmbr1 needed)
+          proxmox_create_vmbr1: false
         mirkwood:
           ansible_host: 192.168.0.8
           k8s_vm_nodes: [metal0]
