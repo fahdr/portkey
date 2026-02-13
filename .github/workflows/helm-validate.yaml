@@ -11,7 +11,7 @@ on:
 
 jobs:
   detect-changes:
-    runs-on: scale-set
+    runs-on: k8s-runners
     outputs:
       charts: ${{ steps.find-charts.outputs.charts }}
     steps:
@@ -41,7 +41,7 @@ jobs:
   validate:
     needs: detect-changes
     if: needs.detect-changes.outputs.charts != '[]'
-    runs-on: scale-set
+    runs-on: k8s-runners
     strategy:
       fail-fast: false
       matrix:
