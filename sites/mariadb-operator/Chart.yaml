@@ -8,4 +8,4 @@ dependencies:
     version: 0.38.1
   - name: mariadb-operator
     repository: https://helm.mariadb.com/mariadb-operator
-    version: 0.38.1
+    version: 25.10.4
