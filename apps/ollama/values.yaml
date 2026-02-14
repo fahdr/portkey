@@ -5,7 +5,7 @@ app-template:
         main:
           image:
             repository: docker.io/ollama/ollama
-            tag: 0.15.6
+            tag: 0.16.1
           resources:
             requests:
               cpu: 100m
@@ -20,7 +20,7 @@ app-template:
         main:
           image:
             repository: ghcr.io/open-webui/open-webui
-            tag: v0.7.2
+            tag: v0.8.1
           env:
             OLLAMA_BASE_URL: http://ollama:11434
           resources:
