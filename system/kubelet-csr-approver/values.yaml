@@ -8,6 +8,7 @@ kubelet-csr-approver:
   providerRegex: "^(metal\\d+|talos-[a-z0-9]+-[a-z0-9]+)$"
 
   bypassHostnameCheck: true
+  bypassDnsResolution: true
 
   replicas: 1
   leaderElection: false
